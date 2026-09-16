@@ -1,0 +1,222 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #121318;
+  --color-surface-container-lowest: #0d0e13;
+  --color-surface-container-low: #1a1b21;
+  --color-surface-container: #1e1f25;
+  --color-surface-container-high: #292a2f;
+  --color-surface-container-highest: #34343a;
+  --color-surface-dim: #121318;
+  --color-surface-bright: #38393f;
+  --color-surface-variant: #34343a;
+
+  --color-primary: #f2ca50;
+  --color-primary-container: #d4af37;
+  --color-on-primary: #3c2f00;
+  --color-on-primary-container: #554300;
+  --color-primary-fixed: #ffe088;
+  --color-primary-fixed-dim: #e9c349;
+  --color-on-primary-fixed: #241a00;
+  --color-on-primary-fixed-variant: #574500;
+
+  --color-secondary: #fff9ef;
+  --color-secondary-container: #ffdb3c;
+  --color-on-secondary: #3a3000;
+  --color-on-secondary-container: #725f00;
+  --color-secondary-fixed: #ffe16d;
+  --color-secondary-fixed-dim: #e9c400;
+
+  --color-tertiary: #ffc37b;
+  --color-tertiary-container: #f7a00f;
+  --color-on-tertiary: #472a00;
+  --color-tertiary-fixed: #ffddb8;
+  --color-tertiary-fixed-dim: #ffb95f;
+
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+  --color-on-error: #690005;
+  --color-on-error-container: #ffdad6;
+
+  --color-on-surface: #e3e1e9;
+  --color-on-surface-variant: #d0c5af;
+  --color-outline: #99907c;
+  --color-outline-variant: #4d4635;
+
+  --font-headline: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --spacing-space-2xs: 0.125rem;
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 0.75rem;
+  --spacing-space-base: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2rem;
+  --spacing-space-2xl: 3rem;
+  --spacing-space-3xl: 4rem;
+  --spacing-gutter-mobile: 0.75rem;
+  --spacing-gutter-desktop: 1.25rem;
+  --spacing-cockpit-margin: 1.5rem;
+}
+
+@layer utilities {
+  .font-label-caps {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 11px;
+    line-height: 14px;
+    letter-spacing: 0.18em;
+    font-weight: 700;
+  }
+  .font-telemetry-metric {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 26px;
+    line-height: 30px;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+  }
+  .font-telemetry-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    line-height: 14px;
+    letter-spacing: 0.15em;
+    font-weight: 600;
+  }
+  .font-headline-sm {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 18px;
+    line-height: 24px;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .font-headline-md {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 22px;
+    line-height: 28px;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  .font-headline-lg {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 32px;
+    line-height: 40px;
+    letter-spacing: 0.02em;
+    font-weight: 700;
+  }
+  .font-body-sm {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 400;
+  }
+  .font-body-md {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+  }
+  .font-body-lg {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+html, body {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #0d0e13;
+  color: #e3e1e9;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* CSS PRINT-ONLY LAYOUT FOR DAILY DVIR & HOS INSPECTION REPORTS */
+@media print {
+  /* Hide all app chrome, headers, navigation bars, and buttons during physical print export */
+  header,
+  nav,
+  .no-print,
+  button:not(.print-keep),
+  .toast-container {
+    display: none !important;
+  }
+
+  body,
+  html {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 11pt !important;
+  }
+
+  /* Make printable report element take full page */
+  .printable-report,
+  #dvir-print-area {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .printable-report * {
+    color: #000000 !important;
+    border-color: #333333 !important;
+    background: transparent !important;
+  }
+
+  /* Force table borders in print */
+  .printable-report table,
+  .printable-report th,
+  .printable-report td {
+    border: 1px solid #000000 !important;
+    border-collapse: collapse !important;
+    padding: 4px 6px !important;
+  }
+
+  .printable-report h1,
+  .printable-report h2,
+  .printable-report h3 {
+    color: #000000 !important;
+  }
+
+  @page {
+    size: letter portrait;
+    margin: 0.5in;
+  }
+}
+
+@keyframes dashFlow {
+  from {
+    stroke-dashoffset: 40;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+

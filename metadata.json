@@ -1,0 +1,10 @@
+{
+  "name": "TruckWithEase Enterprise Suite & Driver In-Cab Night HUD",
+  "description": "Unified commercial trucking platform combining in-cab driver night HUD, FMCSA compliance, predictive dock dispatch, and enterprise fleet integrations.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
