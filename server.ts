@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
+import { fetchRegionalWeatherHazards } from './server/weatherHazards';
 
 interface MemorySnapshot {
   id: string;
@@ -440,6 +441,45 @@ async function startServer() {
       memoryUsage: process.memoryUsage(),
       timestamp: new Date().toISOString(),
     });
+  });
+
+  // 10. Regional Weather Hazards Feed (Gemini Search Grounded)
+  app.post('/api/weather/regional-hazards', async (req, res) => {
+    try {
+      const {
+        location = 'Rolla / St. James, MO',
+        corridor = 'I-44 Eastbound (MM 184.2)',
+        lat = 37.95,
+        lon = -91.77,
+      } = req.body || {};
+
+      const report = await fetchRegionalWeatherHazards(location, corridor, Number(lat), Number(lon));
+      res.json(report);
+    } catch (err) {
+      console.error('Failed to fetch regional weather hazards:', err);
+      res.status(500).json({
+        error: 'Failed to retrieve grounded weather hazards',
+        details: (err as Error).message,
+      });
+    }
+  });
+
+  app.get('/api/weather/regional-hazards', async (req, res) => {
+    try {
+      const location = (req.query.location as string) || 'Rolla / St. James, MO';
+      const corridor = (req.query.corridor as string) || 'I-44 Eastbound (MM 184.2)';
+      const lat = Number(req.query.lat) || 37.95;
+      const lon = Number(req.query.lon) || -91.77;
+
+      const report = await fetchRegionalWeatherHazards(location, corridor, lat, lon);
+      res.json(report);
+    } catch (err) {
+      console.error('Failed to fetch regional weather hazards:', err);
+      res.status(500).json({
+        error: 'Failed to retrieve grounded weather hazards',
+        details: (err as Error).message,
+      });
+    }
   });
 
   // ==========================================

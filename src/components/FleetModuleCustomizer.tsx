@@ -17,6 +17,7 @@ const ALL_MODULES: { id: TabId; name: string; desc: string; category: string; ic
   { id: 'fleet-expenses', name: 'Invoices & Expenses', desc: 'WebstaurantStore sales invoices, fuel & supply receipts', category: 'COMPLIANCE', icon: 'receipt_long' },
   { id: 'hos-clocks', name: 'HOS Clocks', desc: '70h / 8-day duty status timers & alerts', category: 'COMPLIANCE', icon: 'timer' },
   { id: 'radar-54b', name: 'Radar 54B', desc: 'Collision avoidance & Doppler radar distance', category: 'SAFETY', icon: 'radar' },
+  { id: 'trip-planner', name: 'Trip Planner', desc: 'Realtime geolocation upcoming rest stops, fuel & weigh scales', category: 'OPERATIONS', icon: 'route' },
   { id: 'the-g-o-a-t-', name: 'The G.O.A.T.', desc: 'Profitability load board & route optimization', category: 'OPERATIONS', icon: 'alt_route' },
   { id: 'haptics', name: 'Haptics', desc: 'Steering wheel tactile driver warnings', category: 'SAFETY', icon: 'vibration' },
   { id: 'ecosystem', name: 'Trust Hub', desc: 'Broker & carrier vetting system', category: 'COMPLIANCE', icon: 'hub' },

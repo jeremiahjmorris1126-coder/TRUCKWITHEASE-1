@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CARRIER_INFO,
   DRIVER_INFO,
@@ -6,10 +6,16 @@ import {
   ACTIVE_HASH,
   HISTORICAL_LOGS,
 } from '../../data/mockData';
-import { DayLog, DriverAlertnessData } from '../../types';
-import { WeatherAlert } from '../WeatherAlert';
+import { DayLog, DriverAlertnessData, HudVisionProfile } from '../../types';
+import { RouteWeatherHudWidget } from '../RouteWeatherHudWidget';
 import { DriverAlertnessWidget } from '../DriverAlertnessWidget';
 import { HudStateComplianceWidget } from '../HudStateComplianceWidget';
+import { TripPlannerHudOverlay } from '../TripPlannerHudOverlay';
+import { OwnerOperatorQuickDeck } from '../OwnerOperatorQuickDeck';
+import { HudVisionToggle } from '../HudVisionToggle';
+import { MinimalistCruisingOverlay } from '../MinimalistCruisingOverlay';
+import { RouteFocusedCorridorRibbon } from '../RouteFocusedCorridorRibbon';
+import { RegionalWeatherHazardFeed } from '../RegionalWeatherHazardFeed';
 
 interface NightHudScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -23,6 +29,7 @@ interface NightHudScreenProps {
   onTriggerFatigue?: () => void;
   onResetAlertness?: () => void;
   onRecordInspectionLog?: (actionType: string, triggerSource: string, notes: string) => void;
+  onNavigateToTab?: (tabId: string) => void;
 }
 
 export const NightHudScreen: React.FC<NightHudScreenProps> = ({
@@ -37,12 +44,116 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
   onTriggerFatigue,
   onResetAlertness,
   onRecordInspectionLog,
+  onNavigateToTab,
 }) => {
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
+  const [cockpitSection, setCockpitSection] = useState<'ROUTE' | 'COMPLIANCE' | 'ALERTNESS'>('ROUTE');
   const [isTransmitting, setIsTransmitting] = useState<boolean>(false);
   const [transmitSuccess, setTransmitSuccess] = useState<boolean>(false);
   const [copiedHash, setCopiedHash] = useState<boolean>(false);
   const [isBleBroadcasting, setIsBleBroadcasting] = useState<boolean>(false);
+
+  // Vision Toggle Overlay Profile State ('HIGH_CONTRAST' | 'MINIMALIST' | 'ROUTE_FOCUSED')
+  const [visionProfile, setVisionProfile] = useState<HudVisionProfile>(() => {
+    try {
+      const saved = localStorage.getItem('truck_hud_vision_profile');
+      if (saved === 'HIGH_CONTRAST' || saved === 'MINIMALIST' || saved === 'ROUTE_FOCUSED') {
+        return saved as HudVisionProfile;
+      }
+    } catch (e) {
+      console.warn('Failed to load vision profile from storage:', e);
+    }
+    return 'HIGH_CONTRAST';
+  });
+
+  const handleVisionProfileChange = (newProfile: HudVisionProfile) => {
+    setVisionProfile(newProfile);
+    try {
+      localStorage.setItem('truck_hud_vision_profile', newProfile);
+    } catch (e) {
+      console.warn('Failed to persist vision profile:', e);
+    }
+
+    if (newProfile === 'HIGH_CONTRAST') {
+      onShowToast('VISION PROFILE: HIGH CONTRAST // MAXIMUM OPTICAL GLARE & FOG FILTER', 'contrast');
+    } else if (newProfile === 'MINIMALIST') {
+      onShowToast('VISION PROFILE: MINIMALIST // DISTRACTION-FREE INTERSTATE CRUISE HUD', 'speed');
+    } else if (newProfile === 'ROUTE_FOCUSED') {
+      setCockpitSection('ROUTE');
+      onShowToast('VISION PROFILE: ROUTE FOCUSED // CORRIDOR, WEATHER & WEIGH TELEMETRY', 'alt_route');
+    }
+  };
+
+  // Dedicated Hotkey [O] and custom event listeners to quickly cycle overlay profiles directly while driving
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === 'o' || e.key === 'O') {
+        e.preventDefault();
+        setVisionProfile((current) => {
+          const next: HudVisionProfile =
+            current === 'HIGH_CONTRAST'
+              ? 'MINIMALIST'
+              : current === 'MINIMALIST'
+              ? 'ROUTE_FOCUSED'
+              : 'HIGH_CONTRAST';
+          handleVisionProfileChange(next);
+          return next;
+        });
+      }
+    };
+
+    const handleCustomChange = (e: Event) => {
+      const customEvt = e as CustomEvent<HudVisionProfile>;
+      if (customEvt.detail) {
+        handleVisionProfileChange(customEvt.detail);
+      }
+    };
+
+    const handleCustomCycle = () => {
+      setVisionProfile((current) => {
+        const next: HudVisionProfile =
+          current === 'HIGH_CONTRAST'
+            ? 'MINIMALIST'
+            : current === 'MINIMALIST'
+            ? 'ROUTE_FOCUSED'
+            : 'HIGH_CONTRAST';
+        handleVisionProfileChange(next);
+        return next;
+      });
+    };
+
+    const handleOpenHazards = () => {
+      setCockpitSection('ROUTE');
+      if (visionProfile === 'MINIMALIST') {
+        handleVisionProfileChange('ROUTE_FOCUSED');
+      }
+      setTimeout(() => {
+        const el = document.getElementById('regional-weather-hazard-feed');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('truck_vision_profile_changed', handleCustomChange);
+    window.addEventListener('truck_vision_profile_cycle', handleCustomCycle);
+    window.addEventListener('truck_open_weather_hazards', handleOpenHazards);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('truck_vision_profile_changed', handleCustomChange);
+      window.removeEventListener('truck_vision_profile_cycle', handleCustomCycle);
+      window.removeEventListener('truck_open_weather_hazards', handleOpenHazards);
+    };
+  }, []);
 
   const activeDay: DayLog = HISTORICAL_LOGS[selectedDayIndex] || HISTORICAL_LOGS[0];
 
@@ -87,84 +198,250 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full max-w-4xl mx-auto">
+    <div
+      className={`flex flex-col w-full max-w-4xl mx-auto font-mono transition-colors duration-200 ${
+        visionProfile === 'HIGH_CONTRAST'
+          ? 'bg-black/95 text-white p-2.5 sm:p-3.5 rounded-3xl border-2 border-amber-400/90 shadow-[0_0_35px_rgba(245,158,11,0.2)]'
+          : visionProfile === 'MINIMALIST'
+          ? 'p-1.5'
+          : 'p-1.5'
+      }`}
+    >
       <div className="flex flex-col gap-space-md px-gutter-mobile pb-space-2xl">
-        <WeatherAlert onShowToast={onShowToast} />
-
-        {/* AUTOMATED GEOLOCATION HUD STATE COMPLIANCE & SPEED LIMIT SERVICE */}
-        <HudStateComplianceWidget
-          onShowToast={onShowToast}
-          onRecordInspectionLog={onRecordInspectionLog}
+        {/* VISION TOGGLE OVERLAY BAR */}
+        <HudVisionToggle
+          currentProfile={visionProfile}
+          onProfileChange={handleVisionProfileChange}
         />
 
-        {alertnessData && onOpenRestModal && onTriggerFatigue && onResetAlertness && (
-          <DriverAlertnessWidget
-            alertnessData={alertnessData}
-            onOpenRestModal={onOpenRestModal}
-            onTriggerFatigue={onTriggerFatigue}
-            onResetAlertness={onResetAlertness}
+        {visionProfile === 'MINIMALIST' ? (
+          <MinimalistCruisingOverlay
+            onOpenPdfModal={onOpenPdfModal}
+            onOpenEmergency={onOpenEmergency}
+            onShowToast={onShowToast}
+            onSwitchToRoute={() => handleVisionProfileChange('ROUTE_FOCUSED')}
+            onSwitchToHighContrast={() => handleVisionProfileChange('HIGH_CONTRAST')}
           />
+        ) : (
+          <>
+            {/* ELEVATED CORRIDOR RIBBON (ACTIVATES IN ROUTE FOCUSED PROFILE) */}
+            {visionProfile === 'ROUTE_FOCUSED' && (
+              <RouteFocusedCorridorRibbon
+                onShowToast={onShowToast}
+                onNavigateToTripPlanner={onNavigateToTab ? () => onNavigateToTab('trip-planner') : undefined}
+                onOpenHazards={() => {
+                  setCockpitSection('ROUTE');
+                  onShowToast('SCROLLING TO REGIONAL WEATHER HAZARDS FEED', 'alt_route');
+                }}
+              />
+            )}
+
+            {/* EXECUTIVE TELEMETRY QUICK RIBBON */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div
+                className={`p-2.5 rounded-xl flex items-center justify-between shadow-sm transition-colors ${
+                  visionProfile === 'HIGH_CONTRAST'
+                    ? 'bg-neutral-950 border-2 border-emerald-400/90 shadow-[0_0_10px_rgba(52,211,153,0.2)]'
+                    : 'bg-surface-container-low border border-surface-container-high/80'
+                }`}
+              >
+                <div>
+                  <span className="text-[9px] text-outline uppercase block">Drive Remaining</span>
+                  <span className="text-[15px] font-bold text-emerald-400">06h 14m</span>
+                </div>
+                <span className="material-symbols-outlined text-emerald-400 text-[22px]">timer</span>
+              </div>
+
+              <div
+                className={`p-2.5 rounded-xl flex items-center justify-between shadow-sm transition-colors ${
+                  visionProfile === 'HIGH_CONTRAST'
+                    ? 'bg-neutral-950 border-2 border-primary/90'
+                    : 'bg-surface-container-low border border-surface-container-high/80'
+                }`}
+              >
+                <div>
+                  <span className="text-[9px] text-outline uppercase block">Duty Shift</span>
+                  <span className="text-[15px] font-bold text-white">08h 40m</span>
+                </div>
+                <span className="material-symbols-outlined text-primary text-[22px]">more_time</span>
+              </div>
+
+              <div
+                className={`p-2.5 rounded-xl flex items-center justify-between shadow-sm transition-colors ${
+                  visionProfile === 'HIGH_CONTRAST'
+                    ? 'bg-neutral-950 border-2 border-amber-400/90 shadow-[0_0_10px_rgba(251,191,36,0.2)]'
+                    : 'bg-surface-container-low border border-surface-container-high/80'
+                }`}
+              >
+                <div>
+                  <span className="text-[9px] text-outline uppercase block">Next Scale</span>
+                  <span className="text-[14px] font-bold text-amber-400">18 Mi • Bypass</span>
+                </div>
+                <span className="material-symbols-outlined text-amber-400 text-[22px]">scale</span>
+              </div>
+
+              <div
+                className={`p-2.5 rounded-xl flex items-center justify-between shadow-sm transition-colors ${
+                  visionProfile === 'HIGH_CONTRAST'
+                    ? 'bg-neutral-950 border-2 border-sky-400/90 shadow-[0_0_10px_rgba(56,189,248,0.2)]'
+                    : 'bg-surface-container-low border border-surface-container-high/80'
+                }`}
+              >
+                <div>
+                  <span className="text-[9px] text-outline uppercase block">Corridor &amp; Limit</span>
+                  <span className="text-[14px] font-bold text-sky-400">MO • 70 MPH</span>
+                </div>
+                <span className="material-symbols-outlined text-sky-400 text-[22px]">speed</span>
+              </div>
+            </div>
+
+
+        {/* OWNER-OPERATOR 1-TOUCH COMMAND DECK (6 INSTANT EXECUTION TOOLS) */}
+        <OwnerOperatorQuickDeck
+          onShowToast={onShowToast}
+          onOpenPdfModal={onOpenPdfModal}
+          onRecordInspectionLog={onRecordInspectionLog}
+          onNavigateToTab={onNavigateToTab}
+        />
+
+        {/* COCKPIT DETAILED TELEMETRY SECTION SWITCHER */}
+        <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-surface-container-low border border-surface-container-high/80 overflow-x-auto">
+          <button
+            onClick={() => setCockpitSection('ROUTE')}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase transition-all cursor-pointer flex-1 whitespace-nowrap ${
+              cockpitSection === 'ROUTE'
+                ? 'bg-primary text-on-primary shadow-md'
+                : 'text-outline hover:text-white bg-surface-container/40'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">route</span>
+            <span>Route &amp; Weather Ahead</span>
+          </button>
+
+          <button
+            onClick={() => setCockpitSection('COMPLIANCE')}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase transition-all cursor-pointer flex-1 whitespace-nowrap ${
+              cockpitSection === 'COMPLIANCE'
+                ? 'bg-primary text-on-primary shadow-md'
+                : 'text-outline hover:text-white bg-surface-container/40'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">policy</span>
+            <span>Roadside &amp; State DOT</span>
+          </button>
+
+          <button
+            onClick={() => setCockpitSection('ALERTNESS')}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase transition-all cursor-pointer flex-1 whitespace-nowrap ${
+              cockpitSection === 'ALERTNESS'
+                ? 'bg-primary text-on-primary shadow-md'
+                : 'text-outline hover:text-white bg-surface-container/40'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">psychology</span>
+            <span>Driver Alertness &amp; Voice</span>
+          </button>
+        </div>
+
+        {/* SECTION 1: ROUTE & WEATHER */}
+        {cockpitSection === 'ROUTE' && (
+          <div className="space-y-4 animate-fade-in">
+            {/* REAL-TIME REGIONAL WEATHER HAZARDS FEED (GROUNDED WITH GOOGLE SEARCH / NWS) */}
+            <RegionalWeatherHazardFeed onShowToast={onShowToast} />
+
+            {/* REAL-TIME WEATHER API SERVICE & SEVERE WEATHER ALERTS FOR DRIVER'S ROUTE LOCATION */}
+            <RouteWeatherHudWidget onShowToast={onShowToast} />
+
+            {/* TRIP PLANNER HUD OVERLAY: UPCOMING REST STOPS, DIESEL STATIONS & WEIGH SCALES */}
+            <TripPlannerHudOverlay
+              onShowToast={onShowToast}
+              onNavigateToTripPlanner={onNavigateToTab ? () => onNavigateToTab('trip-planner') : undefined}
+            />
+          </div>
         )}
 
-        {/* VOICE COMMAND HUD STATUS & SHORTCUT BAR */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-xs p-space-sm bg-surface-container-low/90 rounded-xl border border-surface-container-high/80 shadow-md">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className={`flex items-center justify-center w-7 h-7 rounded-lg border ${
-              isListening ? 'bg-error text-on-error border-white animate-pulse' : 'bg-surface-container-highest text-primary border-primary/40'
-            }`}>
-              <span className="material-symbols-outlined text-[16px]">
-                {isListening ? 'mic' : 'mic_none'}
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="font-label-caps text-[10px] text-primary uppercase font-bold tracking-wider">
-                  VOICE COCKPIT READY
-                </span>
-                <span className="font-mono text-[9px] text-outline">
-                  SAY &quot;SHOW INSPECTION&quot; OR &quot;EMERGENCY&quot;
-                </span>
-              </div>
-              <span className="font-mono text-[9px] text-outline/80">
-                KEYBOARD SHORTCUTS: [I] INSPECTION PDF • [E] E911 • [V] TOGGLE MIC
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-            <button
-              onClick={onOpenPdfModal}
-              className="px-2 py-1 rounded bg-surface-container-high hover:bg-surface-container-highest border border-surface-container-highest text-[10px] font-mono text-primary flex items-center gap-1 hover:border-primary/50 transition-all cursor-pointer"
-              title="Speak or click: 'Show Inspection' [I]"
-            >
-              <span className="material-symbols-outlined text-[14px]">picture_as_pdf</span>
-              <span>&quot;Show Inspection&quot; [I]</span>
-            </button>
-            <button
-              onClick={onOpenEmergency}
-              className="px-2 py-1 rounded bg-error-container/30 hover:bg-error-container/50 border border-error/40 text-[10px] font-mono text-error flex items-center gap-1 transition-all cursor-pointer"
-              title="Speak or click: 'Emergency' [E]"
-            >
-              <span className="material-symbols-outlined text-[14px]">e911_emergency</span>
-              <span>&quot;Emergency&quot; [E]</span>
-            </button>
-            {onToggleVoice && (
-              <button
-                onClick={onToggleVoice}
-                className={`p-1 rounded border text-[10px] font-mono transition-all cursor-pointer ${
-                  isListening
-                    ? 'bg-error text-white border-white animate-pulse'
-                    : 'bg-surface-container hover:bg-surface-container-highest text-outline hover:text-white border-surface-container-highest'
-                }`}
-                title="Toggle Mic Listening [V]"
-              >
-                <span className="material-symbols-outlined text-[16px] block">
-                  {isListening ? 'mic' : 'mic_none'}
-                </span>
-              </button>
+        {/* SECTION 3: ALERTNESS & VOICE */}
+        {cockpitSection === 'ALERTNESS' && (
+          <div className="space-y-4 animate-fade-in">
+            {alertnessData && onOpenRestModal && onTriggerFatigue && onResetAlertness && (
+              <DriverAlertnessWidget
+                alertnessData={alertnessData}
+                onOpenRestModal={onOpenRestModal}
+                onTriggerFatigue={onTriggerFatigue}
+                onResetAlertness={onResetAlertness}
+              />
             )}
+
+            {/* VOICE COMMAND HUD STATUS & SHORTCUT BAR */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-xs p-space-sm bg-surface-container-low/90 rounded-xl border border-surface-container-high/80 shadow-md">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className={`flex items-center justify-center w-7 h-7 rounded-lg border ${
+                  isListening ? 'bg-error text-on-error border-white animate-pulse' : 'bg-surface-container-highest text-primary border-primary/40'
+                }`}>
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isListening ? 'mic' : 'mic_none'}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-label-caps text-[10px] text-primary uppercase font-bold tracking-wider">
+                      VOICE COCKPIT READY
+                    </span>
+                    <span className="font-mono text-[9px] text-outline">
+                      SAY &quot;SHOW INSPECTION&quot; OR &quot;EMERGENCY&quot;
+                    </span>
+                  </div>
+                  <span className="font-mono text-[9px] text-outline/80">
+                    KEYBOARD SHORTCUTS: [I] INSPECTION PDF • [E] E911 • [V] TOGGLE MIC
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                <button
+                  onClick={onOpenPdfModal}
+                  className="px-2 py-1 rounded bg-surface-container-high hover:bg-surface-container-highest border border-surface-container-highest text-[10px] font-mono text-primary flex items-center gap-1 hover:border-primary/50 transition-all cursor-pointer"
+                  title="Speak or click: 'Show Inspection' [I]"
+                >
+                  <span className="material-symbols-outlined text-[14px]">picture_as_pdf</span>
+                  <span>&quot;Show Inspection&quot; [I]</span>
+                </button>
+                <button
+                  onClick={onOpenEmergency}
+                  className="px-2 py-1 rounded bg-error-container/30 hover:bg-error-container/50 border border-error/40 text-[10px] font-mono text-error flex items-center gap-1 transition-all cursor-pointer"
+                  title="Speak or click: 'Emergency' [E]"
+                >
+                  <span className="material-symbols-outlined text-[14px]">e911_emergency</span>
+                  <span>&quot;Emergency&quot; [E]</span>
+                </button>
+                {onToggleVoice && (
+                  <button
+                    onClick={onToggleVoice}
+                    className={`p-1 rounded border text-[10px] font-mono transition-all cursor-pointer ${
+                      isListening
+                        ? 'bg-error text-white border-white animate-pulse'
+                        : 'bg-surface-container hover:bg-surface-container-highest text-outline hover:text-white border-surface-container-highest'
+                    }`}
+                    title="Toggle Mic Listening [V]"
+                  >
+                    <span className="material-symbols-outlined text-[16px] block">
+                      {isListening ? 'mic' : 'mic_none'}
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* SECTION 2: ROADSIDE & COMPLIANCE */}
+        {cockpitSection === 'COMPLIANCE' && (
+          <div className="space-y-4 animate-fade-in">
+            {/* AUTOMATED GEOLOCATION HUD STATE COMPLIANCE & SPEED LIMIT SERVICE */}
+            <HudStateComplianceWidget
+              onShowToast={onShowToast}
+              onRecordInspectionLog={onRecordInspectionLog}
+            />
 
         {/* TOP STATUTORY AUDIT BANNER & LOCK SWITCH */}
         <div className="flex flex-col bg-surface-container p-space-md rounded-xl space-y-space-sm shadow-xl border border-surface-container-high/60">
@@ -909,6 +1186,10 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
             </button>
           </div>
         </div>
+      </div>
+    )}
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FleetInvoiceRecord, InvoiceCategory } from '../../types';
 import { fleetInvoicesService } from '../../services/fleetInvoicesService';
+import { FuelLogEntryCard } from '../FuelLogEntryCard';
 
 interface FleetExpensesInvoiceScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -12,6 +13,7 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedInvoice, setSelectedInvoice] = useState<FleetInvoiceRecord | null>(null);
   const [showScannerModal, setShowScannerModal] = useState<boolean>(false);
+  const [showFuelLogCard, setShowFuelLogCard] = useState<boolean>(true);
 
   // New Invoice Form State for Manual/OCR Capture
   const [scanVendor, setScanVendor] = useState<string>('Fleet Equipment & Supplies Direct');
@@ -182,6 +184,18 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
 
           <div className="flex items-center gap-2 flex-wrap shrink-0">
             <button
+              onClick={() => setShowFuelLogCard((prev) => !prev)}
+              className={`px-3 py-2 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-md ${
+                showFuelLogCard
+                  ? 'bg-amber-500 text-on-primary ring-2 ring-amber-400/50'
+                  : 'bg-surface-container-high text-amber-400 border border-amber-500/40 hover:bg-surface-container-highest'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">local_gas_station</span>
+              <span>{showFuelLogCard ? 'Fuel & MPG Log Active' : '+ Log Fuel & MPG'}</span>
+            </button>
+
+            <button
               onClick={openPrimaryInvoice}
               className="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-bold text-[11px] uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-lg flex items-center gap-1.5 cursor-pointer"
             >
@@ -233,8 +247,20 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container-high space-y-1">
-            <span className="text-[9px] text-outline uppercase block font-bold">FUEL &amp; IFTA LOGS</span>
+          <div
+            onClick={() => {
+              setActiveCategory('FUEL_DIESEL');
+              setShowFuelLogCard(true);
+            }}
+            className="p-3 rounded-xl bg-surface-container-low border border-surface-container-high hover:border-amber-500/60 cursor-pointer transition-all space-y-1 group"
+            title="Click to filter by fuel & open MPG log"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-outline group-hover:text-amber-400 uppercase block font-bold transition-colors">
+                FUEL &amp; IFTA LOGS
+              </span>
+              <span className="material-symbols-outlined text-[14px] text-outline group-hover:text-amber-400">arrow_forward</span>
+            </div>
             <div className="flex items-baseline justify-between">
               <span className="text-[20px] font-bold text-amber-400">${stats.categoryTotals.FUEL_DIESEL.toFixed(2)}</span>
               <span className="text-[9px] text-amber-400 font-bold">Diesel &amp; DEF</span>
@@ -242,6 +268,13 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
           </div>
         </div>
       </div>
+
+      {/* FUEL LOG ENTRY COMPONENT WITH REAL-TIME MPG SUMMARY */}
+      {showFuelLogCard && (
+        <div className="animate-fade-in">
+          <FuelLogEntryCard onShowToast={onShowToast} />
+        </div>
+      )}
 
       {/* Category Tabs & Search Bar */}
       <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high space-y-3">

@@ -106,7 +106,7 @@ export const DriverAlertnessWidget: React.FC<DriverAlertnessWidgetProps> = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row items-center gap-space-xs pt-1">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-space-xs pt-1">
         <button
           onClick={onOpenRestModal}
           className="w-full sm:flex-1 py-2 px-3 rounded-xl bg-primary text-on-primary font-label-caps text-[11px] font-bold uppercase tracking-wider shadow-md hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
@@ -115,24 +115,19 @@ export const DriverAlertnessWidget: React.FC<DriverAlertnessWidgetProps> = ({
           <span>View Rest Area Advice</span>
         </button>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {alertnessData.fatigueFlagged ? (
-            <button
-              onClick={onResetAlertness}
-              className="flex-1 sm:flex-none py-2 px-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono text-[10px] font-bold uppercase cursor-pointer hover:bg-emerald-500/30 transition-all"
-            >
-              Reset Score
-            </button>
-          ) : (
-            <button
-              onClick={onTriggerFatigue}
-              className="flex-1 sm:flex-none py-2 px-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-outline hover:text-on-surface border border-white/5 font-mono text-[10px] font-bold uppercase cursor-pointer transition-all"
-              title="Simulate UI reaction delay to test fatigue detector"
-            >
-              Simulate Fatigue Lag
-            </button>
-          )}
-        </div>
+        {alertnessData.fatigueFlagged ? (
+          <button
+            onClick={onResetAlertness}
+            className="w-full sm:w-auto py-2 px-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono text-[10px] font-bold uppercase cursor-pointer hover:bg-emerald-500/30 transition-all"
+          >
+            Reset Score
+          </button>
+        ) : (
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-low text-[10px] text-outline border border-white/5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>Passive Safety Monitor Active</span>
+          </div>
+        )}
       </div>
     </div>
   );

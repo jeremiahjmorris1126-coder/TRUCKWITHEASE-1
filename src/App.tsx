@@ -31,6 +31,9 @@ import { DispatchEtaScreen } from './components/screens/DispatchEtaScreen';
 import { MasterSynchronizerScreen } from './components/screens/MasterSynchronizerScreen';
 import { QuantumIndexScreen } from './components/screens/QuantumIndexScreen';
 import { FleetExpensesInvoiceScreen } from './components/screens/FleetExpensesInvoiceScreen';
+import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
+import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
+import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
@@ -50,6 +53,7 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
     'fleet-expenses': true,
     'hos-clocks': true,
     'radar-54b': true,
+    'trip-planner': true,
     'the-g-o-a-t-': true,
     'haptics': true,
     'ecosystem': true,
@@ -226,21 +230,47 @@ export default function App() {
             onRecordInspectionLog={(actionType, triggerSource, notes) => {
               handleRecordInspectionPdf(actionType, triggerSource, notes);
             }}
+            onNavigateToTab={setActiveTab}
           />
         );
       case 'hos-clocks':
         return <HosClocksScreen onShowToast={showToast} speed={speed} />;
+      case 'trip-planner':
       case 'radar-54b':
-        return <Radar54bScreen onShowToast={showToast} speed={speed} />;
+      case 'dispatch-eta':
       case 'the-g-o-a-t-':
-        return <GoatScreen onShowToast={showToast} />;
-      case 'haptics':
-        return <HapticsScreen onShowToast={showToast} />;
-      case 'ecosystem':
-        return <EcosystemTrustHubScreen onShowToast={showToast} />;
-      case 'vault':
         return (
-          <SecurityVaultScreen
+          <RouteDispatchHub
+            initialSubTab={
+              activeTab === 'radar-54b'
+                ? 'weigh-scales'
+                : activeTab === 'dispatch-eta'
+                ? 'dispatch'
+                : activeTab === 'the-g-o-a-t-'
+                ? 'clearance'
+                : 'planner'
+            }
+            onShowToast={showToast}
+            onNavigateToTab={setActiveTab}
+            speed={speed}
+          />
+        );
+      case 'fleet-expenses':
+      case 'vault':
+      case 'ecosystem':
+      case 'master-sync':
+      case 'quantum-index':
+        return (
+          <FleetOperationsHub
+            initialSubTab={
+              activeTab === 'vault'
+                ? 'vault'
+                : activeTab === 'ecosystem'
+                ? 'trust'
+                : activeTab === 'master-sync' || activeTab === 'quantum-index'
+                ? 'sync'
+                : 'invoices'
+            }
             onShowToast={showToast}
             onOpenPdfModal={() => setIsPdfModalOpen(true)}
             inspectionLogs={inspectionLogs}
@@ -258,8 +288,8 @@ export default function App() {
             }}
           />
         );
-      case 'fleet-expenses':
-        return <FleetExpensesInvoiceScreen onShowToast={showToast} />;
+      case 'haptics':
+        return <HapticsScreen onShowToast={showToast} />;
       case 'telemetry':
         return (
           <TelemetryScreen
@@ -267,30 +297,6 @@ export default function App() {
             speed={speed}
             onRecordInspectionLog={(actionType, triggerSource, notes) => {
               handleRecordInspectionPdf(actionType as any, triggerSource as any, notes);
-            }}
-          />
-        );
-      case 'dispatch-eta':
-        return <DispatchEtaScreen onShowToast={showToast} />;
-      case 'master-sync':
-        return (
-          <MasterSynchronizerScreen
-            onShowToast={showToast}
-            onOpenPdfModal={() => setIsPdfModalOpen(true)}
-            alertnessData={alertness.alertnessData}
-            onOpenRestModal={() => alertness.setIsRestModalOpen(true)}
-            onTriggerFatigue={alertness.triggerSimulatedFatigue}
-            onResetAlertness={alertness.resetAlertness}
-          />
-        );
-      case 'quantum-index':
-        return (
-          <QuantumIndexScreen
-            onShowToast={showToast}
-            speed={speed}
-            onExportQuantumSignature={(notes) => {
-              const log = handleRecordInspectionPdf('PDF_GENERATED', 'QUANTUM_INDEX_AUDIT', notes);
-              showToast(`QUANTUM SIGNATURE LOGGED TO VAULT (#${log.recordNumber})`);
             }}
           />
         );

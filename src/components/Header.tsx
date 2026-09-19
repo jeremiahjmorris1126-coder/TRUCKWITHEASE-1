@@ -28,29 +28,26 @@ export const Header: React.FC<HeaderProps> = ({
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
       case 'night-hud':
-        return 'Night Hud';
+        return 'Driver Cockpit';
       case 'hos-clocks':
-        return 'HOS Clocks';
+        return 'HOS & Compliance';
+      case 'trip-planner':
       case 'radar-54b':
-        return 'Radar 54B';
+      case 'dispatch-eta':
       case 'the-g-o-a-t-':
-        return 'The G.O.A.T. Load Board';
-      case 'haptics':
-        return 'Haptics';
-      case 'ecosystem':
-        return 'Ecosystem Trust Hub';
+        return 'Route, Stops & Dispatch';
+      case 'fleet-expenses':
       case 'vault':
-        return 'Security Vault & HSM';
+      case 'ecosystem':
+      case 'master-sync':
+      case 'quantum-index':
+        return 'Fleet Operations & Vault';
+      case 'haptics':
+        return 'Safety Haptics';
       case 'telemetry':
         return 'Fleet Telemetry';
-      case 'dispatch-eta':
-        return 'Dispatch ETA Dashboard';
-      case 'master-sync':
-        return 'Everyday Master Synchronizer';
-      case 'quantum-index':
-        return 'Index of Quantum & Methodological Mechanics';
       default:
-        return 'Night Hud';
+        return 'Driver Cockpit';
     }
   };
 

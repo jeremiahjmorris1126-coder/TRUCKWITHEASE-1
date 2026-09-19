@@ -1,4 +1,4 @@
-export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'the-g-o-a-t-' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses';
+export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'the-g-o-a-t-' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner';
 
 export type DutyStatus = 'OFF' | 'SB' | 'D' | 'ON' | 'YM' | 'PC';
 
@@ -240,3 +240,69 @@ export interface FleetInvoiceRecord {
   status: 'PAID' | 'PENDING' | 'REIMBURSED' | 'AUDITED';
   capturedViaCamera?: boolean;
 }
+
+export type WaypointCategory = 'REST_STOP' | 'FUEL_STATION' | 'WEIGH_STATION';
+
+export interface TripWaypoint {
+  id: string;
+  name: string;
+  category: WaypointCategory;
+  corridor: string;
+  mileMarker: number;
+  lat: number;
+  lon: number;
+  distanceMiles: number; // Computed live from driver lat/lon
+  etaMinutes: number; // Computed live based on current speed
+  exitNumber: string;
+  
+  // Specific attributes for Fuel Stations
+  dieselPricePerGal?: number;
+  defAvailable?: boolean;
+  highFlowPumps?: boolean;
+  showersAvailable?: number;
+  
+  // Specific attributes for Rest Areas / Parking
+  availableParkingSpots?: number;
+  totalParkingSpots?: number;
+  parkingStatus?: 'AMPLE' | 'LIMITED' | 'FULL';
+  amenities?: string[];
+  
+  // Specific attributes for Weigh Stations
+  weighStationStatus?: 'OPEN' | 'CLOSED' | 'BYPASS_ACTIVE';
+  prePassAuthorized?: boolean;
+  scaleType?: string;
+  bypassProbabilityPct?: number;
+
+  notes?: string;
+}
+
+export interface TripRoutePlan {
+  id: string;
+  title: string;
+  origin: string;
+  destination: string;
+  totalDistanceMiles: number;
+  totalEstHours: number;
+  activeCorridor: string;
+  waypoints: TripWaypoint[];
+}
+
+export interface FuelLogEntry {
+  id: string;
+  date: string;
+  timestamp: number;
+  gallons: number;
+  pricePerGallon: number;
+  totalCost: number;
+  currentOdometer: number;
+  previousOdometer: number;
+  milesDriven: number;
+  mpg: number;
+  costPerMile: number;
+  fuelType?: 'DIESEL' | 'DEF' | 'REEFER';
+  stationName?: string;
+  notes?: string;
+}
+
+export type HudVisionProfile = 'HIGH_CONTRAST' | 'MINIMALIST' | 'ROUTE_FOCUSED';
+

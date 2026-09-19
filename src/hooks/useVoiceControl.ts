@@ -226,6 +226,54 @@ export const useVoiceControl = ({
         }
       }
 
+      // 6. HUD Vision Toggle Overlay Commands
+      if (phrase.includes('high contrast') || phrase.includes('glare mode') || phrase.includes('contrast mode')) {
+        localStorage.setItem('truck_hud_vision_profile', 'HIGH_CONTRAST');
+        window.dispatchEvent(new CustomEvent('truck_vision_profile_changed', { detail: 'HIGH_CONTRAST' }));
+        setTimedFeedback('VISION: HIGH CONTRAST', 'MAXIMUM OPTICAL GLARE & NIGHT FOG FILTER ENGAGED', 'contrast');
+        onShowToast('VISION PROFILE: HIGH CONTRAST ACTIVATED', 'contrast');
+        return;
+      }
+      if (phrase.includes('minimalist') || phrase.includes('cruise mode') || phrase.includes('simple hud') || phrase.includes('clean hud')) {
+        localStorage.setItem('truck_hud_vision_profile', 'MINIMALIST');
+        window.dispatchEvent(new CustomEvent('truck_vision_profile_changed', { detail: 'MINIMALIST' }));
+        setTimedFeedback('VISION: MINIMALIST', 'DISTRACTION-FREE INTERSTATE CRUISE COCKPIT ENGAGED', 'speed');
+        onShowToast('VISION PROFILE: MINIMALIST ACTIVATED', 'speed');
+        return;
+      }
+      if (phrase.includes('route focused') || phrase.includes('route mode') || phrase.includes('corridor mode') || phrase.includes('radar mode')) {
+        localStorage.setItem('truck_hud_vision_profile', 'ROUTE_FOCUSED');
+        window.dispatchEvent(new CustomEvent('truck_vision_profile_changed', { detail: 'ROUTE_FOCUSED' }));
+        setTimedFeedback('VISION: ROUTE FOCUSED', 'HIGHWAY CORRIDOR, WEIGH BYPASS & RADAR ENGAGED', 'alt_route');
+        onShowToast('VISION PROFILE: ROUTE FOCUSED ACTIVATED', 'alt_route');
+        return;
+      }
+      if (phrase.includes('vision toggle') || phrase.includes('cycle vision') || phrase.includes('cycle overlay') || phrase.includes('switch vision')) {
+        window.dispatchEvent(new CustomEvent('truck_vision_profile_cycle'));
+        setTimedFeedback('VISION TOGGLE', 'CYCLING HUD OVERLAY PROFILE', 'visibility');
+        return;
+      }
+
+      // 7. Regional Weather Hazard Voice Commands
+      if (
+        phrase.includes('weather hazard') ||
+        phrase.includes('weather alert') ||
+        phrase.includes('fog alert') ||
+        phrase.includes('wind alert') ||
+        phrase.includes('ice alert') ||
+        phrase.includes('road weather')
+      ) {
+        onSelectTab('night-hud');
+        window.dispatchEvent(new CustomEvent('truck_open_weather_hazards'));
+        setTimedFeedback(
+          'REGIONAL HAZARDS',
+          'POLLING NWS SEARCH GROUNDING FOR CURRENT LOCATION',
+          'travel_explore'
+        );
+        onShowToast('POLLING NWS SEARCH GROUNDED HAZARDS FEED', 'travel_explore');
+        return;
+      }
+
       // Unrecognized phrase
       playTacticalChime('error');
       setTranscript(rawPhrase);

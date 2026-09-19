@@ -13,6 +13,7 @@ export const HudStateComplianceWidget: React.FC<HudStateComplianceWidgetProps> =
 }) => {
   const [geoState, setGeoState] = useState<StateGeolocationState>(stateGeolocationService.getState());
   const [showFullRulesModal, setShowFullRulesModal] = useState<boolean>(false);
+  const [showStatePicker, setShowStatePicker] = useState<boolean>(false);
 
   useEffect(() => {
     // Subscribe to stateGeolocationService updates
@@ -184,27 +185,47 @@ export const HudStateComplianceWidget: React.FC<HudStateComplianceWidgetProps> =
         </div>
       </div>
 
-      {/* Quick State Simulation Override Bar */}
-      <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex items-center justify-between gap-2 text-[10px] overflow-x-auto">
-        <span className="text-outline uppercase font-bold shrink-0">TEST STATE BORDER CROSSING:</span>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {Object.keys(US_STATE_DOT_REGULATIONS).map((code) => {
-            const isActive = geoState.stateCode === code;
-            return (
-              <button
-                key={code}
-                onClick={() => handleSimulateState(code)}
-                className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-primary text-on-primary shadow-sm'
-                    : 'bg-surface-container-high text-outline hover:text-on-surface'
-                }`}
-              >
-                {code} ({US_STATE_DOT_REGULATIONS[code].truckSpeedLimitMph})
-              </button>
-            );
-          })}
+      {/* State Corridor Selection (Quiet Background Automation) */}
+      <div className="pt-1 flex flex-col gap-2">
+        <div className="flex items-center justify-between text-[10px]">
+          <span className="text-outline flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Active Corridor: <strong className="text-white">{st.stateName}</strong>
+          </span>
+          <button
+            onClick={() => setShowStatePicker((prev) => !prev)}
+            className="text-primary hover:underline font-bold flex items-center gap-0.5 cursor-pointer text-[10px]"
+          >
+            <span>{showStatePicker ? 'Hide Corridor Selector' : 'Change Corridor'}</span>
+            <span className="material-symbols-outlined text-[12px]">
+              {showStatePicker ? 'expand_less' : 'expand_more'}
+            </span>
+          </button>
         </div>
+
+        {showStatePicker && (
+          <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex items-center justify-between gap-2 text-[10px] overflow-x-auto">
+            <span className="text-outline uppercase font-bold shrink-0">SELECT CORRIDOR:</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {Object.keys(US_STATE_DOT_REGULATIONS).map((code) => {
+                const isActive = geoState.stateCode === code;
+                return (
+                  <button
+                    key={code}
+                    onClick={() => handleSimulateState(code)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-primary text-on-primary shadow-sm'
+                        : 'bg-surface-container-high text-outline hover:text-on-surface'
+                    }`}
+                  >
+                    {code} ({US_STATE_DOT_REGULATIONS[code].truckSpeedLimitMph} MPH)
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detailed Regulations Modal */}
