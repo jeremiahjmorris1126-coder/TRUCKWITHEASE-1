@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TripWaypoint, WaypointCategory, TripRoutePlan } from '../../types';
+import { TripWaypoint, WaypointCategory, TripRoutePlan, TabId } from '../../types';
 import { tripPlannerService } from '../../services/tripPlannerService';
 
 interface TripPlannerScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
-  onNavigateToTab?: (tabId: string) => void;
+  onNavigateToTab?: (tabId: TabId) => void;
 }
 
 export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({

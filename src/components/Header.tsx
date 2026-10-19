@@ -12,6 +12,7 @@ interface HeaderProps {
   alertnessScore?: number;
   onOpenAlertnessModal?: () => void;
   onToggleMobileSidebar?: () => void;
+  onOpenExportModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   alertnessScore = 98,
   onOpenAlertnessModal,
   onToggleMobileSidebar,
+  onOpenExportModal,
 }) => {
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
@@ -128,6 +130,27 @@ export const Header: React.FC<HeaderProps> = ({
               {speed}
             </span>
           </div>
+
+          {/* Bright-Yellow 1-Click Vercel + GitHub Push Button */}
+          {onOpenExportModal && (
+            <button
+              id="btn-vercel-github-push"
+              aria-label="1-Click Vercel + GitHub Push & Unified Package Center"
+              onClick={onOpenExportModal}
+              className="min-h-[40px] px-3 flex items-center justify-center gap-1.5 active:scale-95 transition-all rounded-lg cursor-pointer shadow-[0_0_15px_rgba(251,191,36,0.6)] bg-amber-400 hover:bg-amber-300 text-slate-950 font-black border border-amber-300 shrink-0"
+              title="Click to open the Vercel & GitHub Production Export Center"
+            >
+              <span className="material-symbols-outlined text-[18px] text-slate-950 font-black animate-pulse">
+                rocket_launch
+              </span>
+              <span className="font-label-caps text-[11px] font-black uppercase tracking-wider hidden sm:inline text-slate-950">
+                VERCEL + GITHUB PUSH
+              </span>
+              <span className="font-label-caps text-[11px] font-black uppercase tracking-wider inline sm:hidden text-slate-950">
+                PUSH
+              </span>
+            </button>
+          )}
 
           {/* Voice Control HUD Button */}
           {onToggleVoice && (

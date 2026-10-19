@@ -1,47 +1,52 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @theme {
-  --color-surface: #121318;
-  --color-surface-container-lowest: #0d0e13;
-  --color-surface-container-low: #1a1b21;
-  --color-surface-container: #1e1f25;
-  --color-surface-container-high: #292a2f;
-  --color-surface-container-highest: #34343a;
-  --color-surface-dim: #121318;
-  --color-surface-bright: #38393f;
-  --color-surface-variant: #34343a;
+  --color-surface: #0a0c10;
+  --color-surface-container-lowest: #050709;
+  --color-surface-container-low: #0a0c10;
+  --color-surface-container: #0e1117;
+  --color-surface-container-high: #141820;
+  --color-surface-container-highest: #1c212b;
+  --color-surface-dim: #050709;
+  --color-surface-bright: #222834;
+  --color-surface-variant: #181c25;
 
-  --color-primary: #f2ca50;
-  --color-primary-container: #d4af37;
-  --color-on-primary: #3c2f00;
-  --color-on-primary-container: #554300;
-  --color-primary-fixed: #ffe088;
-  --color-primary-fixed-dim: #e9c349;
-  --color-on-primary-fixed: #241a00;
-  --color-on-primary-fixed-variant: #574500;
+  --color-primary: #e5a91e;
+  --color-primary-container: #e5a91e;
+  --color-on-primary: #000000;
+  --color-on-primary-container: #000000;
+  --color-primary-fixed: #fbbf24;
+  --color-primary-fixed-dim: #d49a18;
+  --color-on-primary-fixed: #000000;
+  --color-on-primary-fixed-variant: #1a1300;
 
-  --color-secondary: #fff9ef;
-  --color-secondary-container: #ffdb3c;
-  --color-on-secondary: #3a3000;
-  --color-on-secondary-container: #725f00;
-  --color-secondary-fixed: #ffe16d;
-  --color-secondary-fixed-dim: #e9c400;
+  --color-secondary: #ffffff;
+  --color-secondary-container: #141820;
+  --color-on-secondary: #000000;
+  --color-on-secondary-container: #e2e8f0;
+  --color-secondary-fixed: #e2e8f0;
+  --color-secondary-fixed-dim: #cbd5e1;
 
-  --color-tertiary: #ffc37b;
-  --color-tertiary-container: #f7a00f;
-  --color-on-tertiary: #472a00;
-  --color-tertiary-fixed: #ffddb8;
-  --color-tertiary-fixed-dim: #ffb95f;
+  --color-tertiary: #f59e0b;
+  --color-tertiary-container: #d97706;
+  --color-on-tertiary: #000000;
+  --color-tertiary-fixed: #fcd34d;
+  --color-tertiary-fixed-dim: #f59e0b;
 
-  --color-error: #ffb4ab;
-  --color-error-container: #93000a;
-  --color-on-error: #690005;
-  --color-on-error-container: #ffdad6;
+  --color-error: #f87171;
+  --color-error-container: #7f1d1d;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #fecaca;
 
-  --color-on-surface: #e3e1e9;
-  --color-on-surface-variant: #d0c5af;
-  --color-outline: #99907c;
-  --color-outline-variant: #4d4635;
+  --color-on-surface: #ffffff;
+  --color-on-surface-variant: #94a3b8;
+  --color-outline: #1e2430;
+  --color-outline-variant: #141820;
+
+  --color-tactical-green: #00e676;
+  --color-tactical-amber: #e5a91e;
+  --color-tactical-orange: #d97706;
+  --color-tactical-hazard: #ef4444;
 
   --font-headline: "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
@@ -62,10 +67,10 @@
 
 @layer utilities {
   .font-label-caps {
-    font-family: "Space Grotesk", sans-serif;
+    font-family: "JetBrains Mono", monospace;
     font-size: 11px;
     line-height: 14px;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.16em;
     font-weight: 700;
   }
   .font-telemetry-metric {
@@ -79,29 +84,29 @@
     font-family: "JetBrains Mono", monospace;
     font-size: 11px;
     line-height: 14px;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.14em;
     font-weight: 600;
   }
   .font-headline-sm {
     font-family: "Space Grotesk", sans-serif;
     font-size: 18px;
     line-height: 24px;
-    letter-spacing: 0.05em;
-    font-weight: 600;
+    letter-spacing: -0.01em;
+    font-weight: 700;
   }
   .font-headline-md {
     font-family: "Space Grotesk", sans-serif;
     font-size: 22px;
     line-height: 28px;
-    letter-spacing: 0.04em;
-    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-weight: 700;
   }
   .font-headline-lg {
     font-family: "Space Grotesk", sans-serif;
     font-size: 32px;
-    line-height: 40px;
-    letter-spacing: 0.02em;
-    font-weight: 700;
+    line-height: 38px;
+    letter-spacing: -0.025em;
+    font-weight: 800;
   }
   .font-body-sm {
     font-family: "Space Grotesk", sans-serif;
@@ -127,14 +132,66 @@
   .pt-safe {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
+  /* Aero-Avionics Tactical Components */
+  .badge-live {
+    background: rgba(0, 230, 118, 0.12);
+    color: #00e676;
+    border: 1px solid #00e676;
+    box-shadow: 0 0 10px rgba(0, 230, 118, 0.35);
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge-gold {
+    background: rgba(229, 169, 30, 0.12);
+    color: #e5a91e;
+    border: 1px solid rgba(229, 169, 30, 0.4);
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge-orange {
+    background: rgba(217, 119, 6, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(217, 119, 6, 0.4);
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .btn-primary-tactical {
+    background-color: #e5a91e;
+    color: #000000;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 6px;
+    box-shadow: 0 0 16px rgba(229, 169, 30, 0.3);
+  }
+  .btn-secondary-tactical {
+    background-color: #0e1117;
+    color: #ffffff;
+    border: 1px solid #1e2430;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 6px;
+  }
+  .card-tactical {
+    background-color: #0e1117;
+    border: 1px solid #1c212b;
+    border-radius: 8px;
+  }
 }
 
 html, body {
   width: 100%;
   margin: 0;
   padding: 0;
-  background-color: #0d0e13;
-  color: #e3e1e9;
+  background-color: #050709;
+  color: #e2e8f0;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -149,7 +206,6 @@ html, body {
 
 /* CSS PRINT-ONLY LAYOUT FOR DAILY DVIR & HOS INSPECTION REPORTS */
 @media print {
-  /* Hide all app chrome, headers, navigation bars, and buttons during physical print export */
   header,
   nav,
   .no-print,
@@ -168,7 +224,6 @@ html, body {
     font-size: 11pt !important;
   }
 
-  /* Make printable report element take full page */
   .printable-report,
   #dvir-print-area {
     display: block !important;
@@ -190,7 +245,6 @@ html, body {
     background: transparent !important;
   }
 
-  /* Force table borders in print */
   .printable-report table,
   .printable-report th,
   .printable-report td {
@@ -219,4 +273,3 @@ html, body {
     stroke-dashoffset: 0;
   }
 }
-

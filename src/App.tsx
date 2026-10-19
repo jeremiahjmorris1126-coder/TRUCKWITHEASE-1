@@ -35,6 +35,7 @@ import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
+import { VercelGithubExportModal } from './components/VercelGithubExportModal';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
 
@@ -63,7 +64,16 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('night-hud');
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramTab = urlParams.get('tab') as TabId;
+      if (paramTab) return paramTab;
+      const hashTab = window.location.hash.replace('#', '') as TabId;
+      if (hashTab) return hashTab;
+    }
+    return 'night-hud';
+  });
   const [speed, setSpeed] = useState<number>(65);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastIcon, setToastIcon] = useState<string>('verified_user');
@@ -123,7 +133,7 @@ export default function App() {
     ).join('');
     const recNum = `REC-${now.getFullYear()}-${pad(now.getMonth() + 1)}${pad(now.getDate())}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    let title = 'FMCSA § 395.8 Driver Daily Log (8-Day Package)';
+    let title = 'FMCSA Â§ 395.8 Driver Daily Log (8-Day Package)';
     if (actionType === 'PRINTED') {
       title = 'In-Cab Mobile Bluetooth Printer Dispatch';
     } else if (actionType === 'ROADSIDE_AUDIT') {
@@ -148,7 +158,7 @@ export default function App() {
       verified: true,
       notes:
         notes ||
-        `Attested by Jonathan Vance (CDL IL-98104820) at ${displayTime}. Verified compliant under 49 CFR § 395.8.`,
+        `Attested by Jonathan Vance (CDL IL-98104820) at ${displayTime}. Verified compliant under 49 CFR Â§ 395.8.`,
     };
 
     setInspectionLogs((prev) => {
@@ -169,6 +179,7 @@ export default function App() {
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Speed simulation (subtle variance around 65 mph while moving)
@@ -228,13 +239,19 @@ export default function App() {
             onTriggerFatigue={alertness.triggerSimulatedFatigue}
             onResetAlertness={alertness.resetAlertness}
             onRecordInspectionLog={(actionType, triggerSource, notes) => {
-              handleRecordInspectionPdf(actionType, triggerSource, notes);
+              handleRecordInspectionPdf(actionType as InspectionActionType, triggerSource as InspectionTriggerSource, notes);
             }}
             onNavigateToTab={setActiveTab}
           />
         );
       case 'hos-clocks':
-        return <HosClocksScreen onShowToast={showToast} speed={speed} />;
+        return (
+          <HosClocksScreen
+            onShowToast={showToast}
+            speed={speed}
+            onRecordInspection={handleRecordInspectionPdf}
+          />
+        );
       case 'trip-planner':
       case 'radar-54b':
       case 'dispatch-eta':
@@ -275,7 +292,7 @@ export default function App() {
             onOpenPdfModal={() => setIsPdfModalOpen(true)}
             inspectionLogs={inspectionLogs}
             onGenerateNewPdf={(triggerSource, notes) => {
-              handleRecordInspectionPdf('PDF_GENERATED', triggerSource || 'MANUAL_HUD', notes);
+              handleRecordInspectionPdf('PDF_GENERATED', (triggerSource as InspectionTriggerSource) || 'MANUAL_HUD', notes);
               setIsPdfModalOpen(true);
               showToast('NEW INSPECTION PDF GENERATED // CRYPTOGRAPHICALLY ATTESTED', 'picture_as_pdf');
             }}
@@ -327,6 +344,7 @@ export default function App() {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         enabledModules={fleetSettings.enabledModules}
         onOpenCustomizer={() => setShowCustomizer(true)}
+        onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
       {/* Cockpit Header */}
@@ -340,6 +358,7 @@ export default function App() {
         alertnessScore={alertness.alertnessData.score}
         onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+        onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
@@ -404,7 +423,15 @@ export default function App() {
           onShowToast={showToast}
         />
       )}
+
+      {/* 1-Click Vercel + GitHub Push & Unified Package Center Modal */}
+      <VercelGithubExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onShowToast={showToast}
+      />
     </div>
   );
 }
+
 

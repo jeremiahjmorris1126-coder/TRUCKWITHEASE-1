@@ -18,6 +18,7 @@ interface EnterpriseSidebarProps {
   onCloseMobile: () => void;
   enabledModules?: Record<TabId, boolean>;
   onOpenCustomizer?: () => void;
+  onOpenExportModal?: () => void;
 }
 
 interface CommandMenuItem {
@@ -92,6 +93,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   onCloseMobile,
   enabledModules,
   onOpenCustomizer,
+  onOpenExportModal,
 }) => {
   return (
     <>
@@ -296,6 +298,18 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
               <span>Print DVIR</span>
             </button>
           </div>
+
+          {/* 1-Click Vercel + GitHub Push */}
+          {onOpenExportModal && (
+            <button
+              onClick={onOpenExportModal}
+              className="w-full p-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-label-caps text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(251,191,36,0.5)] border border-amber-300 active:scale-95 transition-all cursor-pointer"
+              title="1-Click Vercel + GitHub Push & Unified Package Center"
+            >
+              <span className="material-symbols-outlined text-[16px] text-slate-950 font-black animate-pulse">rocket_launch</span>
+              <span>VERCEL + GITHUB PUSH</span>
+            </button>
+          )}
 
           {/* Emergency SOS Command Button */}
           <button

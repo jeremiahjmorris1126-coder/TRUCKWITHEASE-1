@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 
 interface HapticsScreenProps {
   onShowToast: (msg: string) => void;
@@ -96,7 +96,7 @@ export const HapticsScreen: React.FC<HapticsScreenProps> = ({ onShowToast }) => 
               onClick={() => triggerZoneHaptic('headrest', 'HEADREST FATIGUE WAKE CHIME', 90)}
               className={`w-24 h-14 rounded-t-2xl border-2 flex items-center justify-center transition-all cursor-pointer ${
                 activeZone === 'headrest'
-                  ? 'bg-primary text-on-primary border-primary scale-105 shadow-[0_0_16px_#f2ca50]'
+                  ? 'bg-primary text-on-primary border-primary scale-105 shadow-[0_0_16px_#e5a91e]'
                   : 'bg-surface-container-high border-surface-container-highest text-outline hover:border-primary/50'
               }`}
             >
@@ -120,7 +120,7 @@ export const HapticsScreen: React.FC<HapticsScreenProps> = ({ onShowToast }) => 
                 onClick={() => triggerZoneHaptic('lumbar', 'LUMBAR POSTURE & ATTENTION NUDGE', 60)}
                 className={`w-36 h-12 rounded border transition-all cursor-pointer flex items-center justify-center ${
                   activeZone === 'lumbar'
-                    ? 'bg-primary text-on-primary border-primary scale-105 shadow-[0_0_14px_#f2ca50]'
+                    ? 'bg-primary text-on-primary border-primary scale-105 shadow-[0_0_14px_#e5a91e]'
                     : 'bg-surface-container-high text-outline hover:border-primary/40'
                 }`}
               >
@@ -275,3 +275,4 @@ export const HapticsScreen: React.FC<HapticsScreenProps> = ({ onShowToast }) => 
     </div>
   );
 };
+

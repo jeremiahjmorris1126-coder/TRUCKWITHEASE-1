@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 interface QuantumIndexScreenProps {
   onShowToast: (msg: string) => void;
@@ -33,7 +33,7 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
       id: 'qv-1',
       variableName: 'Route Optimization Wavefunction',
       superpositionStates: ['I-20 Express Corridor', 'US-80 Bypass Pass', 'I-30 West Divergence'],
-      collapsedState: 'I-20 Express Corridor (|ψ|² = 0.894)',
+      collapsedState: 'I-20 Express Corridor (|Ïˆ|Â² = 0.894)',
       probabilityAmplitude: 0.894,
       entropyScore: 0.082,
       coherenceStatus: 'STABLE',
@@ -41,8 +41,8 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
     {
       id: 'qv-2',
       variableName: 'Brake Rotor Thermodynamic Dissipation',
-      superpositionStates: ['Thermal Equilibrium (420°F)', 'Sub-Critical Friction (680°F)', 'Kinetic Fade Threshold (950°F)'],
-      collapsedState: 'Thermal Equilibrium (420°F) (|ψ|² = 0.941)',
+      superpositionStates: ['Thermal Equilibrium (420Â°F)', 'Sub-Critical Friction (680Â°F)', 'Kinetic Fade Threshold (950Â°F)'],
+      collapsedState: 'Thermal Equilibrium (420Â°F) (|Ïˆ|Â² = 0.941)',
       probabilityAmplitude: 0.941,
       entropyScore: 0.045,
       coherenceStatus: 'STABLE',
@@ -51,7 +51,7 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
       id: 'qv-3',
       variableName: 'Dock Slot Congestion Entanglement',
       superpositionStates: ['Immediate Gate Access', '12-Min Staging Hold', '35-Min Bay Spillover'],
-      collapsedState: 'Immediate Gate Access (|ψ|² = 0.785)',
+      collapsedState: 'Immediate Gate Access (|Ïˆ|Â² = 0.785)',
       probabilityAmplitude: 0.785,
       entropyScore: 0.198,
       coherenceStatus: 'DECOHERING',
@@ -60,7 +60,7 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
       id: 'qv-4',
       variableName: 'Aerodynamic Drag Coefficient & Crosswind Vector',
       superpositionStates: ['Laminar Flow (Cd 0.52)', 'Turbulent Side Shear (Cd 0.68)', 'Vortex Shedding (Cd 0.81)'],
-      collapsedState: 'Laminar Flow (Cd 0.52) (|ψ|² = 0.912)',
+      collapsedState: 'Laminar Flow (Cd 0.52) (|Ïˆ|Â² = 0.912)',
       probabilityAmplitude: 0.912,
       entropyScore: 0.061,
       coherenceStatus: 'STABLE',
@@ -103,7 +103,7 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
     const randomHash = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
     
-    const summaryNotes = `PREDICTIVE INDEX METRICS AUDIT REPORT // Timestamp: ${timestamp} // Coherence: 99.8% // Entropy: ${entropy} S // Phase Angle: ${quantumAngle}° // Kinetic Momentum: ${(76220 * (speed / 2.237)).toFixed(0)} kg·m/s // Brake Rotor Heat Dissipation: Q = 14.8 kW/s (420°F) // Tire Friction: μ = 0.68 // Primary Route Eigenstate: I-20 Express Corridor (p = 0.894). Attested by Jonathan Vance (CDL IL-98104820) for 49 CFR § 395 verification.`;
+    const summaryNotes = `PREDICTIVE INDEX METRICS AUDIT REPORT // Timestamp: ${timestamp} // Coherence: 99.8% // Entropy: ${entropy} S // Phase Angle: ${quantumAngle}Â° // Kinetic Momentum: ${(76220 * (speed / 2.237)).toFixed(0)} kgÂ·m/s // Brake Rotor Heat Dissipation: Q = 14.8 kW/s (420Â°F) // Tire Friction: Î¼ = 0.68 // Primary Route Eigenstate: I-20 Express Corridor (p = 0.894). Attested by Jonathan Vance (CDL IL-98104820) for 49 CFR Â§ 395 verification.`;
 
     if (onExportQuantumSignature) {
       onExportQuantumSignature(summaryNotes);
@@ -219,7 +219,7 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
 
               {/* Quantum Probability Cloud Nodes */}
               <div
-                className="absolute w-4 h-4 rounded-full bg-primary/80 shadow-[0_0_16px_#f2ca50] transition-all"
+                className="absolute w-4 h-4 rounded-full bg-primary/80 shadow-[0_0_16px_#e5a91e] transition-all"
                 style={{
                   transform: `translate(${Math.cos((quantumAngle * Math.PI) / 180) * 80}px, ${
                     Math.sin((quantumAngle * Math.PI) / 180) * 80
@@ -245,7 +245,7 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
 
               {/* Core Singular State */}
               <div className="relative z-10 text-center font-mono">
-                <div className="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center mx-auto shadow-[0_0_24px_#f2ca50]">
+                <div className="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center mx-auto shadow-[0_0_24px_#e5a91e]">
                   <span className="material-symbols-outlined text-[24px]">hub</span>
                 </div>
                 <span className="text-[11px] text-primary font-bold block mt-2">
@@ -364,3 +364,4 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
     </div>
   );
 };
+

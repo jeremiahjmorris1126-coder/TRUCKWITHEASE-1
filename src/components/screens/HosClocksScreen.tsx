@@ -1,14 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { DutyStatus } from '../../types';
+﻿import React, { useState, useEffect } from 'react';
+import { DutyStatus, InspectionActionType, InspectionTriggerSource } from '../../types';
+import { HosDailyLogPdfModal } from '../HosDailyLogPdfModal';
 
 interface HosClocksScreenProps {
   onShowToast: (msg: string) => void;
   speed: number;
+  onRecordInspection?: (
+    actionType: InspectionActionType,
+    triggerSource: InspectionTriggerSource,
+    notes: string
+  ) => void;
 }
 
 export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
   onShowToast,
   speed,
+  onRecordInspection,
 }) => {
   const [currentStatus, setCurrentStatus] = useState<DutyStatus>('D');
   const [drivingSecondsRemaining, setDrivingSecondsRemaining] = useState<number>(6 * 3600 + 44 * 60 + 12);
@@ -18,6 +25,9 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
   // Split-sleeper simulator states
   const [splitPeriod1, setSplitPeriod1] = useState<number>(7.2); // 7h 12m
   const [splitPeriod2, setSplitPeriod2] = useState<number>(2.8); // 2h 48m
+
+  // Official Log Export Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
 
   // Live timer tick when driving
   useEffect(() => {
@@ -53,6 +63,47 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
 
   return (
     <div className="flex flex-col w-full max-w-4xl mx-auto px-gutter-mobile pb-space-2xl space-y-space-md">
+      {/* Dedicated Export Official Log Hero Header */}
+      <div className="bg-surface-container p-space-md rounded-xl border border-surface-container-high/80 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+        <div className="flex items-start sm:items-center gap-space-sm">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center text-primary shrink-0 shadow-[0_0_12px_rgba(229,169,30,0.2)]">
+            <span className="material-symbols-outlined text-[24px]">verified</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-headline-sm text-primary uppercase tracking-wide font-bold text-[15px]">
+                24-Hour HOS Driver's Daily Log
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#00e676]/15 text-[#00e676] border border-[#00e676]/40 shadow-[0_0_8px_rgba(0,230,118,0.3)]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-pulse" />
+                49 CFR § 395.8 COMPLIANT
+              </span>
+            </div>
+            <p className="font-mono text-[11px] text-on-surface-variant mt-0.5">
+              Current 24H Shift • Midnight-to-Midnight • Digital Attestation Ready for DOT Inspection
+            </p>
+          </div>
+        </div>
+
+        <button
+          id="export-official-hos-log-btn"
+          onClick={() => {
+            setIsExportModalOpen(true);
+            onShowToast('OFFICIAL 24-HOUR HOS LOG PREVIEW GENERATED');
+            if (onRecordInspection) {
+              onRecordInspection('PDF_GENERATED', 'MANUAL_HUD', 'Driver requested 24-Hour Official HOS Log for DOT inspection.');
+            }
+          }}
+          className="btn-primary-tactical px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all hover:brightness-110 active:scale-95 shadow-[0_0_16px_rgba(229,169,30,0.35)] shrink-0"
+          title="Export compliant 24-hour log as signed PDF"
+        >
+          <span className="material-symbols-outlined text-[20px] font-bold">picture_as_pdf</span>
+          <span className="font-headline-sm text-[12px] tracking-wider uppercase font-bold">
+            Export Official Log
+          </span>
+        </button>
+      </div>
+
       {/* Real-time Status Switcher */}
       <div className="bg-surface-container p-space-md rounded-xl border border-surface-container-high/60 shadow-xl space-y-space-sm">
         <div className="flex items-center justify-between">
@@ -70,11 +121,11 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-1">
           {[
             { id: 'D', label: 'DRIVING', code: 'D', color: 'bg-primary text-on-primary' },
-            { id: 'ON', label: 'ON DUTY', code: 'ON', color: 'bg-tertiary text-on-tertiary' },
+            { id: 'ON', label: 'ON DUTY', code: 'ON', color: 'bg-amber-400 text-black' },
             { id: 'SB', label: 'SLEEPER', code: 'SB', color: 'bg-sky-400 text-black' },
             { id: 'OFF', label: 'OFF DUTY', code: 'OFF', color: 'bg-surface-container-highest text-on-surface' },
             { id: 'YM', label: 'YARD MOVE', code: 'YM', color: 'bg-purple-400 text-black' },
-            { id: 'PC', label: 'PERS. CONV.', code: 'PC', color: 'bg-amber-400 text-black' },
+            { id: 'PC', label: 'PERS. CONV.', code: 'PC', color: 'bg-amber-500 text-black' },
           ].map((item) => {
             const isSelected = currentStatus === item.id;
             return (
@@ -230,7 +281,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
               49 CFR § 395.1(g) Split Berth Optimizer
             </span>
           </div>
-          <span className="bg-primary-container/20 text-primary font-telemetry-label text-[10px] px-2 py-0.5 rounded">
+          <span className="bg-primary/20 text-primary font-telemetry-label text-[10px] px-2 py-0.5 rounded font-bold">
             FMCSA CERTIFIED
           </span>
         </div>
@@ -358,6 +409,22 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Official 24-Hour HOS Log Modal */}
+      <HosDailyLogPdfModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onDownloaded={() => {
+          onShowToast('OFFICIAL 24H HOS LOG EXPORTED & RECORDED');
+          if (onRecordInspection) {
+            onRecordInspection(
+              'PRINTED',
+              'OFFICER_REQUEST',
+              'Official 24-Hour HOS Log PDF downloaded/printed for roadside inspection.'
+            );
+          }
+        }}
+      />
     </div>
   );
 };

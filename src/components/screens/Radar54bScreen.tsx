@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { WEIGH_STATIONS } from '../../data/mockData';
 import { WeighStation } from '../../types';
 
@@ -269,7 +269,7 @@ export const Radar54bScreen: React.FC<Radar54bScreenProps> = ({
             <path
               d="M 20,70 Q 150,30 300,70 T 600,60 T 900,70"
               fill="none"
-              stroke="#f2ca50"
+              stroke="#e5a91e"
               strokeWidth="8"
               filter="url(#nightGlow)"
               className="opacity-60 animate-pulse"
@@ -442,7 +442,7 @@ export const Radar54bScreen: React.FC<Radar54bScreenProps> = ({
           </div>
 
           {/* Tractor Icon Center */}
-          <div className="relative z-10 w-7 h-7 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-[0_0_12px_#f2ca50]">
+          <div className="relative z-10 w-7 h-7 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-[0_0_12px_#e5a91e]">
             <span className="material-symbols-outlined text-[16px]">navigation</span>
           </div>
 
@@ -525,3 +525,4 @@ export const Radar54bScreen: React.FC<Radar54bScreenProps> = ({
     </div>
   );
 };
+

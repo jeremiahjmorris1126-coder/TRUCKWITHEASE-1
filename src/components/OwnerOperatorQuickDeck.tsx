@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { TabId } from '../types';
 import { fleetInvoicesService } from '../services/fleetInvoicesService';
 
 interface OwnerOperatorQuickDeckProps {
   onShowToast: (msg: string, icon?: string) => void;
   onOpenPdfModal: () => void;
   onRecordInspectionLog?: (actionType: string, triggerSource: string, notes: string) => void;
-  onNavigateToTab?: (tabId: string) => void;
+  onNavigateToTab?: (tabId: TabId) => void;
   speed?: number;
 }
 

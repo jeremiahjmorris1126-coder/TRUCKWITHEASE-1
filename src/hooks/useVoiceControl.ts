@@ -263,7 +263,7 @@ export const useVoiceControl = ({
         phrase.includes('ice alert') ||
         phrase.includes('road weather')
       ) {
-        onSelectTab('night-hud');
+        onSelectTab?.('night-hud');
         window.dispatchEvent(new CustomEvent('truck_open_weather_hazards'));
         setTimedFeedback(
           'REGIONAL HAZARDS',

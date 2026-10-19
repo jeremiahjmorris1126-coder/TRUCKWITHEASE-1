@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useRealtimeWeather, WeatherAlertType } from '../hooks/useRealtimeWeather';
 
@@ -55,9 +55,9 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
   const isWind = alert?.type === 'WIND';
 
   let containerBg = 'bg-[#1b1912]';
-  let borderColor = 'border-[#f2ca50]/50';
-  let accentColor = 'text-[#f2ca50]';
-  let badgeBg = 'bg-[#f2ca50]/15 text-[#f2ca50] border-[#f2ca50]/40';
+  let borderColor = 'border-[#e5a91e]/50';
+  let accentColor = 'text-[#e5a91e]';
+  let badgeBg = 'bg-[#e5a91e]/15 text-[#e5a91e] border-[#e5a91e]/40';
   let mainIcon = 'air';
 
   if (isFog) {
@@ -136,7 +136,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
                     </div>
                     {weather && (
                       <span className="font-mono text-[10px] text-outline/80 mt-0.5">
-                        {weather.locationLabel} • {weather.conditionText}
+                        {weather.locationLabel} â€¢ {weather.conditionText}
                       </span>
                     )}
                   </div>
@@ -178,7 +178,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
               </div>
 
               {/* Advisory message */}
-              <p className="font-body-sm text-[13px] leading-relaxed text-on-surface font-medium border-l-2 pl-3 border-current" style={{ borderColor: isFog || isSevere ? '#ef4444' : '#f2ca50' }}>
+              <p className="font-body-sm text-[13px] leading-relaxed text-on-surface font-medium border-l-2 pl-3 border-current" style={{ borderColor: isFog || isSevere ? '#ef4444' : '#e5a91e' }}>
                 {alert.message}
               </p>
 
@@ -268,7 +268,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
               </span>
               {weather && (
                 <span className="font-mono text-[10px] text-outline hidden sm:inline">
-                  • {weather.windSpeed} MPH Wind • {weather.visibilityMiles} mi Vis • {weather.temperature}°F
+                  â€¢ {weather.windSpeed} MPH Wind â€¢ {weather.visibilityMiles} mi Vis â€¢ {weather.temperature}Â°F
                 </span>
               )}
             </div>
@@ -349,7 +349,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#2e1305] border border-[#f97316]/40 text-orange-300 hover:border-orange-300 font-mono text-[10px] transition-colors"
               >
                 <span className="material-symbols-outlined text-[14px]">ac_unit</span>
-                Simulate Black Ice (29°F)
+                Simulate Black Ice (29Â°F)
               </button>
 
               <button
@@ -381,3 +381,4 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
     </div>
   );
 };
+

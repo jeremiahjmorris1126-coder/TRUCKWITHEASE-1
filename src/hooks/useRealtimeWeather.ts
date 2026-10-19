@@ -32,7 +32,7 @@ export interface UseRealtimeWeatherReturn {
   loading: boolean;
   error: string | null;
   isSimulated: boolean;
-  refetch: () => Promise<void>;
+  refetch: () => void | Promise<void>;
   simulateCondition: (condition: WeatherAlertType) => void;
 }
 
