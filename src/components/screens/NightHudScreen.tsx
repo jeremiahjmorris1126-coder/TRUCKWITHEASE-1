@@ -755,7 +755,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                 Certified Electronic Signature
               </span>
               <span className="font-headline-sm text-headline-sm text-primary tracking-wide italic font-serif">
-                J. Vance
+                J. Morris
               </span>
             </div>
             <div className="flex flex-col items-end">

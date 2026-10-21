@@ -276,7 +276,7 @@ export const MasterSynchronizerScreen: React.FC<MasterSynchronizerProps> = ({
             <div className="text-left space-y-1.5 font-mono text-[11px]">
               <div className="text-slate-300 font-bold">Officer Temporary Pin: <span className="text-amber-400 text-[14px]">#4138</span></div>
               <div className="text-slate-400">Carrier: Morrishive Logistics (USDOT #3928110)</div>
-              <div className="text-slate-400">Driver: Jonathan Vance (ID: #DRV-8801)</div>
+              <div className="text-slate-400">Driver: Jeremiah J. Morris (ID: #DRV-8801)</div>
               <div className="text-emerald-400 font-bold">8-Day HOS Log Status: 100% COMPLIANT</div>
               <div className="text-slate-500 text-[9px]">Cryptographic Seal Hash: 7f8a9b2c3d4e5f6a7b8c9d0e1f2a3b4c</div>
             </div>

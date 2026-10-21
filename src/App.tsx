@@ -158,7 +158,7 @@ export default function App() {
       verified: true,
       notes:
         notes ||
-        `Attested by Jonathan Vance (CDL IL-98104820) at ${displayTime}. Verified compliant under 49 CFR Â§ 395.8.`,
+        `Attested by Jeremiah J. Morris (CDL IL-98104820) at ${displayTime}. Verified compliant under 49 CFR Â§ 395.8.`,
     };
 
     setInspectionLogs((prev) => {

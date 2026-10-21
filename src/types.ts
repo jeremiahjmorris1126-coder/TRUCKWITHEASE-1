@@ -102,7 +102,7 @@ export type LoadStatus = 'ON_TIME' | 'DELAY_RISK' | 'EARLY' | 'CRITICAL_LATE';
 export interface DispatchLoad {
   id: string;
   loadNumber: string; // e.g. "LD-8902"
-  driverName: string; // e.g. "Jonathan Vance"
+  driverName: string; // e.g. "Jeremiah J. Morris"
   truckUnit: string; // e.g. "TRK-904"
   trailerUnit: string; // e.g. "TRL-5321"
   cargoDescription: string; // e.g. "Automotive Components (High Value)"

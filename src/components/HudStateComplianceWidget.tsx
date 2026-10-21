@@ -51,7 +51,7 @@ export const HudStateComplianceWidget: React.FC<HudStateComplianceWidgetProps> =
   const handleAttestStateCompliance = () => {
     const timestamp = new Date().toISOString().substring(0, 19).replace('T', ' ') + ' UTC';
     const st = geoState.stateData;
-    const notes = `STATE GEOLOCATION COMPLIANCE ATTESTATION // State: ${st.stateName} (${st.stateCode}) // Truck Limit: ${st.truckSpeedLimitMph} MPH // Current Speed: ${geoState.currentSpeedMph} MPH // Lat/Lng: ${geoState.latitude}, ${geoState.longitude} // Lane Rules: ${st.laneRestrictions} // Weigh Station: ${st.weighStationPolicy} // Attested by Jonathan Vance (CDL IL-98104820) at ${timestamp}.`;
+    const notes = `STATE GEOLOCATION COMPLIANCE ATTESTATION // State: ${st.stateName} (${st.stateCode}) // Truck Limit: ${st.truckSpeedLimitMph} MPH // Current Speed: ${geoState.currentSpeedMph} MPH // Lat/Lng: ${geoState.latitude}, ${geoState.longitude} // Lane Rules: ${st.laneRestrictions} // Weigh Station: ${st.weighStationPolicy} // Attested by Jeremiah J. Morris (CDL IL-98104820) at ${timestamp}.`;
 
     if (onRecordInspectionLog) {
       onRecordInspectionLog('ROADSIDE_AUDIT', 'MANUAL_HUD', notes);

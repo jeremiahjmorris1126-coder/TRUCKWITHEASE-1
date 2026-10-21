@@ -1,4 +1,4 @@
-ï»¿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DutyStatus, InspectionActionType, InspectionTriggerSource } from '../../types';
 import { HosDailyLogPdfModal } from '../HosDailyLogPdfModal';
 
@@ -55,7 +55,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
       ON: 'STATUS: ON-DUTY NOT DRIVING (ON)',
       SB: 'STATUS: SLEEPER BERTH (SB) - 14H CLOCK PAUSED',
       OFF: 'STATUS: OFF-DUTY (OFF)',
-      YM: 'STATUS: YARD MOVE (YM - Â§ 395.2 SPECIAL DRIVING)',
+      YM: 'STATUS: YARD MOVE (YM - § 395.2 SPECIAL DRIVING)',
       PC: 'STATUS: PERSONAL CONVEYANCE (PC - AUTHORIZED OFF-DUTY)',
     };
     onShowToast(labels[newStatus]);
@@ -76,11 +76,11 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#00e676]/15 text-[#00e676] border border-[#00e676]/40 shadow-[0_0_8px_rgba(0,230,118,0.3)]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-pulse" />
-                49 CFR Â§ 395.8 COMPLIANT
+                49 CFR § 395.8 COMPLIANT
               </span>
             </div>
             <p className="font-mono text-[11px] text-on-surface-variant mt-0.5">
-              Current 24H Shift â€¢ Midnight-to-Midnight â€¢ Digital Attestation Ready for DOT Inspection
+              Current 24H Shift • Midnight-to-Midnight • Digital Attestation Ready for DOT Inspection
             </p>
           </div>
         </div>
@@ -156,7 +156,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
         <div className="bg-surface-container p-space-md rounded-xl border border-surface-container-high/60 shadow-lg space-y-2">
           <div className="flex items-center justify-between">
             <span className="font-label-caps text-[10px] text-outline uppercase tracking-wider">
-              11-Hour Driving Clock (Â§ 395.3(a)(3))
+              11-Hour Driving Clock (§ 395.3(a)(3))
             </span>
             <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-telemetry-label text-[10px]">
               61% REMAINING
@@ -278,7 +278,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
               calculate
             </span>
             <span className="font-label-caps text-label-caps text-primary uppercase tracking-wider font-bold">
-              49 CFR Â§ 395.1(g) Split Berth Optimizer
+              49 CFR § 395.1(g) Split Berth Optimizer
             </span>
           </div>
           <span className="bg-primary/20 text-primary font-telemetry-label text-[10px] px-2 py-0.5 rounded font-bold">
@@ -325,7 +325,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
               className="w-full accent-primary cursor-pointer"
             />
             <span className="text-[10px] text-outline block">
-              Minimum 2.0 consecutive hours (Total combined â‰¥ 10.0h)
+              Minimum 2.0 consecutive hours (Total combined = 10.0h)
             </span>
           </div>
         </div>

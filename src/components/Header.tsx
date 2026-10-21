@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
       case 'night-hud':
-        return 'Driver Cockpit';
+        return 'Driver In-Cab HUD';
       case 'hos-clocks':
         return 'HOS & Compliance';
       case 'trip-planner':
@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
       case 'telemetry':
         return 'Fleet Telemetry';
       default:
-        return 'Driver Cockpit';
+        return 'Driver In-Cab HUD';
     }
   };
 
@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
           <img
             alt="TruckWithEase Logo"
             className="h-8 w-auto object-contain hidden sm:block"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRDd4aV-S_c-pzVwdc-nBwER0x2C87d731vYbRse210GKfcJCaJUQvdkv8CioPWe53TcOKkYaRnjgAAsnfGEMgdEPhm2zYVDRpRNv7Za2w4AIfrVVQwdLrNZJhtrXY9Av1h3PEThYJuRHPdjpF8m31HHfVCMUbDMLl7gA3RMjbKCVNcN_dL7a83_xH9r_PNGjW07H2ZGmBHy_BrmJ8z3ocUn_SEgYFO38wjtZjj2Up858SertqcEJW"
+            src="/assets/logo.png"
           />
           <div className="flex flex-col">
             <span className="font-label-caps text-label-caps text-primary uppercase leading-tight font-bold tracking-wider">
@@ -130,27 +130,6 @@ export const Header: React.FC<HeaderProps> = ({
               {speed}
             </span>
           </div>
-
-          {/* Bright-Yellow 1-Click Vercel + GitHub Push Button */}
-          {onOpenExportModal && (
-            <button
-              id="btn-vercel-github-push"
-              aria-label="1-Click Vercel + GitHub Push & Unified Package Center"
-              onClick={onOpenExportModal}
-              className="min-h-[40px] px-3 flex items-center justify-center gap-1.5 active:scale-95 transition-all rounded-lg cursor-pointer shadow-[0_0_15px_rgba(251,191,36,0.6)] bg-amber-400 hover:bg-amber-300 text-slate-950 font-black border border-amber-300 shrink-0"
-              title="Click to open the Vercel & GitHub Production Export Center"
-            >
-              <span className="material-symbols-outlined text-[18px] text-slate-950 font-black animate-pulse">
-                rocket_launch
-              </span>
-              <span className="font-label-caps text-[11px] font-black uppercase tracking-wider hidden sm:inline text-slate-950">
-                VERCEL + GITHUB PUSH
-              </span>
-              <span className="font-label-caps text-[11px] font-black uppercase tracking-wider inline sm:hidden text-slate-950">
-                PUSH
-              </span>
-            </button>
-          )}
 
           {/* Voice Control HUD Button */}
           {onToggleVoice && (

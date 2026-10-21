@@ -33,7 +33,7 @@ interface CommandMenuItem {
 const COMMAND_MENU_ITEMS: CommandMenuItem[] = [
   {
     id: 'night-hud',
-    label: 'DRIVER COCKPIT',
+    label: 'DRIVER IN-CAB HUD',
     sublabel: 'Night HUD, Weather & Radar',
     icon: 'dashboard',
     badge: 'LIVE',
@@ -118,7 +118,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
               <img
                 alt="TruckWithEase Logo"
                 className="h-8 w-auto object-contain"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRDd4aV-S_c-pzVwdc-nBwER0x2C87d731vYbRse210GKfcJCaJUQvdkv8CioPWe53TcOKkYaRnjgAAsnfGEMgdEPhm2zYVDRpRNv7Za2w4AIfrVVQwdLrNZJhtrXY9Av1h3PEThYJuRHPdjpF8m31HHfVCMUbDMLl7gA3RMjbKCVNcN_dL7a83_xH9r_PNGjW07H2ZGmBHy_BrmJ8z3ocUn_SEgYFO38wjtZjj2Up858SertqcEJW"
+                src="/assets/logo.png"
               />
               <div>
                 <span className="font-label-caps text-[12px] text-primary uppercase font-bold tracking-widest block leading-none">
@@ -146,9 +146,7 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             title="View Driver CDL Credentials & Profile"
           >
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-primary font-bold text-[12px]">
-                JV
-              </div>
+              <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-primary font-bold text-[12px]">JM</div>
               <div>
                 <span className="font-bold text-[12px] text-on-surface block leading-tight">
                   {DRIVER_INFO.name}
@@ -298,18 +296,6 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
               <span>Print DVIR</span>
             </button>
           </div>
-
-          {/* 1-Click Vercel + GitHub Push */}
-          {onOpenExportModal && (
-            <button
-              onClick={onOpenExportModal}
-              className="w-full p-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-label-caps text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(251,191,36,0.5)] border border-amber-300 active:scale-95 transition-all cursor-pointer"
-              title="1-Click Vercel + GitHub Push & Unified Package Center"
-            >
-              <span className="material-symbols-outlined text-[16px] text-slate-950 font-black animate-pulse">rocket_launch</span>
-              <span>VERCEL + GITHUB PUSH</span>
-            </button>
-          )}
 
           {/* Emergency SOS Command Button */}
           <button

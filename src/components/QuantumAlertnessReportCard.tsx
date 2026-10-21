@@ -58,7 +58,7 @@ export const QuantumAlertnessReportCard: React.FC<QuantumAlertnessReportCardProp
   const handleLogReportToVault = () => {
     if (!report) return;
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
-    const notes = `QUANTUM PREDICTIVE FLEET EFFICIENCY REPORT // Timestamp: ${timestamp} // Driver Alertness Index: ${report.driverAlertnessIndex}/100 // Fatigue Prob: ${(report.fatigueProbability * 100).toFixed(1)}% // Reaction Delay: ${report.reactionDelayMs}ms // Efficiency Score: ${report.quantumPredictiveEfficiencyScore}/100 // Fuel Waste Rate: ${report.expectedFuelWasteRateGalPer100Mi} Gal/100mi // Directives Logged: ${report.actionableDirectives.length} items. Attested by Jonathan Vance (CDL IL-98104820).`;
+    const notes = `QUANTUM PREDICTIVE FLEET EFFICIENCY REPORT // Timestamp: ${timestamp} // Driver Alertness Index: ${report.driverAlertnessIndex}/100 // Fatigue Prob: ${(report.fatigueProbability * 100).toFixed(1)}% // Reaction Delay: ${report.reactionDelayMs}ms // Efficiency Score: ${report.quantumPredictiveEfficiencyScore}/100 // Fuel Waste Rate: ${report.expectedFuelWasteRateGalPer100Mi} Gal/100mi // Directives Logged: ${report.actionableDirectives.length} items. Attested by Jeremiah J. Morris (CDL IL-98104820).`;
 
     if (onRecordInspectionLog) {
       onRecordInspectionLog('ROADSIDE_AUDIT', 'QUANTUM_INDEX_AUDIT', notes);

@@ -141,7 +141,7 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
               <div className="flex justify-between items-end pt-1">
                 <div>
                   <span className="text-outline block text-[9px]">DRIVER ELECTRONIC SIGNATURE:</span>
-                  <span className="font-headline-sm text-primary italic text-[14px]">Jonathan Vance</span>
+                  <span className="font-headline-sm text-primary italic text-[14px]">Jeremiah J. Morris</span>
                 </div>
                 <div className="text-right text-[9px] text-outline">
                   <span>ATTESTATION TIMESTAMP: 2025-03-13 15:00:00 CST</span>

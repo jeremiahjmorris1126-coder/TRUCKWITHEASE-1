@@ -11,7 +11,7 @@ export const CARRIER_INFO = {
 };
 
 export const DRIVER_INFO = {
-  name: 'Jonathan Vance',
+  name: 'Jeremiah J. Morris',
   cdlNumber: 'IL-98104820',
   cdlClass: 'CLASS A • CDL VALID',
   endorsements: 'Tanker (N), Doubles/Triples (T)',
@@ -52,7 +52,7 @@ export const HISTORICAL_LOGS: DayLog[] = [
     status: 'COMPLIANT',
     verifiedHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     milesTraveled: 242,
-    signature: 'J. Vance',
+    signature: 'J. Morris',
     manifest: 'Manifest #QM-8821 (Dallas ➔ Atlanta)',
   },
   {
@@ -68,7 +68,7 @@ export const HISTORICAL_LOGS: DayLog[] = [
     status: 'COMPLIANT',
     verifiedHash: '7b8f9024a18ceb21df8417932bc61e721a6039572418529e87bbad254e0198c3',
     milesTraveled: 512,
-    signature: 'J. Vance',
+    signature: 'J. Morris',
     manifest: 'Manifest #QM-8819 (Amarillo ➔ Dallas)',
   },
   {
@@ -84,7 +84,7 @@ export const HISTORICAL_LOGS: DayLog[] = [
     status: 'COMPLIANT',
     verifiedHash: '19c8f001be4300a892b1154c4180429a1bde54129481928371904a88bcfa9801',
     milesTraveled: 430,
-    signature: 'J. Vance',
+    signature: 'J. Morris',
     manifest: 'Manifest #QM-8815 (Albuquerque ➔ Amarillo)',
   },
   {
@@ -100,7 +100,7 @@ export const HISTORICAL_LOGS: DayLog[] = [
     status: 'COMPLIANT',
     verifiedHash: 'f491a271038ca419823901bce74920401827409218bcad90148729104bce9102',
     milesTraveled: 538,
-    signature: 'J. Vance',
+    signature: 'J. Morris',
     manifest: 'Manifest #QM-8809 (Flagstaff ➔ Albuquerque)',
   },
   {
@@ -116,7 +116,7 @@ export const HISTORICAL_LOGS: DayLog[] = [
     status: 'COMPLIANT',
     verifiedHash: '61a09420bfae9812903841029bac801489210948bdfa104829013894acde1092',
     milesTraveled: 148,
-    signature: 'J. Vance',
+    signature: 'J. Morris',
     manifest: 'Manifest #QM-8801 (Barstow ➔ Flagstaff)',
   },
   {
@@ -132,7 +132,7 @@ export const HISTORICAL_LOGS: DayLog[] = [
     status: 'COMPLIANT',
     verifiedHash: 'c7489201948bcdea019284102948019238401923840912830491820394810293',
     milesTraveled: 0,
-    signature: 'J. Vance',
+    signature: 'J. Morris',
     manifest: '34-Hour Statutory Cycle Reset - Barstow Terminal',
   },
   {
@@ -148,7 +148,7 @@ export const HISTORICAL_LOGS: DayLog[] = [
     status: 'COMPLIANT',
     verifiedHash: 'e019238409182309481029384019238401928340918230948102938401928340',
     milesTraveled: 520,
-    signature: 'J. Vance',
+    signature: 'J. Morris',
     manifest: 'Manifest #QM-8798 (Bakersfield ➔ Barstow)',
   },
   {
@@ -164,7 +164,7 @@ export const HISTORICAL_LOGS: DayLog[] = [
     status: 'COMPLIANT',
     verifiedHash: 'a891230491820394810293840192384019283409182309481029384019283401',
     milesTraveled: 390,
-    signature: 'J. Vance',
+    signature: 'J. Morris',
     manifest: 'Manifest #QM-8792 (Sacramento ➔ Bakersfield)',
   },
 ];
@@ -316,7 +316,7 @@ export const INITIAL_INSPECTION_LOGS: InspectionLogEntry[] = [
     recordNumber: 'REC-2026-0909-4098',
     fileSize: '320 KB',
     verified: true,
-    notes: 'Hardcopy printout dispatched to Zebra ZQ520 In-Cab Mobile Printer. Physical copy attested by driver Jonathan Vance.',
+    notes: 'Hardcopy printout dispatched to Zebra ZQ520 In-Cab Mobile Printer. Physical copy attested by driver Jeremiah J. Morris.',
   },
   {
     id: 'insp-log-005',
@@ -413,7 +413,7 @@ export const MOCK_DISPATCH_LOADS: DispatchLoad[] = [
   {
     id: 'load-8902',
     loadNumber: 'LD-8902',
-    driverName: 'Jonathan Vance',
+    driverName: 'Jeremiah J. Morris',
     truckUnit: 'TRK-904',
     trailerUnit: 'TRL-5321',
     cargoDescription: 'Automotive Precision Powertrains',

@@ -107,7 +107,7 @@ class DotDocumentsService {
     const dossier = {
       timestamp: new Date().toISOString(),
       carrier: 'Morrishive Logistics (USDOT #3928110 / MC-1489201-Z)',
-      assignedDriver: 'Jonathan Vance (CDL IL-98104820)',
+      assignedDriver: 'Jeremiah J. Morris (CDL IL-98104820)',
       totalRecords: this.documents.length,
       auditReadinessStats: this.getAuditReadinessStats(),
       documents: this.documents,

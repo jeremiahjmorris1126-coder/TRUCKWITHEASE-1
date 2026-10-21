@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 
 interface PrivacyLockModalProps {
   isOpen: boolean;
@@ -86,13 +86,13 @@ export const PrivacyLockModal: React.FC<PrivacyLockModalProps> = ({
 
         {/* Keypad */}
         <div className="grid grid-cols-3 gap-2 w-full max-w-[240px]">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLR', '0', 'âŒ«'].map(
+          {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLR', '0', '⌫'].map(
             (key) => (
               <button
                 key={key}
                 onClick={() => {
                   if (key === 'CLR') handleClear();
-                  else if (key === 'âŒ«') setEnteredPin((p) => p.slice(0, -1));
+                  else if (key === '⌫') setEnteredPin((p) => p.slice(0, -1));
                   else handleDigit(key);
                 }}
                 className="h-11 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container-high active:bg-primary active:text-on-primary font-telemetry-label text-[13px] font-bold transition-colors cursor-pointer flex items-center justify-center border border-surface-container-high"

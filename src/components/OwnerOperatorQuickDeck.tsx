@@ -39,7 +39,7 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
   const etaMinute = (now.getMinutes() + 20) % 60;
   const etaFormatted = `${etaHour.toString().padStart(2, '0')}:${etaMinute.toString().padStart(2, '0')} CDT`;
 
-  const dispatchUpdateText = `[TRUCK #1042 UPDATE] En route I-44 E @ MM 184 // Speed: ${speed} MPH // Weather: Clear & Dry // ETA to Dock Door 14: ${etaFormatted} // Driver: Jonathan Vance // Status: ON TIME & COMPLIANT`;
+  const dispatchUpdateText = `[TRUCK #1042 UPDATE] En route I-44 E @ MM 184 // Speed: ${speed} MPH // Weather: Clear & Dry // ETA to Dock Door 14: ${etaFormatted} // Driver: Jeremiah J. Morris // Status: ON TIME & COMPLIANT`;
 
   // 1-Tap Fuel Submission
   const handleLogFuelDirect = (gallons: number, pricePerGal: number, itemDesc: string, totalAmount: number) => {
@@ -54,8 +54,8 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
         vendorPhone: '800-555-4921',
         vendorContactEmail: 'receipts@loves.com',
         category: 'FUEL_DIESEL',
-        billToName: 'Jonathan Vance (Owner-Operator)',
-        billToCompany: 'Vance Freight Logistics LLC',
+        billToName: 'Jeremiah J. Morris (Owner-Operator)',
+        billToCompany: 'Morrishive Logistics LLC',
         billToAddress: '1042 Highway Transport Way, St. Louis, MO 63101',
         shipToName: 'Truck #1042 Tractor (Freightliner Cascadia)',
         shipToCompany: 'Terminal Direct Refuel',
@@ -99,7 +99,7 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
   // 1-Tap DVIR Sign
   const handleSignDvir = () => {
     const timestamp = new Date().toISOString().substring(0, 19).replace('T', ' ');
-    const logNotes = `DVIR ${dvirType} SIGNED // Unit #1042 + Trailer #5309 // 11 Critical Points Inspected (Brakes, Steering, Coupling, Tires, Lights, Suspension) // Result: DEFECT-FREE & SAFE // Signed by Jonathan Vance at ${timestamp}`;
+    const logNotes = `DVIR ${dvirType} SIGNED // Unit #1042 + Trailer #5309 // 11 Critical Points Inspected (Brakes, Steering, Coupling, Tires, Lights, Suspension) // Result: DEFECT-FREE & SAFE // Signed by Jeremiah J. Morris at ${timestamp}`;
     
     if (onRecordInspectionLog) {
       onRecordInspectionLog('DVIR_SIGNOFF', 'ONE_TAP_COCKPIT', logNotes);

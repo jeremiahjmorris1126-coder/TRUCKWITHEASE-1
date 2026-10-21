@@ -318,7 +318,7 @@ export const SecurityVaultScreen: React.FC<SecurityVaultProps> = ({
           </span>
           <div className="mt-1 truncate">
             <span className="font-mono text-[13px] font-bold text-on-surface block truncate">
-              JONATHAN VANCE
+              Jeremiah J. Morris
             </span>
             <span className="text-[10px] font-mono text-outline block truncate">
               CDL: IL-98104820
@@ -675,7 +675,7 @@ export const SecurityVaultScreen: React.FC<SecurityVaultProps> = ({
             type: 'LOAD_LOCK',
           },
           {
-            event: 'Driver Jonathan Vance CDL Attested (IL-98104820)',
+            event: 'Driver Jeremiah J. Morris CDL Attested (IL-98104820)',
             hash: '0x7c...54a901',
             time: '11:45 AM CDT',
             type: 'SIGNATURE',

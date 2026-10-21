@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useRealtimeWeather, WeatherAlertType } from '../hooks/useRealtimeWeather';
 
@@ -136,7 +136,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
                     </div>
                     {weather && (
                       <span className="font-mono text-[10px] text-outline/80 mt-0.5">
-                        {weather.locationLabel} â€¢ {weather.conditionText}
+                        {weather.locationLabel} • {weather.conditionText}
                       </span>
                     )}
                   </div>
@@ -268,7 +268,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
               </span>
               {weather && (
                 <span className="font-mono text-[10px] text-outline hidden sm:inline">
-                  â€¢ {weather.windSpeed} MPH Wind â€¢ {weather.visibilityMiles} mi Vis â€¢ {weather.temperature}Â°F
+                  • {weather.windSpeed} MPH Wind • {weather.visibilityMiles} mi Vis • {weather.temperature}°F
                 </span>
               )}
             </div>
@@ -349,7 +349,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#2e1305] border border-[#f97316]/40 text-orange-300 hover:border-orange-300 font-mono text-[10px] transition-colors"
               >
                 <span className="material-symbols-outlined text-[14px]">ac_unit</span>
-                Simulate Black Ice (29Â°F)
+                Simulate Black Ice (29°F)
               </button>
 
               <button

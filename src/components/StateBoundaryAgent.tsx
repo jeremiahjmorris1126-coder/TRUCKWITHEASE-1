@@ -59,7 +59,7 @@ export const StateBoundaryAgent: React.FC<StateBoundaryAgentProps> = ({
 
   const handleAttestStateCompliance = () => {
     const timestamp = new Date().toISOString().substring(0, 19).replace('T', ' ') + ' UTC';
-    const notes = `STATE BOUNDARY COMPLIANCE ATTESTATION // State: ${currentState.stateName} (${currentState.stateCode}) // Truck Speed Limit: ${currentState.truckSpeedLimitMph} MPH // Vehicle Speed: ${currentSpeedMph} MPH // Lane Restriction: ${currentState.laneRestrictions} // Weigh Station Policy: ${currentState.weighStationPolicy} // Attested by Jonathan Vance (CDL IL-98104820) at ${timestamp}.`;
+    const notes = `STATE BOUNDARY COMPLIANCE ATTESTATION // State: ${currentState.stateName} (${currentState.stateCode}) // Truck Speed Limit: ${currentState.truckSpeedLimitMph} MPH // Vehicle Speed: ${currentSpeedMph} MPH // Lane Restriction: ${currentState.laneRestrictions} // Weigh Station Policy: ${currentState.weighStationPolicy} // Attested by Jeremiah J. Morris (CDL IL-98104820) at ${timestamp}.`;
 
     if (onRecordInspectionLog) {
       onRecordInspectionLog('ROADSIDE_AUDIT', 'MANUAL_HUD', notes);
