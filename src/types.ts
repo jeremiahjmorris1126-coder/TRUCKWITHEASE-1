@@ -306,3 +306,23 @@ export interface FuelLogEntry {
 
 export type HudVisionProfile = 'HIGH_CONTRAST' | 'MINIMALIST' | 'ROUTE_FOCUSED';
 
+export type CockpitLayoutMode = 'FLIGHT_DECK' | 'PERIMETER' | 'MINIMALIST';
+
+export interface CockpitActionControl {
+  id: string;
+  label: string;
+  iconName?: string;
+  zone: 'TOP' | 'SIDE' | 'BOTTOM' | 'DROPDOWN';
+  category: 'PRIMARY' | 'OPERATIONAL' | 'INTEGRATION' | 'DIRECTIVE';
+  badge?: string;
+  active?: boolean;
+}
+
+export interface ExternalBenchmarkBridge {
+  id: 'SAMSARA' | 'MOTIVE' | 'GEOTAB' | 'KEEP_TRUCKIN';
+  name: string;
+  category: 'TELEMATICS_BRIDGE';
+  status: 'CONNECTED' | 'DISCONNECTED' | 'COMPLIANT_BYPASS';
+  syncLatencyMs: number;
+}
+
