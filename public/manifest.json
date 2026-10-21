@@ -1,0 +1,41 @@
+{
+  "background_color": "#000000",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "truckwithease",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "truckwithease",
+  "start_url": "https://truckwithease.com",
+  "theme_color": "#ffe600",
+  "id": "com.truckwithease.app",
+  "description": "TRUCKWITHEASE is the premier all-in-one commercial motor carrier operations platform and in-cab driver command center. Built by truckers for CDL drivers, owner-operators, and fleet managers nationwide.\n\nKEY FEATURES:\n\n• FMCSA COMPLIANT ELD & HOS:\n49 CFR § 395 compliant Hours of Service e-logs with live 11-hour driving, 14-hour shift, 30-minute break, and 70-hour cycle clocks. Instant 1-click eRODS transfer to state troopers and DOT safety inspectors.\n\n• LOW-BRIDGE CLEARANCE RADAR:\nItem 54B bridge height alerts prevent devastating overhead bridge strikes with real-time route clearance mapping.\n\n• 80,000 LB COMMERCIAL LOAD SHEETS & AXLE SCALES:\nAutomated steer, drive, and tandem axle weight distribution calculations to prevent overweight bridge formula violations.\n\n• AUTONOMOUS PRE-TRIP & POST-TRIP DVIR:\nComplete vehicle defect logs under 49 CFR § 396.11 with mechanic sign-offs, memory recall, and roadside audit dossiers.\n\n• 50-STATE TOLLS & DRIVEWYZE BYPASS:\nIntegrated weigh station bypass directory, toll pass guide, and route cost calculators.\n\n• IN-CAB FLEET TELECOM & HOTLINE:\nDedicated in-cab VoIP lines, dispatch messaging, and 24/7 compliance support hotline.\n\n• AUTOMATED IFTA FUEL TAX AUDITS:\nAutomatic state-by-state GPS odometer mileage tracking and quarterly fuel receipt calculation.\n\n• THE \"KNOW IT ALL\" MASTER MECHANIC:\nInstant SPN/PGN heavy-duty fault code diagnostics, torque specifications, and roadside recovery assistance.\n\nDrive smart. Protect your CDL. Stay 100% compliant with TRUCKWITHEASE.",
+  "lang": "en",
+  "display_override": [
+    "window-controls-overlay",
+    "fullscreen"
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://truckwithease.com",
+      "id": "com.truckwithease.enterprise"
+    }
+  ],
+  "categories": [
+    "business",
+    "navigation",
+    "productivity",
+    "transportation",
+    "travel",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/assets/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
