@@ -40,6 +40,42 @@
       "created_at": "2026-10-22T15:43:34.822Z",
       "sender": "ios",
       "is_cancelled": false
+    },
+    {
+      "id": "4409977e-b9f2-41c1-90a0-77eddc52af80",
+      "role": "agent",
+      "content": "It is saved.",
+      "status": "completed",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": "eda22ad1-5b71-4493-b94e-739bc6f8734a",
+      "created_at": "2026-10-22T15:44:10.465Z",
+      "sender": "macOS",
+      "is_cancelled": false
+    },
+    {
+      "id": "24e838c0-77e9-49e8-bfcb-600d3883c709",
+      "role": "user",
+      "content": "Implement a complete REST endpoint for the described resource. Include:\n\n1. Route, method(s), and idempotency where relevant\n2. Request validation (body, query, path) with clear error responses\n3. One success response shape (JSON) and status codes (200/201/204, 400, 404, 5xx)\n4. Short doc comment or OpenAPI-style summary\n\nUse the stack and conventions of the current project.",
+      "status": "cancelled",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-22T15:44:21.667Z",
+      "sender": "ios",
+      "is_cancelled": true
+    },
+    {
+      "id": "26c7c5f3-2d44-47a3-85e7-ef4924b7b706",
+      "role": "user",
+      "content": "Build this project so I can see it in the preview: run its production build (for example npm run build) and make sure the built pages end up in dist, build or out. If it's a Next.js project, switch it to static export first (output: 'export'). Tell me when it's done.",
+      "status": "pending",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-22T15:45:44.509Z",
+      "sender": "ios",
+      "is_cancelled": false
     }
   ]
 }
