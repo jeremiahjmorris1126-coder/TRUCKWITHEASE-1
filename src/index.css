@@ -1,24 +1,24 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 @theme {
-  --color-surface: #0a0c10;
-  --color-surface-container-lowest: #050709;
-  --color-surface-container-low: #0a0c10;
-  --color-surface-container: #0e1117;
-  --color-surface-container-high: #141820;
-  --color-surface-container-highest: #1c212b;
-  --color-surface-dim: #050709;
-  --color-surface-bright: #222834;
-  --color-surface-variant: #181c25;
+  --color-surface: #0a0f14;
+  --color-surface-container-lowest: #05080e;
+  --color-surface-container-low: #0a0f14;
+  --color-surface-container: #0f141c;
+  --color-surface-container-high: #151b24;
+  --color-surface-container-highest: #1e2532;
+  --color-surface-dim: #05080e;
+  --color-surface-bright: #262e3d;
+  --color-surface-variant: #161c26;
 
-  --color-primary: #e5a91e;
-  --color-primary-container: #e5a91e;
+  --color-primary: #ffe500;
+  --color-primary-container: #ffe500;
   --color-on-primary: #000000;
   --color-on-primary-container: #000000;
-  --color-primary-fixed: #fbbf24;
-  --color-primary-fixed-dim: #d49a18;
+  --color-primary-fixed: #fff066;
+  --color-primary-fixed-dim: #e6ce00;
   --color-on-primary-fixed: #000000;
-  --color-on-primary-fixed-variant: #1a1300;
+  --color-on-primary-fixed-variant: #1a1500;
 
   --color-secondary: #ffffff;
   --color-secondary-container: #141820;
@@ -33,7 +33,7 @@
   --color-tertiary-fixed: #fcd34d;
   --color-tertiary-fixed-dim: #f59e0b;
 
-  --color-error: #f87171;
+  --color-error: #ef4444;
   --color-error-container: #7f1d1d;
   --color-on-error: #ffffff;
   --color-on-error-container: #fecaca;
@@ -43,9 +43,10 @@
   --color-outline: #1e2430;
   --color-outline-variant: #141820;
 
-  --color-tactical-green: #00e676;
-  --color-tactical-amber: #e5a91e;
-  --color-tactical-orange: #d97706;
+  --color-tactical-green: #10b981;
+  --color-tactical-amber: #f59e0b;
+  --color-tactical-yellow: #ffe500;
+  --color-tactical-orange: #f97316;
   --color-tactical-hazard: #ef4444;
 
   --font-headline: "Space Grotesk", sans-serif;
@@ -135,54 +136,105 @@
 
   /* Aero-Avionics Tactical Components */
   .badge-live {
-    background: rgba(0, 230, 118, 0.12);
-    color: #00e676;
-    border: 1px solid #00e676;
-    box-shadow: 0 0 10px rgba(0, 230, 118, 0.35);
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid #10b981;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
     font-family: "JetBrains Mono", monospace;
     font-weight: 700;
     text-transform: uppercase;
   }
   .badge-gold {
-    background: rgba(229, 169, 30, 0.12);
-    color: #e5a91e;
-    border: 1px solid rgba(229, 169, 30, 0.4);
+    background: rgba(255, 229, 0, 0.12);
+    color: #ffe500;
+    border: 1px solid rgba(255, 229, 0, 0.4);
     font-family: "JetBrains Mono", monospace;
     font-weight: 700;
     text-transform: uppercase;
   }
   .badge-orange {
-    background: rgba(217, 119, 6, 0.15);
+    background: rgba(245, 158, 11, 0.15);
     color: #f59e0b;
-    border: 1px solid rgba(217, 119, 6, 0.4);
+    border: 1px solid rgba(245, 158, 11, 0.4);
     font-family: "JetBrains Mono", monospace;
     font-weight: 700;
     text-transform: uppercase;
   }
-  .btn-primary-tactical {
-    background-color: #e5a91e;
+  .badge-verified {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .btn-primary-tactical,
+  .btn-tactical-yellow {
+    background-color: #ffe500;
     color: #000000;
     font-family: "Space Grotesk", sans-serif;
-    font-weight: 800;
+    font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-radius: 6px;
-    box-shadow: 0 0 16px rgba(229, 169, 30, 0.3);
+    letter-spacing: 0.05em;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(255, 229, 0, 0.45);
+    transition: all 0.15s ease-in-out;
+  }
+  .btn-primary-tactical:hover,
+  .btn-tactical-yellow:hover {
+    background-color: #fff033;
+    transform: translateY(-1px);
+    box-shadow: 0 0 26px rgba(255, 229, 0, 0.65);
+  }
+  .btn-primary-tactical:active,
+  .btn-tactical-yellow:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 12px rgba(255, 229, 0, 0.3);
   }
   .btn-secondary-tactical {
-    background-color: #0e1117;
+    background-color: #0f141c;
     color: #ffffff;
-    border: 1px solid #1e2430;
+    border: 1px solid #1e2532;
     font-family: "Space Grotesk", sans-serif;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    border-radius: 6px;
+    border-radius: 8px;
   }
   .card-tactical {
-    background-color: #0e1117;
-    border: 1px solid #1c212b;
-    border-radius: 8px;
+    background-color: #0a0f14;
+    border: 1px solid #1e2532;
+    border-radius: 12px;
+  }
+
+  /* Low-Bridge Radar HUD Critical Clearance Box */
+  .box-clearance-critical {
+    position: relative;
+    background: linear-gradient(135deg, rgba(20, 5, 8, 0.95) 0%, rgba(35, 8, 12, 0.95) 100%);
+    border: 2px solid #ef4444;
+    box-shadow: 0 0 35px rgba(239, 68, 68, 0.45), inset 0 0 25px rgba(239, 68, 68, 0.2);
+    border-radius: 14px;
+  }
+  .box-clearance-critical::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 16px;
+    padding: 2px;
+    background: linear-gradient(90deg, #f97316, #ef4444, #f59e0b, #ef4444);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Dispatch Zero Yield Banner */
+  .banner-hos-breach {
+    background: linear-gradient(180deg, rgba(30, 10, 15, 0.95) 0%, rgba(18, 5, 8, 0.95) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.6);
+    border-radius: 10px;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.25);
   }
 }
 
@@ -190,7 +242,7 @@ html, body {
   width: 100%;
   margin: 0;
   padding: 0;
-  background-color: #050709;
+  background-color: #05080e;
   color: #e2e8f0;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;

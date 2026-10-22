@@ -199,9 +199,9 @@ export const useVoiceControl = ({
           onSelectTab('radar-54b');
           return;
         }
-        if (phrase.includes('goat') || phrase.includes('load board') || phrase.includes('freight')) {
-          setTimedFeedback('THE G.O.A.T.', 'SWITCHING TO QUANTUM LOAD BOARD', 'alt_route');
-          onSelectTab('the-g-o-a-t-');
+        if (phrase.includes('mechanic') || phrase.includes('master mechanic') || phrase.includes('diagnostics') || phrase.includes('goat') || phrase.includes('ecu') || phrase.includes('fault')) {
+          setTimedFeedback('MASTER MECHANIC', 'SWITCHING TO VEHICLE DIAGNOSTICS & ECU', 'build_circle');
+          onSelectTab('master-mechanic');
           return;
         }
         if (phrase.includes('haptics') || phrase.includes('vibration')) {

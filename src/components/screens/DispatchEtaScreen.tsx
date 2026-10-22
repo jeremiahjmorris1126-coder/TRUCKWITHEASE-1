@@ -14,7 +14,62 @@ const TIMELINE_SLOTS = [
   { hour: 16, label: '16:00 - 18:00 CDT', title: '16:00 Evening Slot' },
 ];
 
+interface QuantumYieldLoad {
+  id: string;
+  revenuePerDutyHour: string;
+  origin: string;
+  destination: string;
+  corridorDistance: string;
+  netQuantumClock: string;
+  hosCoherence: string;
+  verified: boolean;
+  fuelArbitrage?: string;
+  cargoTag?: string;
+  safetyTags?: string[];
+  isDispatched?: boolean;
+}
+
+const INITIAL_YIELD_LOADS: QuantumYieldLoad[] = [
+  {
+    id: 'yield-dal-atl',
+    revenuePerDutyHour: '$232.10/Hr',
+    origin: 'Dallas, TX',
+    destination: 'Atlanta, GA',
+    corridorDistance: '781 mi • Corridor',
+    netQuantumClock: '$218.40 / Clock',
+    hosCoherence: '0%',
+    verified: true,
+    fuelArbitrage: 'Save $74.40 at Shreveport Pilot ($3.38/gal)',
+  },
+  {
+    id: 'yield-chi-bna',
+    revenuePerDutyHour: '$218.40/Hr',
+    origin: 'Chicago, IL',
+    destination: 'Nashville, TN',
+    corridorDistance: '472 mi • 8.2h',
+    netQuantumClock: '$232.10 / Clock',
+    hosCoherence: 'QP 2%',
+    verified: false,
+    cargoTag: 'Pharma 34°F • Coyote (QP 2%)',
+    safetyTags: ['Zero Sleeper On Road', 'I-65 Corridor Clear'],
+  },
+  {
+    id: 'yield-mem-ind',
+    revenuePerDutyHour: '$204.80/Hr',
+    origin: 'Memphis, TN',
+    destination: 'Indianapolis, IN',
+    corridorDistance: '485 mi • Corridor',
+    netQuantumClock: '$198.50 / Clock',
+    hosCoherence: '96%',
+    verified: true,
+    fuelArbitrage: 'Save $52.10 at Effingham Flying J ($3.41/gal)',
+    safetyTags: ['Direct Crossdock D-12', 'Hazmat Endorsement N/A'],
+  },
+];
+
 export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) => {
+  const [dispatchViewMode, setDispatchViewMode] = useState<'DISPATCH_ZERO' | 'DOCK_TIMELINE'>('DISPATCH_ZERO');
+  const [yieldLoads, setYieldLoads] = useState<QuantumYieldLoad[]>(INITIAL_YIELD_LOADS);
   const [loads, setLoads] = useState<DispatchLoad[]>(MOCK_DISPATCH_LOADS);
   const [draggedLoadId, setDraggedLoadId] = useState<string | null>(null);
   const [selectedLoadId, setSelectedLoadId] = useState<string>('load-8910');
@@ -177,8 +232,161 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
     }
   };
 
+  const handleDispatchYieldLoad = (loadId: string) => {
+    setYieldLoads((prev) =>
+      prev.map((l) => (l.id === loadId ? { ...l, isDispatched: true } : l))
+    );
+    const target = yieldLoads.find((l) => l.id === loadId);
+    onShowToast(`ONE-CLICK QUANTUM DISPATCH LOCKED // ${target?.revenuePerDutyHour} FOR ${target?.origin} -> ${target?.destination}`, 'bolt');
+  };
+
   return (
     <div className="flex flex-col w-full max-w-4xl mx-auto px-gutter-mobile pb-space-2xl space-y-space-md">
+      {/* 1. TOP VIEW MODE SELECTOR: DISPATCH ZERO vs DOCK TIMELINE */}
+      <div className="flex items-center justify-center gap-2 p-1 bg-[#0A0F14] rounded-xl border border-[#1E2532] shadow-lg max-w-md mx-auto w-full">
+        <button
+          onClick={() => setDispatchViewMode('DISPATCH_ZERO')}
+          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            dispatchViewMode === 'DISPATCH_ZERO'
+              ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[16px]">bolt</span>
+          <span>Dispatch Zero ($/Hr Yield)</span>
+        </button>
+
+        <button
+          onClick={() => setDispatchViewMode('DOCK_TIMELINE')}
+          className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            dispatchViewMode === 'DOCK_TIMELINE'
+              ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[16px]">map</span>
+          <span>Timeline &amp; Fleet Map</span>
+        </button>
+      </div>
+
+      {/* DISPATCH ZERO $/HR YIELD VIEW (Exact Match from Image 2) */}
+      {dispatchViewMode === 'DISPATCH_ZERO' && (
+        <div className="space-y-4 max-w-2xl mx-auto w-full">
+          {/* Header matching Image 2 */}
+          <div className="text-center pt-1 pb-1">
+            <h1 className="font-['Space_Grotesk'] text-2xl sm:text-3xl font-black text-white tracking-wider uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+              DISPATCH ZERO: $/HR YIELD
+            </h1>
+            <p className="text-sm font-medium text-slate-300 tracking-wide mt-1">
+              Loads Ranked by Remaining Legal Hours
+            </p>
+          </div>
+
+          {/* Cards */}
+          <div className="space-y-3">
+            {yieldLoads.map((load) => (
+              <div
+                key={load.id}
+                className="bg-[#0A0F14] p-4 rounded-2xl border border-[#1E2532] shadow-xl space-y-3 relative overflow-hidden"
+              >
+                {/* Top Label & Verified */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-[#F59E0B] tracking-wider uppercase">
+                    REVENUE PER LEGAL DUTY HOUR
+                  </span>
+                  {load.verified && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-950/70 text-emerald-400 border border-emerald-500/50 text-[10px] font-bold flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.25)]">
+                      <span>&#10004;</span>
+                      <span>VERIFIED</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Rate & Origin/Destination */}
+                <div className="flex items-baseline flex-wrap gap-2">
+                  <span className="font-['Space_Grotesk'] text-2xl sm:text-3xl font-black text-[#FFE500] tracking-tight drop-shadow-[0_0_10px_rgba(255,229,0,0.35)]">
+                    {load.revenuePerDutyHour}
+                  </span>
+                  <span className="text-slate-400 text-lg">&rarr;</span>
+                  <span className="font-['Space_Grotesk'] text-lg sm:text-xl font-bold text-white">
+                    {load.origin} <span className="text-slate-400 font-normal text-sm sm:text-base">to</span> {load.destination}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-slate-400 font-mono -mt-1">
+                  {load.corridorDistance}
+                </p>
+
+                {/* Net Quantum & Details */}
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#1E2532] text-xs">
+                  <div>
+                    <span className="text-[9px] text-slate-400 uppercase block">NET QUANTUM</span>
+                    <span className="text-[#FFE500] font-bold text-sm">{load.netQuantumClock}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[9px] text-slate-400 uppercase block">
+                      {load.cargoTag ? 'COLD-CHAIN CARGO' : 'HOS Coherence'}
+                    </span>
+                    <span className="text-white font-bold text-xs truncate block">
+                      {load.cargoTag || load.hosCoherence}
+                    </span>
+                  </div>
+                </div>
+
+                {load.fuelArbitrage && (
+                  <div className="p-2 rounded-lg bg-[#05080E] border border-[#1E2532] flex items-center gap-2 text-[11px] text-slate-300">
+                    <span className="material-symbols-outlined text-[16px] text-amber-400">local_gas_station</span>
+                    <span>Fuel Arb: {load.fuelArbitrage}</span>
+                  </div>
+                )}
+
+                {load.safetyTags && (
+                  <div className="flex items-center gap-2 flex-wrap text-[10px]">
+                    {load.safetyTags.map((tag, i) => (
+                      <span
+                        key={i}
+                        className="px-2 py-0.5 rounded bg-[#05080E] border border-slate-700 text-slate-300 flex items-center gap-1"
+                      >
+                        <span className="text-[#FFE500]">&#9733;</span>
+                        <span>{tag}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Giant Yellow Action Button */}
+                <button
+                  onClick={() => handleDispatchYieldLoad(load.id)}
+                  disabled={load.isDispatched}
+                  className={`w-full py-3.5 px-4 rounded-xl font-['Space_Grotesk'] font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    load.isDispatched
+                      ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                      : 'btn-tactical-yellow'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">bolt</span>
+                  <span>{load.isDispatched ? 'DISPATCHED // ON MASTER SCHEDULE' : 'ONE-CLICK QUANTUM DISPATCH'}</span>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Breach Guard Container */}
+          <div className="banner-hos-breach p-3.5 sm:p-4 text-xs font-mono space-y-1">
+            <div className="flex items-center gap-1.5 text-red-400 font-bold">
+              <span className="material-symbols-outlined text-[18px]">warning</span>
+              <span>HOS Breach Guard: Driver Window 08h 10m remaining</span>
+            </div>
+            <p className="text-[11px] text-red-200/80 leading-relaxed pl-6">
+              Transit demands 12h 15m. Net yield collapsed by Florida Turnpike tolls and empty outbound deadhead.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* DOCK TIMELINE & MAP VIEW */}
+      {dispatchViewMode === 'DOCK_TIMELINE' && (
+        <>
       {/* Header Banner */}
       <div className="bg-surface-container p-space-md rounded-xl border border-surface-container-high/60 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
         <div className="flex items-center gap-space-sm">
@@ -683,6 +891,8 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
             <p className="text-outline">{selectedLoad.riskFactor}</p>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

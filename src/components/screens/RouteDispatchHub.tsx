@@ -3,7 +3,7 @@ import { TabId } from '../../types';
 import { TripPlannerScreen } from './TripPlannerScreen';
 import { Radar54bScreen } from './Radar54bScreen';
 import { DispatchEtaScreen } from './DispatchEtaScreen';
-import { GoatScreen } from './GoatScreen';
+import { MasterMechanicScreen } from './MasterMechanicScreen';
 
 interface RouteDispatchHubProps {
   initialSubTab?: 'planner' | 'weigh-scales' | 'dispatch' | 'clearance';
@@ -72,8 +72,8 @@ export const RouteDispatchHub: React.FC<RouteDispatchHubProps> = ({
                   : 'bg-surface-container/60 hover:bg-surface-container text-outline hover:text-white'
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]">height</span>
-              <span>Low Clearance (G.O.A.T.)</span>
+              <span className="material-symbols-outlined text-[16px]">build_circle</span>
+              <span>The Master Mechanic</span>
             </button>
           </div>
         </div>
@@ -91,7 +91,7 @@ export const RouteDispatchHub: React.FC<RouteDispatchHubProps> = ({
           <DispatchEtaScreen onShowToast={onShowToast} />
         )}
         {activeSubTab === 'clearance' && (
-          <GoatScreen onShowToast={onShowToast} />
+          <MasterMechanicScreen onShowToast={onShowToast} speed={speed} />
         )}
       </div>
     </div>

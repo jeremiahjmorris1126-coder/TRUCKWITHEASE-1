@@ -209,6 +209,89 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
         </div>
       </div>
 
+      {/* TACTICAL HIGHWAY CORRIDOR VECTOR MAP (Signature Obsidian & Emerald-to-Amber Glow) */}
+      <div className="bg-[#05080E] p-4 rounded-2xl border border-[#1E2532] shadow-2xl space-y-2">
+        <div className="flex items-center justify-between text-xs font-mono border-b border-[#1E2532] pb-2">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[#FFE500]">alt_route</span>
+            <span className="font-bold text-white uppercase tracking-wider font-['Space_Grotesk']">
+              Live Corridor Vector Polyline &bull; {tripPlan.title}
+            </span>
+          </div>
+          <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+            ALL OVERPASSES &gt; 15' 6&quot; CLEAR
+          </span>
+        </div>
+
+        {/* Vector SVG Corridor Stage */}
+        <div className="relative w-full h-32 sm:h-36 rounded-xl overflow-hidden bg-[#070B12] border border-[#1E2532] flex items-center justify-between px-4 sm:px-8">
+          {/* Subtle Grid */}
+          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#10B981_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
+
+          {/* Glowing Neon Route Polyline */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="tripCorridorGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#10B981" />
+                <stop offset="50%" stopColor="#22C55E" />
+                <stop offset="85%" stopColor="#F59E0B" />
+                <stop offset="100%" stopColor="#FFE500" />
+              </linearGradient>
+              <filter id="tripNeonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            {/* Ambient Aura */}
+            <path
+              d="M 20,70 Q 200,30 450,70 T 800,60 T 1100,70"
+              fill="none"
+              stroke="url(#tripCorridorGradient)"
+              strokeWidth="7"
+              filter="url(#tripNeonGlow)"
+              opacity="0.8"
+            />
+            {/* Center Core Line */}
+            <path
+              d="M 20,70 Q 200,30 450,70 T 800,60 T 1100,70"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              opacity="0.95"
+            />
+          </svg>
+
+          {/* Interactive Milestone Nodes Along the Corridor */}
+          <div className="relative z-10 flex items-center justify-between w-full">
+            {tripPlan.waypoints.slice(0, 5).map((wp, i) => (
+              <div key={wp.id} className="flex flex-col items-center group relative cursor-pointer">
+                {/* Node Pill */}
+                <div className="w-8 h-8 rounded-full bg-[#0A0F14] border-2 border-[#FFE500] text-[#FFE500] flex items-center justify-center shadow-[0_0_12px_rgba(255,229,0,0.4)] group-hover:scale-125 transition-all">
+                  <span className="material-symbols-outlined text-[16px]">
+                    {wp.category === 'FUEL_STATION'
+                      ? 'local_gas_station'
+                      : wp.category === 'REST_STOP'
+                      ? 'local_parking'
+                      : 'scale'}
+                  </span>
+                </div>
+                {/* Milestone Name */}
+                <span className="mt-1.5 px-2 py-0.5 rounded bg-[#0A0F14] border border-[#1E2532] text-[9px] font-bold text-slate-200 whitespace-nowrap shadow">
+                  MM {wp.mileMarker}
+                </span>
+                {/* Overpass Clearance Tag */}
+                <span className="text-[8px] text-emerald-400 font-bold mt-0.5">
+                  Clear: 16' 2&quot;
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* Category Tabs */}

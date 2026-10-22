@@ -22,7 +22,7 @@ import { useAlertnessTracker } from './hooks/useAlertnessTracker';
 import { NightHudScreen } from './components/screens/NightHudScreen';
 import { HosClocksScreen } from './components/screens/HosClocksScreen';
 import { Radar54bScreen } from './components/screens/Radar54bScreen';
-import { GoatScreen } from './components/screens/GoatScreen';
+import { MasterMechanicScreen } from './components/screens/MasterMechanicScreen';
 import { HapticsScreen } from './components/screens/HapticsScreen';
 import { EcosystemTrustHubScreen } from './components/screens/EcosystemTrustHubScreen';
 import { SecurityVaultScreen } from './components/screens/SecurityVaultScreen';
@@ -56,6 +56,7 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
     'radar-54b': true,
     'trip-planner': true,
     'the-g-o-a-t-': true,
+    'master-mechanic': true,
     'haptics': true,
     'ecosystem': true,
     'telemetry': true,
@@ -255,6 +256,7 @@ export default function App() {
       case 'trip-planner':
       case 'radar-54b':
       case 'dispatch-eta':
+      case 'master-mechanic':
       case 'the-g-o-a-t-':
         return (
           <RouteDispatchHub
@@ -263,7 +265,7 @@ export default function App() {
                 ? 'weigh-scales'
                 : activeTab === 'dispatch-eta'
                 ? 'dispatch'
-                : activeTab === 'the-g-o-a-t-'
+                : activeTab === 'the-g-o-a-t-' || activeTab === 'master-mechanic'
                 ? 'clearance'
                 : 'planner'
             }
