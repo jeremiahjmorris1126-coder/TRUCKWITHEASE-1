@@ -55,7 +55,6 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
     'hos-clocks': true,
     'radar-54b': true,
     'trip-planner': true,
-    'the-g-o-a-t-': true,
     'master-mechanic': true,
     'haptics': true,
     'ecosystem': true,
