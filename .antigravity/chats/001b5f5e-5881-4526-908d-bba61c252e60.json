@@ -3,6 +3,43 @@
   "name": "Explain how this project works",
   "createdAt": "2026-10-22T15:40:52.688Z",
   "filename": "001b5f5e-5881-4526-908d-bba61c252e60.json",
-  "geminiStarted": false,
-  "messages": []
+  "geminiStarted": true,
+  "messages": [
+    {
+      "id": "e7a1afe6-08ae-4706-9391-8f857f64ce30",
+      "role": "user",
+      "content": "Explain how this project works",
+      "status": "cancelled",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-22T15:40:54.549Z",
+      "sender": "ios",
+      "is_cancelled": true
+    },
+    {
+      "id": "0389da85-069d-420c-935b-1efaf73dfbc6",
+      "role": "user",
+      "content": "Add tests for the main features",
+      "status": "cancelled",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-22T15:42:56.388Z",
+      "sender": "ios",
+      "is_cancelled": true
+    },
+    {
+      "id": "eda22ad1-5b71-4493-b94e-739bc6f8734a",
+      "role": "user",
+      "content": "Commit all staged changes with exactly this commit message, unchanged:\n\nCommit",
+      "status": "pending",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-22T15:43:34.822Z",
+      "sender": "ios",
+      "is_cancelled": false
+    }
+  ]
 }
