@@ -35,7 +35,6 @@ import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
-import { VercelGithubExportModal } from './components/VercelGithubExportModal';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
 
@@ -179,7 +178,6 @@ export default function App() {
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Speed simulation (subtle variance around 65 mph while moving)
@@ -345,7 +343,6 @@ export default function App() {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         enabledModules={fleetSettings.enabledModules}
         onOpenCustomizer={() => setShowCustomizer(true)}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
       {/* Cockpit Header */}
@@ -359,7 +356,6 @@ export default function App() {
         alertnessScore={alertness.alertnessData.score}
         onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
@@ -425,14 +421,7 @@ export default function App() {
         />
       )}
 
-      {/* 1-Click Vercel + GitHub Push & Unified Package Center Modal */}
-      <VercelGithubExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        onShowToast={showToast}
-      />
     </div>
   );
 }
-
 
