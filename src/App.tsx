@@ -35,7 +35,7 @@ import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
-import { CloudflareDeploymentModal } from './components/CloudflareDeploymentModal';
+import { FirebaseDeploymentModal } from './components/FirebaseDeploymentModal';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
 
@@ -425,8 +425,8 @@ export default function App() {
         />
       )}
 
-      {/* 1-Click Cloudflare + GitHub Push & Unified Package Center Modal */}
-      <CloudflareDeploymentModal
+      {/* 1-Click Google Cloud / Firebase Deployment Center Modal */}
+      <FirebaseDeploymentModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         onShowToast={showToast}
