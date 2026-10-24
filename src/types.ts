@@ -59,7 +59,7 @@ export interface FleetCustomizationSettings {
   defaultStartTab: TabId;
   autoStateBoundaryAlerts: boolean;
   voiceControlEnabled: boolean;
-  enabledModules: Record<TabId, boolean>;
+  enabledModules: Partial<Record<TabId, boolean>>;
 }
 
 export type InspectionActionType = 'PDF_GENERATED' | 'PRINTED' | 'ROADSIDE_AUDIT' | 'VOICE_TRIGGERED' | 'FMCSA_PORTAL_SYNC' | 'DVIR_SIGNOFF';
@@ -324,5 +324,312 @@ export interface ExternalBenchmarkBridge {
   category: 'TELEMATICS_BRIDGE';
   status: 'CONNECTED' | 'DISCONNECTED' | 'COMPLIANT_BYPASS';
   syncLatencyMs: number;
+}
+
+// ============================================================================
+// LIVE DISPATCH MONITOR TYPES & DRIVER RADAR
+// ============================================================================
+export type DispatchMonitorStageStatus =
+  | 'DEPARTED_ORIGIN'
+  | 'ARRIVING_DESTINATION'
+  | 'ARRIVED_DESTINATION'
+  | 'DEPARTED_DESTINATION'
+  | 'BACK_HOME';
+
+export interface DispatchMonitorDriver {
+  id: string;
+  name: string;
+  truckUnit: string;
+  trailerUnit?: string;
+  phone: string;
+  email?: string;
+  currentStatus: DispatchMonitorStageStatus;
+  cycleNumber: number;
+  lat: number;
+  lng: number;
+  headingDeg: number;
+  speedMph: number;
+  originLat: number;
+  originLng: number;
+  originCity: string;
+  originState: string;
+  destinationLat: number;
+  destinationLng: number;
+  destinationCity: string;
+  destinationState: string;
+  homeTerminalLat: number;
+  homeTerminalLng: number;
+  homeTerminalCity: string;
+  currentLocationName: string;
+  currentLocationCity: string;
+  currentLocationState?: string;
+  milesRemaining: number;
+  odometerMiles: number;
+  detentionMinutes: number;
+  detentionHourlyRate?: number;
+  loadNumber: string;
+  bolNumber?: string;
+  commodity?: string;
+  etaDestination: string;
+  avatarColor: string;
+  avatarInitials: string;
+  lastAlertText: string;
+  cruiseControlStatus?: string;
+  engineRpm?: number;
+  transmissionGear?: string;
+  fuelLevelPct: number;
+  defLevelPct?: number;
+  coolantTempF?: number;
+  oilPressurePsi?: number;
+  reeferTempF?: number;
+  reeferSetpointF?: number;
+  reeferStatusText?: string;
+  batteryVoltage?: number;
+  brakeAirPressurePsi?: { primary: number; secondary: number };
+  engineBrakeStatus?: string;
+  instantMpg?: number;
+  hosDriveRemainingMin?: number;
+  hosShiftRemainingMin?: number;
+  hosCycleRemainingMin?: number;
+  axleWeights?: { steerLbs: number; driveLbs: number; trailerLbs: number; grossLbs: number };
+
+  // Priority Alert Telemetry (High Priority Marker Highlights)
+  hasPriorityAlert?: boolean;
+  priorityAlertLevel?: 'CRITICAL' | 'HIGH' | 'EXPEDITED';
+  priorityAlertDetails?: string;
+  priorityAlertCode?: string;
+}
+
+// ============================================================================
+// BROKERED LOADS SHIPPERS & RECEIVERS REPEATED TIME MEMORY
+// ============================================================================
+export interface BrokeredLoadMemory {
+  id: string;
+  brokerName: string;
+  brokerMc: string;
+  commodity: string;
+  shipperFacility: {
+    name: string;
+    cityState: string;
+    address: string;
+    avgDwellMinutes: number;
+    historicalLoadTimesCount: number;
+    onTimeDockProbabilityPct: number;
+    gateCode?: string;
+    operatingHours: string;
+    detentionThresholdMinutes: number;
+    repeatedVisitsCount: number;
+    notes: string;
+  };
+  receiverFacility: {
+    name: string;
+    cityState: string;
+    address: string;
+    avgUnloadMinutes: number;
+    historicalUnloadTimesCount: number;
+    onTimeDockProbabilityPct: number;
+    gateCode?: string;
+    operatingHours: string;
+    detentionThresholdMinutes: number;
+    repeatedVisitsCount: number;
+    notes: string;
+  };
+  lane: {
+    origin: string;
+    destination: string;
+    corridor: string;
+    totalDistanceMiles: number;
+    avgHistoricalTransitHours: number;
+    repeatCyclesCount: number;
+  };
+  financialMemory: {
+    avgRatePerMile: number;
+    historicalYieldRate: string;
+    lastContractedRate: number;
+    paymentTermsDays: number;
+    quickPayFeePct: number;
+  };
+  reliabilityScorecard: {
+    overallGrade: 'A+' | 'A' | 'B+' | 'B' | 'C';
+    detentionRiskLevel: 'LOW' | 'MODERATE' | 'HIGH';
+    recommendation: string;
+  };
+  lastDispatchedDate: string;
+}
+
+// ============================================================================
+// DOT & FMCSA FEDERAL DOCUMENT CUSTODY & FLEET RECORDS
+// ============================================================================
+export interface FederalComplianceAttestation {
+  cfrRegulation: '49 CFR § 390.31' | '49 CFR § 391.51' | '49 CFR § 395.8' | '49 CFR § 396.11' | '49 CFR § 382.701';
+  carrierLegalName: string;
+  usdotNumber: string;
+  mcNumber: string;
+  certifiedCustodianName: string;
+  custodianTitle: string;
+  digitalSignatureSha256: string;
+  timestampIso: string;
+  retentionExpiryDate: string;
+  tamperEvidentSealVerified: boolean;
+  legalCustodyResponsibilityAccepted: boolean;
+}
+
+export interface FleetDriverFileRecord {
+  driverId: string;
+  driverName: string;
+  cdlNumber: string;
+  cdlState: string;
+  cdlExpirationDate: string;
+  medCardExpirationDate: string;
+  annualMvrReviewDate: string;
+  clearinghouseQueryDate: string;
+  dvirLastSignedDate: string;
+  dqfStatus: 'FULLY_COMPLIANT' | 'WARNING_EXPIRING' | 'NON_COMPLIANT';
+  dqfCompletionPct: number;
+  documentsCount: number;
+  lastAuditPassed: boolean;
+}
+
+// ============================================================================
+// DRIVER DISPATCH MASTER LOOP ENGINE TYPES
+// ============================================================================
+export type MasterLoopMilestone =
+  | 'ORIGIN_DEPARTURE'
+  | 'DESTINATION_ARRIVAL'
+  | 'DESTINATION_DEPARTURE'
+  | 'HOME_ARRIVAL';
+
+export interface MasterLoopDriverProfile {
+  name: string;
+  driverId: string;
+  phone: string;
+  email: string;
+  truckUnit: string;
+  trailerUnit: string;
+  cdlNumber: string;
+  carrierName: string;
+  usdotNumber: string;
+  currentOdometer: number;
+}
+
+export interface MasterLoopDispatchContacts {
+  dispatcherName: string;
+  dispatchPhone: string;
+  dispatchEmail: string;
+  safetyEmail: string;
+  brokerPhone: string;
+  brokerEmail: string;
+  smsEnabled: boolean;
+  emailEnabled: boolean;
+  inCabVoiceAlerts: boolean;
+  autoLoopAdvance: boolean;
+}
+
+export interface MasterLoopFacility {
+  name: string;
+  facilityCode: string;
+  address: string;
+  cityStateZip: string;
+  lat: number;
+  lng: number;
+  geofenceRadiusMiles: number;
+  contactName: string;
+  contactPhone: string;
+  gateCode?: string;
+  dockNumber?: string;
+}
+
+export interface MasterLoopTripDetails {
+  tripId: string;
+  loadNumber: string;
+  bolNumber: string;
+  commodity: string;
+  weightLbs: number;
+  sealNumber: string;
+  reeferTempF: number;
+  originLot: MasterLoopFacility;
+  destination: MasterLoopFacility;
+  homeTerminal: MasterLoopFacility;
+  totalRoundTripMiles: number;
+}
+
+export interface MasterLoopStageRecord {
+  stage: MasterLoopMilestone;
+  orderNumber: 1 | 2 | 3 | 4;
+  title: string;
+  shortLabel: string;
+  description: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  geofencePassed: boolean;
+  locationSnapshot: string;
+  odometerMiles?: number;
+  triggeredAt?: string;
+  smsAlert: {
+    dispatched: boolean;
+    toPhone: string;
+    body: string;
+    timestamp?: string;
+    carrierSid?: string;
+    carrierStatus?: string;
+  };
+  emailAlert: {
+    dispatched: boolean;
+    toEmail: string;
+    subject: string;
+    bodyText: string;
+    timestamp?: string;
+    deliveryId?: string;
+    status?: string;
+  };
+  inCabAlertSpoken: boolean;
+}
+
+export interface MasterLoopCycleHistory {
+  cycleId: string;
+  cycleNumber: number;
+  tripLoadNumber: string;
+  startedAt: string;
+  completedAt: string;
+  totalDurationMinutes: number;
+  startOdometer: number;
+  endOdometer: number;
+  totalMilesDriven: number;
+  stagesCompleted: number;
+  allAlertsDelivered: boolean;
+  notes: string;
+}
+
+export interface MasterLoopSystemState {
+  loopId?: string;
+  currentCycleNumber: number;
+  currentStageIndex: number;
+  currentStage: MasterLoopMilestone;
+  isAutoLoopRunning?: boolean;
+  simulationSpeedMs?: number;
+  odometerMiles: number;
+  fuelLevelPct: number;
+  stages: MasterLoopStageRecord[];
+  driver: MasterLoopDriverProfile;
+  dispatch: MasterLoopDispatchContacts;
+  trip: MasterLoopTripDetails;
+  history: MasterLoopCycleHistory[];
+  auditLogs?: any[];
+  totalCyclesCompleted: number;
+  lastDispatchedAt?: string;
+}
+
+// ============================================================================
+// TELEMATICS SAFETY SUITE TYPES
+// ============================================================================
+export interface TacticalNotification {
+  id: string;
+  timestamp?: string;
+  time?: string;
+  category?: 'SAFETY' | 'MAINTENANCE' | 'COMPLIANCE' | 'WEATHER' | 'DISPATCH';
+  title: string;
+  description: string;
+  severity: 'CRITICAL' | 'WARNING' | 'INFO' | 'alert' | 'warning' | 'info';
+  read: boolean;
+  actionRequired?: boolean;
 }
 

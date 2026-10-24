@@ -221,7 +221,7 @@ export const SecurityVaultScreen: React.FC<SecurityVaultProps> = ({
           }`}
         >
           <span className="material-symbols-outlined text-[18px]">folder_special</span>
-          <span>DOT Fleet Records</span>
+          <span>DOT &amp; FMCSA Certified Vault</span>
         </button>
 
         <button

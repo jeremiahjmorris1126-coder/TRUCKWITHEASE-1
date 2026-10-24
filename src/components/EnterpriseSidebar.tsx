@@ -16,7 +16,7 @@ interface EnterpriseSidebarProps {
   onOpenPdfModal: () => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
-  enabledModules?: Record<TabId, boolean>;
+  enabledModules?: Partial<Record<TabId, boolean>>;
   onOpenCustomizer?: () => void;
   onOpenExportModal?: () => void;
 }

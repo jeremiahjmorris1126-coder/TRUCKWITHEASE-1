@@ -259,6 +259,8 @@ TIMESTAMP: ${timestampStr} | FINAL ODOMETER: ${safeOdo.toLocaleString()} MI
 DISPATCH SUMMARY: 624-MILE ROUTE LOOP CLOSED & DEFECT-FREE
 EQUIPMENT STATUS: TRACTOR STAGED IN BAY 3 / TRAILER SECURED
 POST-TRIP DIRECTIVE: POST-TRIP DVIR LOGGED IN DOT VAULT`;
+    default:
+      return '';
   }
 }
 
@@ -540,7 +542,7 @@ export async function triggerMasterLoopStage(
   const dateStr = now.toLocaleDateString();
   const fullStamp = `${dateStr} ${timeStr}`;
 
-  const stageIdx = state.stages.findIndex((s) => s.stage === stageToTrigger);
+  const stageIdx = state.stages.findIndex((s: MasterLoopStageRecord) => s.stage === stageToTrigger);
   if (stageIdx === -1) return state;
 
   // Advance odometer realistically based on stage

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 interface VercelGithubExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onShowToast: (msg: string, icon?: string) => void;
+  onShowToast?: (msg: string, icon?: string) => void;
 }
 
 interface GitStatusData {
@@ -123,7 +123,7 @@ export const VercelGithubExportModal: React.FC<VercelGithubExportModalProps> = (
           message: data.message,
           repoUrl: data.repoUrl || 'https://github.com/jeremiahjmorris1126-coder/TRUCKWITHEASE-1',
         });
-        onShowToast('LATEST UPDATE PUSHED TO VERCEL & GITHUB', 'rocket_launch');
+        onShowToast?.('LATEST UPDATE PUSHED TO VERCEL & GITHUB', 'rocket_launch');
         fetchStatus();
       } else {
         setPushLogs((prev) => [
@@ -134,7 +134,7 @@ export const VercelGithubExportModal: React.FC<VercelGithubExportModalProps> = (
           success: false,
           details: data.details || data.error || 'Failed to authenticate or push to GitHub remote.',
         });
-        onShowToast('REMOTE PUSH FAILED // CHECK TOKEN OR CREDENTIALS', 'error');
+        onShowToast?.('REMOTE PUSH FAILED // CHECK TOKEN OR CREDENTIALS', 'error');
       }
     } catch (err: any) {
       setPushLogs((prev) => [...prev, `Network/Server Error: ${err.message}`]);
@@ -142,14 +142,14 @@ export const VercelGithubExportModal: React.FC<VercelGithubExportModalProps> = (
         success: false,
         details: err.message || 'Network error encountered during push.',
       });
-      onShowToast('EXPORT SERVICE DISCONNECTED', 'cloud_off');
+      onShowToast?.('EXPORT SERVICE DISCONNECTED', 'cloud_off');
     } finally {
       setIsPushing(false);
     }
   };
 
   const handleDownloadTarGz = () => {
-    onShowToast('PREPARING & DOWNLOADING UNIFIED PRODUCTION ARCHIVE (.TAR.GZ)', 'download');
+    onShowToast?.('PREPARING & DOWNLOADING UNIFIED PRODUCTION ARCHIVE (.TAR.GZ)', 'download');
     const link = document.createElement('a');
     link.href = '/api/export-vercel-github/download';
     link.download = 'truckwithease-unified-production-package.tar.gz';

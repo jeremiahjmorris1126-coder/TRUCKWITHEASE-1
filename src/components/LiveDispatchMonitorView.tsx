@@ -786,7 +786,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
 
               <button
                 onClick={() => {
-                  advanceDriverStatus(activeSelectedDriver.id, getNextMasterLoopStatus(activeSelectedDriver.currentStatus));
+                  advanceDriverStatus(activeSelectedDriver.id, getNextMasterLoopStatus(activeSelectedDriver.currentStatus), drivers);
                   setDrivers(loadMonitorDrivers());
                   showToast(`Advanced ${activeSelectedDriver.name} to next stage`);
                 }}
@@ -1101,7 +1101,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => {
-                  setDisplayMode('NASA_GOOGLE_ORBITAL');
+                  setDisplayMode('ALL_NASA_EXCLUSIVE');
                   triggerHapticFeedback('light');
                 }}
                 className="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/50 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition"
@@ -1473,7 +1473,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
 
                   <a
                     href={buildEmailDeepLink(
-                      activeSelectedDriver.email,
+                      activeSelectedDriver.email || 'dispatch@truckwithease.com',
                       `[DISPATCH DIRECTIVE] Unit ${activeSelectedDriver.truckUnit}`,
                       activeSelectedDriver.lastAlertText
                     )}
