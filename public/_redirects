@@ -1,0 +1,3 @@
+# Cloudflare Pages Single Page Application (SPA) routing
+# Redirects all incoming routes to /index.html with HTTP status 200
+/*    /index.html   200

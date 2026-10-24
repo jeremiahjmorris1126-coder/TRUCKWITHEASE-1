@@ -485,9 +485,10 @@ async function startServer() {
   });
 
   // ==========================================
-  // VERCEL & GITHUB EXPORT & 1-CLICK PUSH API
+  // CLOUDFLARE PAGES & GITHUB EXPORT & 1-CLICK PUSH API
+  // Target Domains: Morrishive.com & truckwithease.com
   // ==========================================
-  app.get('/api/export-vercel-github/status', (req, res) => {
+  const handleCloudflareStatus = (req: express.Request, res: express.Response) => {
     try {
       const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: process.cwd(), encoding: 'utf-8' }).trim();
       const lastCommit = execSync('git log -1 --pretty=format:"%h - %s (%cr)"', { cwd: process.cwd(), encoding: 'utf-8' }).trim();
@@ -504,17 +505,21 @@ async function startServer() {
         remoteUrl,
         hasUncommittedChanges: statusOutput.length > 0,
         uncommittedFilesCount: statusOutput ? statusOutput.split('\n').filter(Boolean).length : 0,
-        vercelReady: true,
+        cloudflareReady: true,
+        provider: 'Cloudflare Pages',
+        targetDomains: ['truckwithease.com', 'Morrishive.com'],
         timestamp: new Date().toISOString(),
       });
     } catch (err) {
       res.status(500).json({ error: 'Failed to inspect git status', details: (err as Error).message });
     }
-  });
+  };
 
-  app.get('/api/export-vercel-github/download', (req, res) => {
+  app.get('/api/export-cloudflare-github/status', handleCloudflareStatus);
+
+  const handleCloudflareDownload = (req: express.Request, res: express.Response) => {
     try {
-      const archiveFilename = 'truckwithease-unified-production-package.tar.gz';
+      const archiveFilename = 'truckwithease-cloudflare-production-package.tar.gz';
       const tmpPath = path.join(process.cwd(), archiveFilename);
 
       if (fs.existsSync(tmpPath)) {
@@ -548,13 +553,15 @@ async function startServer() {
       });
     } catch (err) {
       console.error('Archive generation failed:', err);
-      res.status(500).json({ error: 'Failed to create production archive', details: (err as Error).message });
+      res.status(500).json({ error: 'Failed to create Cloudflare production archive', details: (err as Error).message });
     }
-  });
+  };
 
-  app.post('/api/export-vercel-github/push', (req, res) => {
+  app.get('/api/export-cloudflare-github/download', handleCloudflareDownload);
+
+  const handleCloudflarePush = (req: express.Request, res: express.Response) => {
     try {
-      const { token, commitMessage = 'Production release: 1-Click Vercel + GitHub enterprise update' } = req.body || {};
+      const { token, commitMessage = 'Production release: 1-Click Cloudflare Pages + GitHub enterprise update' } = req.body || {};
 
       // Stage all modified & added files
       execSync('git add -A', { cwd: process.cwd(), encoding: 'utf-8' });
@@ -587,7 +594,9 @@ async function startServer() {
         branch,
         lastCommit,
         pushOutput: pushOutput || 'Pushed cleanly to origin/main',
-        message: 'Successfully synchronized repository with GitHub & triggered Vercel deployment pipeline.',
+        provider: 'Cloudflare Pages',
+        targetDomains: ['truckwithease.com', 'Morrishive.com'],
+        message: 'Successfully synchronized repository with GitHub & triggered Cloudflare Pages deployment pipeline for truckwithease.com and Morrishive.com.',
         repoUrl: 'https://github.com/jeremiahjmorris1126-coder/TRUCKWITHEASE-1',
       });
     } catch (err: any) {
@@ -598,7 +607,9 @@ async function startServer() {
         details: err.stderr ? err.stderr.toString() : err.message,
       });
     }
-  });
+  };
+
+  app.post('/api/export-cloudflare-github/push', handleCloudflarePush);
 
   // ==========================================
   // VITE & STATIC SERVING MIDDLEWARE

@@ -1,12 +1,12 @@
 import React from 'react';
-import { VercelGithubExportModal } from './VercelGithubExportModal';
+import { CloudflareDeploymentModal } from './CloudflareDeploymentModal';
 
 export const AntigravityExportModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onShowToast?: (msg: string, icon?: string) => void;
 }> = ({ isOpen, onClose, onShowToast }) => {
-  return <VercelGithubExportModal isOpen={isOpen} onClose={onClose} onShowToast={onShowToast} />;
+  return <CloudflareDeploymentModal isOpen={isOpen} onClose={onClose} onShowToast={onShowToast} />;
 };
 
 export default AntigravityExportModal;

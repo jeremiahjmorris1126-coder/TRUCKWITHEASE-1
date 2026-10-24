@@ -35,7 +35,7 @@ import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
-import { VercelGithubExportModal } from './components/VercelGithubExportModal';
+import { CloudflareDeploymentModal } from './components/CloudflareDeploymentModal';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
 
@@ -425,8 +425,8 @@ export default function App() {
         />
       )}
 
-      {/* 1-Click Vercel + GitHub Push & Unified Package Center Modal */}
-      <VercelGithubExportModal
+      {/* 1-Click Cloudflare + GitHub Push & Unified Package Center Modal */}
+      <CloudflareDeploymentModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         onShowToast={showToast}

@@ -1,0 +1,19 @@
+# ==============================================================================
+# Cloudflare Pages Configuration: TruckWithEase & MorrisHive
+# Target Hostnames: Morrishive.com, truckwithease.com
+# ==============================================================================
+
+name = "truckwithease"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
+
+# Production Environment Variables & Domains
+[vars]
+ENVIRONMENT = "production"
+APP_NAME = "TruckWithEase"
+PRIMARY_DOMAIN = "truckwithease.com"
+ENTERPRISE_PORTAL_DOMAIN = "Morrishive.com"
+
+# Managed Custom Domains in Cloudflare:
+# 1. truckwithease.com & www.truckwithease.com
+# 2. Morrishive.com & www.morrishive.com
