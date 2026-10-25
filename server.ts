@@ -546,7 +546,7 @@ async function startServer() {
       memoryUsage: process.memoryUsage(),
       integrations: {
         twilioSms: isTwilioConfigured() ? 'configured_not_verified' : 'not_configured',
-        geminiWeather: process.env.GEMINI_API_KEY ? 'configured' : 'fallback_mode',
+        geminiWeather: process.env.GEMINI_API_KEY ? 'configured_not_verified' : 'fallback_mode',
         drivewyze: 'not_integrated',
         nasaTelemetry: 'simulated',
         fmcsaCertification: 'not_certified',

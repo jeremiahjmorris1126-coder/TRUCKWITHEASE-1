@@ -69,7 +69,7 @@ export interface DriverPingProgramConfig {
   smsDispatchSync: boolean;
 }
 
-// Initial Live Route Updates for Active Shipment Loads
+// Seeded demo records; no provider or driver messages are connected.
 export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
   {
     id: 'rt-upd-101',
@@ -77,14 +77,14 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-vance-904',
     driverName: 'Vance Reynolds',
     truckUnit: 'TR-904',
-    timestamp: '2 min ago',
+    timestamp: 'DEMO',
     updateType: 'BRIDGE_CLEARANCE',
     severity: 'NORMAL',
-    title: 'Bridge Clearance Verified: 14\'2" Ahead',
-    detail: 'Overpass at I-80 Mile 114 scanned via FHWA NBI database. Vertical clearance 14\'2" clears commercial 13\'6" rig with 8" buffer.',
+    title: 'DEMO: Bridge clearance example',
+    detail: 'Sample value only. No FHWA database lookup or route clearance verification was performed.',
     locationHighway: 'I-80 E / Mile 114 (PA)',
     mileMarker: 114,
-    pingDispatchedToCab: true,
+    pingDispatchedToCab: false,
   },
   {
     id: 'rt-upd-102',
@@ -92,14 +92,14 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-jason-208',
     driverName: 'Jason Henderson',
     truckUnit: 'UNIT #208-T',
-    timestamp: '5 min ago',
+    timestamp: 'DEMO',
     updateType: 'SCALE_HOUSE',
     severity: 'NORMAL',
-    title: 'Ohio Turnpike Weigh Station: Green Light Bypass',
-    detail: 'PreClear transponder authenticated gross vehicle weight at 78,400 lbs. In-cab bypass light turned GREEN.',
+    title: 'DEMO: Weigh station example',
+    detail: 'Sample value only. No transponder, PrePass, Drivewyze, or bypass authorization is connected.',
     locationHighway: 'I-80 / OH Turnpike Mile 162',
     mileMarker: 162,
-    pingDispatchedToCab: true,
+    pingDispatchedToCab: false,
   },
   {
     id: 'rt-upd-103',
@@ -107,14 +107,14 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-marcus-711',
     driverName: 'Marcus Rodriguez',
     truckUnit: 'TR-711',
-    timestamp: '8 min ago',
+    timestamp: 'DEMO',
     updateType: 'WEATHER_NASA',
     severity: 'CAUTION',
-    title: 'NASA GPM Radar: Heavy Rain Band 14 Mi Ahead',
-    detail: 'NASA Global Precipitation Measurement microwave radar shows 18mm/hr squall approaching Lake Erie corridor. Recommended speed 55 MPH.',
+    title: 'DEMO: Rainfall example',
+    detail: 'Sample value only. No NASA data feed or live weather measurement is connected.',
     locationHighway: 'I-90 W / Ashtabula Corridor',
     mileMarker: 218,
-    pingDispatchedToCab: true,
+    pingDispatchedToCab: false,
   },
   {
     id: 'rt-upd-104',
@@ -122,14 +122,14 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-jamal-611',
     driverName: 'Jamal Washington',
     truckUnit: 'TR-611',
-    timestamp: '12 min ago',
+    timestamp: 'DEMO',
     updateType: 'DETENTION_GATE',
     severity: 'NORMAL',
     title: 'Receiver Dock #14 Staged & Assigned Early',
     detail: 'Shipper yard manager assigned Dock #14. Forklift crew active; zero detention anticipated upon arrival.',
     locationHighway: 'I-65 S / Indianapolis Logistics Park',
     mileMarker: 85,
-    pingDispatchedToCab: true,
+    pingDispatchedToCab: false,
   },
   {
     id: 'rt-upd-105',
@@ -137,18 +137,18 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-darnell-402',
     driverName: 'Darnell Jenkins',
     truckUnit: 'UNIT #402-K',
-    timestamp: '16 min ago',
+    timestamp: 'DEMO',
     updateType: 'TRAFFIC_INCIDENT',
     severity: 'CAUTION',
     title: 'Construction Single Lane Restriction at Mile 44',
-    detail: 'Right lane closed for resurfacing until 18:00. Left lane moving at 45 MPH. 6-minute delay factored into celestial ETA.',
+    detail: 'Sample construction notice only. No live roadwork data or ETA calculation is connected.',
     locationHighway: 'I-70 E / Richmond Crossing',
     mileMarker: 44,
-    pingDispatchedToCab: true,
+    pingDispatchedToCab: false,
   },
 ];
 
-// Initial Driver Ping History Log
+// Seeded demo ping history; no messages were delivered to drivers.
 export const INITIAL_PING_HISTORY: DriverPingRecord[] = [
   {
     id: 'png-881',
