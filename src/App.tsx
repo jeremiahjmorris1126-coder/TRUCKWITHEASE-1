@@ -352,6 +352,12 @@ export default function App() {
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
       <main className="lg:pl-72 pt-20 pb-20 min-h-screen w-full transition-all">
+        <div
+          role="status"
+          className="mx-4 mb-4 rounded-lg border border-amber-500/60 bg-[#0A0F14] px-4 py-3 text-sm font-semibold text-amber-300"
+        >
+          Demo data may be shown. FMCSA/DOT certification, Drivewyze, NASA telemetry, and vehicle hardware connections are not verified. Do not use this app as a regulatory or safety authority.
+        </div>
         <Suspense
           fallback={
             <div className="flex min-h-[50vh] items-center justify-center bg-[#05080E] font-mono text-sm font-bold uppercase tracking-widest text-[#FFE500]">

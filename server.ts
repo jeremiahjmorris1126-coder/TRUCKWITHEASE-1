@@ -541,11 +541,16 @@ async function startServer() {
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'UP',
+      statusMeaning: 'The API process is responding; external provider availability and delivery are not verified.',
       uptimeSeconds: Math.floor(process.uptime()),
       memoryUsage: process.memoryUsage(),
       integrations: {
-        twilioSms: isTwilioConfigured() ? 'configured' : 'not_configured',
+        twilioSms: isTwilioConfigured() ? 'configured_not_verified' : 'not_configured',
         geminiWeather: process.env.GEMINI_API_KEY ? 'configured' : 'fallback_mode',
+        drivewyze: 'not_integrated',
+        nasaTelemetry: 'simulated',
+        fmcsaCertification: 'not_certified',
+        dotData: 'not_connected',
       },
       timestamp: new Date().toISOString(),
     });
