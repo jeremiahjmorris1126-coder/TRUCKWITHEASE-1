@@ -55,7 +55,7 @@ export interface DriverPingRecord {
   pingType: 'MANUAL_PULSE' | 'SPEED_CHECK' | 'BRIDGE_VERIFY' | 'NASA_FREEZE_ALERT' | 'DETENTION_PROMPT' | 'SITREP_POLL';
   label: string;
   latencyMs: number;
-  status: 'SENT' | 'DELIVERED_CAB' | 'ACKNOWLEDGED_DRIVER';
+  status: 'SENT' | 'DELIVERED_CAB' | 'ACKNOWLEDGED_DRIVER' | 'SIMULATED';
   notes?: string;
 }
 
@@ -71,7 +71,7 @@ export interface DriverPingProgramConfig {
   smsDispatchSync: boolean;
 }
 
-// Initial Live Route Updates for Active Shipment Loads
+// Seeded demo records; no provider or driver messages are connected.
 export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
   {
     id: 'rt-upd-101',
@@ -79,14 +79,14 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-vance-904',
     driverName: 'Vance Reynolds',
     truckUnit: 'TR-904',
-    timestamp: '2 min ago',
+    timestamp: 'DEMO',
     updateType: 'BRIDGE_CLEARANCE',
     severity: 'NORMAL',
-    title: '[OFFLINE NBI] Bridge Clearance: 14\'2" Ahead',
-    detail: 'Overpass at I-80 Mile 114 scanned via local FHWA NBI dataset cache. Vertical clearance 14\'2" clears commercial 13\'6" rig with 8" safety margin.',
+    title: 'DEMO: Bridge clearance example',
+    detail: 'Sample value only. Local calculation model: overpass clearance 14\'2" clears 13\'6" rig with 8" buffer margin.',
     locationHighway: 'I-80 E / Mile 114 (PA)',
     mileMarker: 114,
-    pingDispatchedToCab: true,
+    pingDispatchedToCab: false,
     isSimulated: true,
     dataSource: 'FHWA_NBI_CACHE',
   },
@@ -96,14 +96,14 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-jason-208',
     driverName: 'Jason Henderson',
     truckUnit: 'UNIT #208-T',
-    timestamp: '5 min ago',
+    timestamp: 'DEMO',
     updateType: 'SCALE_HOUSE',
     severity: 'NORMAL',
-    title: '[SIMULATED DRILL] Weigh Station Bypass Advisory',
-    detail: 'Simulated In-Cab Bypass Drill: Modeled Ohio Turnpike Mile 162 WIM profile for gross vehicle weight 78,400 lbs. (Notice: Actual roadside bypass requires an active commercial Drivewyze/PrePass transponder).',
+    title: 'DEMO: Weigh station bypass example',
+    detail: 'Sample drill profile only. Modeled station at I-80 Mile 162. Actual roadside bypass requires an active carrier transponder.',
     locationHighway: 'I-80 / OH Turnpike Mile 162',
     mileMarker: 162,
-    pingDispatchedToCab: true,
+    pingDispatchedToCab: false,
     isSimulated: true,
     dataSource: 'PUBLIC_STATION_DIRECTORY',
   },
@@ -113,14 +113,14 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-marcus-711',
     driverName: 'Marcus Rodriguez',
     truckUnit: 'TR-711',
-    timestamp: '8 min ago',
+    timestamp: 'DEMO',
     updateType: 'WEATHER_NASA',
     severity: 'CAUTION',
-    title: '[SIMULATED RADAR] Weather Radar: Rain Band Approaching',
-    detail: 'Deterministic Precipitation Radar Model: Modeled 18mm/hr squall approaching Lake Erie corridor (I-90 W). Recommended advisory speed: 55 MPH.',
+    title: 'DEMO: Satellite radar rainfall example',
+    detail: 'Deterministic precipitation model: simulated 18mm/hr squall approaching Lake Erie corridor (I-90 W). Advisory speed: 55 MPH.',
     locationHighway: 'I-90 W / Ashtabula Corridor',
     mileMarker: 218,
-    pingDispatchedToCab: true,
+    pingDispatchedToCab: false,
     isSimulated: true,
     dataSource: 'DETERMINISTIC_MODEL',
   },
@@ -130,15 +130,15 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-jamal-611',
     driverName: 'Jamal Washington',
     truckUnit: 'TR-611',
-    timestamp: '12 min ago',
+    timestamp: 'DEMO',
     updateType: 'DETENTION_GATE',
     severity: 'NORMAL',
-    title: 'Receiver Dock #14 Staged & Assigned Early',
-    detail: 'Shipper yard manager assigned Dock #14. Forklift crew active; zero detention anticipated upon arrival.',
+    title: 'DEMO: Receiver dock staged early',
+    detail: 'Sample notice: Shipper yard manager assigned Dock #14. Forklift crew active; zero detention anticipated upon arrival.',
     locationHighway: 'I-65 S / Indianapolis Logistics Park',
     mileMarker: 85,
-    pingDispatchedToCab: true,
-    isSimulated: false,
+    pingDispatchedToCab: false,
+    isSimulated: true,
     dataSource: 'SIMULATED_TEST_HARNESS',
   },
   {
@@ -147,67 +147,67 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     driverId: 'drv-darnell-402',
     driverName: 'Darnell Jenkins',
     truckUnit: 'UNIT #402-K',
-    timestamp: '16 min ago',
+    timestamp: 'DEMO',
     updateType: 'TRAFFIC_INCIDENT',
     severity: 'CAUTION',
-    title: 'Construction Single Lane Restriction at Mile 44',
-    detail: 'Right lane closed for resurfacing until 18:00. Left lane moving at 45 MPH. Factored into celestial ETA.',
+    title: 'DEMO: Construction single lane restriction',
+    detail: 'Sample construction notice: Right lane closed for resurfacing until 18:00. Left lane moving at 45 MPH.',
     locationHighway: 'I-70 E / Richmond Crossing',
     mileMarker: 44,
-    pingDispatchedToCab: true,
-    isSimulated: false,
+    pingDispatchedToCab: false,
+    isSimulated: true,
     dataSource: 'SIMULATED_TEST_HARNESS',
   },
 ];
 
-// Initial Driver Ping History Log
+// Seeded demo ping history; no messages were delivered to drivers.
 export const INITIAL_PING_HISTORY: DriverPingRecord[] = [
   {
     id: 'png-881',
     driverId: 'drv-vance-904',
     truckUnit: 'TR-904',
-    timestamp: '14:28:12',
+    timestamp: 'DEMO',
     pingType: 'SPEED_CHECK',
-    label: 'Velocity Verification (64 MPH in 65 Zone)',
-    latencyMs: 38,
-    status: 'ACKNOWLEDGED_DRIVER',
-    notes: 'Telematics ping confirmed cruise control steady at 64 MPH.',
+    label: 'DEMO: Speed check example',
+    latencyMs: 0,
+    status: 'SIMULATED',
+    notes: 'Sample record only; no telematics message was sent or acknowledged.',
   },
   {
     id: 'png-882',
     driverId: 'drv-jason-208',
     truckUnit: 'UNIT #208-T',
-    timestamp: '14:26:05',
+    timestamp: 'DEMO',
     pingType: 'BRIDGE_VERIFY',
-    label: 'Bridge Clearance Ping (14\'2" Clearance Confirmed)',
-    latencyMs: 42,
-    status: 'ACKNOWLEDGED_DRIVER',
-    notes: 'Cab audio chime emitted: "Route clearance verified 14 feet 2 inches".',
+    label: 'DEMO: Bridge clearance example',
+    latencyMs: 0,
+    status: 'SIMULATED',
+    notes: 'Sample record only; no clearance was verified and no cab alert was sent.',
   },
   {
     id: 'png-883',
     driverId: 'drv-marcus-711',
     truckUnit: 'TR-711',
-    timestamp: '14:24:49',
+    timestamp: 'DEMO',
     pingType: 'NASA_FREEZE_ALERT',
-    label: 'NASA AIRS Surface Temp Advisory (38°F)',
-    latencyMs: 34,
-    status: 'DELIVERED_CAB',
-    notes: 'Orbital thermal scan pushed to In-Cab HUD with safe wet asphalt index.',
+    label: 'DEMO: Weather advisory example',
+    latencyMs: 0,
+    status: 'SIMULATED',
+    notes: 'Sample record only; no NASA feed or in-cab message is connected.',
   },
 ];
 
 // Default Ping Program Configuration
 export const DEFAULT_PING_CONFIG: DriverPingProgramConfig = {
-  autoPingEnabled: true,
+  autoPingEnabled: false,
   intervalSeconds: 60,
   pingOnSpeedExcess: true,
   speedThresholdMph: 70,
   pingOnBridgeClearanceUnderInches: 164, // 13'8"
   pingOnFreezeDetected: true,
   audibleChimeEnabled: true,
-  inCabVoiceBroadcast: true,
-  smsDispatchSync: true,
+  inCabVoiceBroadcast: false,
+  smsDispatchSync: false,
 };
 
 // Storage keys

@@ -48,10 +48,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
 }) => {
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
   const [cockpitSection, setCockpitSection] = useState<'ROUTE' | 'COMPLIANCE' | 'ALERTNESS'>('ROUTE');
-  const [isTransmitting, setIsTransmitting] = useState<boolean>(false);
-  const [transmitSuccess, setTransmitSuccess] = useState<boolean>(false);
   const [copiedHash, setCopiedHash] = useState<boolean>(false);
-  const [isBleBroadcasting, setIsBleBroadcasting] = useState<boolean>(false);
 
   // Vision Toggle Overlay Profile State ('HIGH_CONTRAST' | 'MINIMALIST' | 'ROUTE_FOCUSED')
   const [visionProfile, setVisionProfile] = useState<HudVisionProfile>(() => {
@@ -164,37 +161,10 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
     setTimeout(() => setCopiedHash(false), 2000);
   };
 
-  const handleCopyOfficerUrl = () => {
-    navigator.clipboard?.writeText('https://audit.truckwithease.gov/ver/3928110').catch(() => {});
-    onShowToast('OFFICER DIRECT PORTAL LINK COPIED');
-  };
-
-  const handleTransmitFmcsa = () => {
-    if (isTransmitting) return;
-    setIsTransmitting(true);
-    setTransmitSuccess(false);
-
-    setTimeout(() => {
-      setIsTransmitting(false);
-      setTransmitSuccess(true);
-      onShowToast('FMCSA ERDS TRANSFER COMPLETED: RECORD ACCEPTED // HTTP 200');
-
-      setTimeout(() => {
-        setTransmitSuccess(false);
-      }, 3500);
-    }, 1400);
-  };
-
-  const handleBluetoothSend = () => {
-    setIsBleBroadcasting(true);
-    onShowToast('BROADCASTING DOT BLE PASSIVE AUDIT PACKET (UUID 0x180D)...');
-    setTimeout(() => setIsBleBroadcasting(false), 3000);
-  };
-
   const handleSelectDay = (index: number) => {
     setSelectedDayIndex(index);
     const day = HISTORICAL_LOGS[index];
-    onShowToast(`LOADED AUDIT CERTIFICATE: ${day.dayLabel}`);
+    onShowToast(`LOADED SAMPLE LOG: ${day.dayLabel}`);
   };
 
   return (
@@ -449,7 +419,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
             <div className="flex items-center gap-space-xs">
               <span className="w-2.5 h-2.5 rounded-full bg-primary animate-ping" />
               <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">
-                FMCSA ROADSIDE INSPECTION MODE
+                FMCSA ELD DEMO PREVIEW
               </span>
             </div>
             <span className="bg-primary-container/20 text-primary font-telemetry-label text-[10px] px-space-xs py-0.5 rounded border border-primary/30">
@@ -463,7 +433,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                 Statutory Audit Slip
               </span>
               <span className="font-telemetry-label text-telemetry-label text-on-surface-variant">
-                MERKLE RECORD #4,133 // BLOCK VERIFIED
+                SAMPLE RECORD // NOT VERIFIED
               </span>
             </div>
             <button
@@ -487,7 +457,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                 Audit Status
               </span>
               <span className="font-label-caps text-label-caps text-primary uppercase">
-                COMPLIANT
+                DEMO DATA
               </span>
             </div>
             <div className="flex flex-col items-center justify-center p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
@@ -495,7 +465,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                 FMCSA Web Relay
               </span>
               <span className="font-label-caps text-label-caps text-primary uppercase">
-                200 READY
+                NOT CONNECTED
               </span>
             </div>
             <div className="flex flex-col items-center justify-center p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
@@ -509,7 +479,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
           </div>
         </div>
 
-        {/* OFFICER VERIFICATION QR & QUICK PIN DISPATCH */}
+        {/* DEMO OFFICER VERIFICATION PREVIEW */}
         <div className="flex flex-col bg-surface-container-low p-space-md rounded-xl space-y-space-md border border-surface-container-high/40 shadow-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-space-xs">
@@ -517,7 +487,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                 qr_code_scanner
               </span>
               <span className="font-label-caps text-label-caps text-on-surface tracking-wider uppercase font-bold">
-                Officer Quick-Verify Seal
+                Officer Portal Preview
               </span>
             </div>
             <span className="font-telemetry-label text-telemetry-label text-outline">
@@ -529,68 +499,26 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
           </div>
 
           <div className="flex items-center gap-space-md bg-surface-container p-space-sm rounded-lg border border-surface-container-highest">
-            {/* Generative Tactical QR Representation */}
-            <div
-              onClick={handleCopyOfficerUrl}
-              className="w-24 h-24 bg-surface-container-lowest p-1.5 rounded flex items-center justify-center shrink-0 border border-primary/20 cursor-pointer hover:border-primary transition-colors"
-              title="Click to copy officer public URL"
-            >
-              <svg
-                className="w-full h-full text-primary"
-                fill="currentColor"
-                viewBox="0 0 100 100"
-              >
-                {/* QR Position Boxes */}
-                <rect fill="currentColor" height="30" rx="2" width="30" x="0" y="0" />
-                <rect fill="#050709" height="18" width="18" x="6" y="6" />
-                <rect fill="currentColor" height="10" width="10" x="10" y="10" />
-
-                <rect fill="currentColor" height="30" rx="2" width="30" x="70" y="0" />
-                <rect fill="#050709" height="18" width="18" x="76" y="6" />
-                <rect fill="currentColor" height="10" width="10" x="80" y="10" />
-
-                <rect fill="currentColor" height="30" rx="2" width="30" x="0" y="70" />
-                <rect fill="#050709" height="18" width="18" x="6" y="76" />
-                <rect fill="currentColor" height="10" width="10" x="10" y="80" />
-
-                {/* Pattern Blocks */}
-                <rect fill="currentColor" height="8" width="8" x="36" y="8" />
-                <rect fill="currentColor" height="6" width="14" x="48" y="4" />
-                <rect fill="currentColor" height="14" width="6" x="36" y="22" />
-                <rect fill="currentColor" height="10" width="10" x="52" y="20" />
-                <rect fill="currentColor" height="6" width="12" x="4" y="38" />
-                <rect fill="currentColor" height="8" width="8" x="22" y="40" />
-                <rect fill="currentColor" height="6" width="18" x="36" y="38" />
-                <rect fill="currentColor" height="18" width="6" x="60" y="36" />
-                <rect fill="currentColor" height="6" width="22" x="74" y="38" />
-                <rect fill="currentColor" height="12" width="12" x="80" y="50" />
-                <rect fill="currentColor" height="18" width="8" x="38" y="52" />
-                <rect fill="currentColor" height="8" width="12" x="52" y="60" />
-                <rect fill="currentColor" height="8" width="14" x="4" y="52" />
-                <rect fill="currentColor" height="6" width="6" x="22" y="60" />
-                <rect fill="currentColor" height="18" width="10" x="70" y="72" />
-                <rect fill="currentColor" height="12" width="10" x="86" y="78" />
-                <rect fill="currentColor" height="14" width="14" x="48" y="78" />
-                <rect fill="currentColor" height="8" width="8" x="36" y="84" />
-              </svg>
+            <div className="w-24 h-24 bg-surface-container-lowest p-1.5 rounded flex items-center justify-center shrink-0 border border-outline/30 text-center font-mono text-xs text-outline">
+              DEMO
             </div>
 
             <div className="flex flex-col justify-between flex-1 min-w-0">
               <div className="flex flex-col">
                 <span className="font-telemetry-label text-[10px] text-outline uppercase tracking-wider">
-                  Public Officer Portal
+                  Officer Portal
                 </span>
                 <span className="font-body-sm text-body-sm text-on-surface truncate font-semibold">
-                  audit.truckwithease.gov/ver/{CARRIER_INFO.usdot}
+                  Not configured
                 </span>
               </div>
               <p className="font-body-sm text-[11px] text-on-surface-variant leading-tight mt-1">
-                Scan directly from cruiser MDT or smartphone camera to view instantaneous cloud-certified telemetrics.
+                No officer verification portal or QR code is connected.
               </p>
               <div className="flex items-center gap-space-xs mt-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 <span className="font-telemetry-label text-[10px] text-primary">
-                  TLS 1.3 SECURE DOCK
+                  PORTAL NOT CONNECTED
                 </span>
               </div>
             </div>
@@ -714,7 +642,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               </span>
             </div>
             <span className="font-telemetry-label text-[10px] bg-primary/10 text-primary px-space-xs py-0.5 rounded border border-primary/20">
-              TAMPER-EVIDENT
+              DEMO HASH — NOT VERIFIED
             </span>
           </div>
 
@@ -752,7 +680,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
           <div className="flex items-center justify-between p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
             <div className="flex flex-col">
               <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Certified Electronic Signature
+                Sample Signature
               </span>
               <span className="font-headline-sm text-headline-sm text-primary tracking-wide italic font-serif">
                 J. Morris
@@ -760,10 +688,10 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
             </div>
             <div className="flex flex-col items-end">
               <span className="font-telemetry-label text-[9px] text-outline">
-                ATTESTATION COMPLIANT
+                DEMO ONLY
               </span>
               <span className="font-telemetry-label text-[10px] text-primary font-bold">
-                49 CFR Â§ 390.37 CERTIFIED
+                NOT CERTIFIED
               </span>
             </div>
           </div>
@@ -774,7 +702,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest font-bold">
-                Real-Time HOS Clocks
+                Sample HOS Display
               </span>
               <span className="font-telemetry-label text-[10px] text-outline">
                 CURRENT DAY CYCLE: THURSDAY 03/13
@@ -1041,7 +969,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               8-Day Prior Log Chain
             </span>
             <span className="font-telemetry-label text-[10px] text-primary font-bold">
-              8/8 AUDITED &amp; SIGNED
+              SAMPLE DATA
             </span>
           </div>
 
@@ -1087,54 +1015,31 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               </div>
             </div>
             <span className="font-label-caps text-[9px] bg-primary-container/20 text-primary px-space-xs py-1 rounded border border-primary/30">
-              MATCH
+              DEMO
             </span>
           </div>
 
-          {/* Transmission Triggers for DOT Officer Transfer */}
+          {/* External transfer integrations are unavailable. */}
           <div className="flex flex-col gap-space-xs pt-space-xs">
             <button
               id="btn-transmit-fmcsa"
-              disabled={isTransmitting}
-              onClick={handleTransmitFmcsa}
-              className="w-full py-space-sm px-space-md bg-gradient-to-r from-primary to-primary-container text-on-primary font-headline-sm text-[15px] font-bold uppercase rounded-lg shadow-xl flex items-center justify-center gap-space-xs active:scale-[0.98] transition-all cursor-pointer hover:brightness-105 disabled:opacity-80"
+              disabled
+              className="w-full py-space-sm px-space-md bg-surface-container-high text-outline font-headline-sm text-[15px] font-bold uppercase rounded-lg flex items-center justify-center gap-space-xs cursor-not-allowed"
             >
-              {isTransmitting ? (
-                <>
-                  <span className="material-symbols-outlined text-[20px] animate-spin">
-                    autorenew
-                  </span>
-                  <span>TRANSMITTING TO FMCSA ROUTING ENGINE...</span>
-                </>
-              ) : transmitSuccess ? (
-                <>
-                  <span className="material-symbols-outlined text-[20px]">
-                    check_circle
-                  </span>
-                  <span>TRANSFER CONFIRMED // HTTP 200 OK</span>
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-[20px]">
-                    send
-                  </span>
-                  <span>TRANSMIT LOGS TO FMCSA (WEB SERVICES)</span>
-                </>
-              )}
+              <span className="material-symbols-outlined text-[20px]">cloud_off</span>
+              <span>FMCSA TRANSFER NOT CONFIGURED</span>
             </button>
 
             <div className="grid grid-cols-2 gap-space-xs">
               <button
                 id="btn-bluetooth-send"
-                onClick={handleBluetoothSend}
-                className={`py-space-xs bg-surface-container-low text-on-surface hover:bg-surface-container-high font-label-caps text-[11px] uppercase rounded flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer border border-surface-container-highest ${
-                  isBleBroadcasting ? 'border-primary text-primary animate-pulse' : ''
-                }`}
+                disabled
+                className="py-space-xs bg-surface-container-low text-outline font-label-caps text-[11px] uppercase rounded flex items-center justify-center gap-1 border border-surface-container-highest cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-primary text-[16px]">
-                  bluetooth_searching
+                  bluetooth_disabled
                 </span>
-                <span>DOT BLUETOOTH SYNC</span>
+                <span>DOT SYNC NOT CONNECTED</span>
               </button>
 
               <button
@@ -1158,18 +1063,18 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               policy
             </span>
             <span className="font-label-caps text-label-caps uppercase tracking-wider font-bold">
-              Formal Notice To Law Enforcement Official
+              Demo Data Notice
             </span>
           </div>
 
           <p className="font-body-sm text-[11px] text-outline leading-relaxed text-left">
-            This document constitutes a certified statutory record of duty status under <strong className="text-on-surface-variant">49 CFR Part 395</strong>. TruckWithEase &amp; Morrishive maintain a continuous, immutable SHA-256 hash sequence verified against engine ECM telematics (J1939 CAN-bus at 10Hz). Any officer verification inquiry may be confirmed via FMCSA Web Services or direct dispatch hotlink.
+            This screen contains sample data. It is not a certified record of duty status, does not connect to FMCSA Web Services or vehicle ECM hardware, and must not be used for inspections or compliance decisions.
           </p>
 
           <div className="flex items-center justify-between pt-space-xs bg-surface-container-low p-space-xs rounded text-left border border-surface-container-highest">
             <div className="flex flex-col">
               <span className="font-telemetry-label text-[9px] text-outline uppercase">
-                24/7 DOT Compliance Dispatch Hotline
+                Sample Dispatch Contact
               </span>
               <span className="font-telemetry-metric text-[14px] text-primary font-bold">
                 {CARRIER_INFO.phone}
@@ -1194,4 +1099,3 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
     </div>
   );
 };
-

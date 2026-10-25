@@ -178,7 +178,7 @@ class RegionalWeatherHazardService {
       },
     ],
     searchGrounding: {
-      grounded: true,
+      grounded: false,
       searchQueries: [
         'NWS Springfield MO dense fog advisory I-44 Rolla',
         'Missouri DOT Traveler Information road conditions I-44',
@@ -189,7 +189,7 @@ class RegionalWeatherHazardService {
         { title: 'NOAA Storm Prediction Center Hazards', uri: 'https://www.spc.noaa.gov' },
       ],
     },
-    source: 'GEMINI_SEARCH_GROUNDED',
+    source: 'METEOROLOGICAL_TELEMETRY',
     isLoading: false,
     lastUpdated: new Date(),
     error: null,

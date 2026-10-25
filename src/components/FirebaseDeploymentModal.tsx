@@ -4,6 +4,7 @@ interface FirebaseDeploymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onShowToast?: (msg: string, icon?: string) => void;
+  onSwitchToSnapshot?: () => void;
 }
 
 interface GitStatusData {

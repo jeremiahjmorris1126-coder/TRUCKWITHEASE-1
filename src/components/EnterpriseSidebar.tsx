@@ -18,7 +18,6 @@ interface EnterpriseSidebarProps {
   onCloseMobile: () => void;
   enabledModules?: Partial<Record<TabId, boolean>>;
   onOpenCustomizer?: () => void;
-  onOpenExportModal?: () => void;
 }
 
 interface CommandMenuItem {
@@ -93,7 +92,6 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   onCloseMobile,
   enabledModules,
   onOpenCustomizer,
-  onOpenExportModal,
 }) => {
   return (
     <>

@@ -1,6 +1,6 @@
 import { DispatchMonitorDriver, DispatchMonitorStageStatus } from '../types';
 
-const STORAGE_KEY = 'twe_live_dispatch_drivers_v1';
+const STORAGE_KEY = 'truckwithease_dispatch_monitor_drivers';
 
 export const INITIAL_MONITOR_DRIVERS: DispatchMonitorDriver[] = [
   {
@@ -8,7 +8,7 @@ export const INITIAL_MONITOR_DRIVERS: DispatchMonitorDriver[] = [
     name: 'Vance Reynolds',
     truckUnit: 'TR-904',
     trailerUnit: 'TRL-6112',
-    phone: '(312) 555-8821',
+    phone: '+13125558821',
     email: 'vance.reynolds@truckwithease.com',
     currentStatus: 'DEPARTED_ORIGIN',
     cycleNumber: 1,
@@ -33,260 +33,209 @@ export const INITIAL_MONITOR_DRIVERS: DispatchMonitorDriver[] = [
     milesRemaining: 218,
     odometerMiles: 143012,
     detentionMinutes: 0,
-    detentionHourlyRate: 75,
+    detentionHourlyRate: 75.0,
     loadNumber: 'CHR-88219',
     bolNumber: 'BOL-CHI-COL-9042',
-    commodity: 'Class A Dairy & Pharmaceuticals (Reefer 34°F)',
-    etaDestination: '14:25 EDT',
-    avatarColor: 'bg-blue-600',
+    commodity: 'Refrigerated dairy and pharmaceuticals',
+    etaDestination: '19:45 EST',
+    avatarColor: '#FFE500',
     avatarInitials: 'VR',
-    lastAlertText: '[DIRECTIVE] Unit TR-904 departed Chicago Yard #4. On-route I-80 EB. ETA Columbus 14:25 EDT.',
-    cruiseControlStatus: 'CRUISE ACTIVE · 68 MPH',
-    engineRpm: 1320,
-    transmissionGear: '12th AUTO',
+    lastAlertText: 'Departed origin. En route to Columbus.',
+    cruiseControlStatus: 'ENGAGED 68 MPH',
+    engineRpm: 1240,
+    transmissionGear: '12th (Auto DD12)',
     fuelLevelPct: 82,
-    defLevelPct: 88,
+    defLevelPct: 91,
     coolantTempF: 194,
-    oilPressurePsi: 44,
-    reeferTempF: 34.1,
+    oilPressurePsi: 42,
+    reeferTempF: 34.2,
     reeferSetpointF: 34.0,
-    reeferStatusText: 'CONTINUOUS FREEZE · NOMINAL (0.1°F DELTA)',
-    batteryVoltage: 13.9,
-    brakeAirPressurePsi: { primary: 125, secondary: 123 },
-    engineBrakeStatus: 'STAGE 2 STANDBY',
+    reeferStatusText: 'CONTINUOUS RUN · TEMP OK',
+    batteryVoltage: 14.1,
+    brakeAirPressurePsi: { primary: 122, secondary: 119 },
+    engineBrakeStatus: 'LOW (OFF)',
     instantMpg: 7.4,
-    hosDriveRemainingMin: 495,
-    hosShiftRemainingMin: 650,
-    hosCycleRemainingMin: 2840,
-    axleWeights: { steerLbs: 11820, driveLbs: 33410, trailerLbs: 33610, grossLbs: 78840 },
+    hosDriveRemainingMin: 525,
+    hosShiftRemainingMin: 680,
+    hosCycleRemainingMin: 2920,
+    axleWeights: { steerLbs: 11840, driveLbs: 33480, trailerLbs: 33620, grossLbs: 78940 },
     hasPriorityAlert: false,
   },
   {
-    id: 'drv-marcus-702',
-    name: 'Marcus Ortiz',
-    truckUnit: 'TR-702',
-    trailerUnit: 'TRL-8941',
-    phone: '(214) 555-3910',
-    email: 'marcus.ortiz@truckwithease.com',
+    id: 'drv-jason-208',
+    name: 'Jason Henderson',
+    truckUnit: 'UNIT #208-T',
+    trailerUnit: 'TRL-5501',
+    phone: '+14125553901',
+    email: 'jason.henderson@truckwithease.com',
     currentStatus: 'ARRIVING_DESTINATION',
-    cycleNumber: 3,
-    lat: 32.748,
-    lng: -97.285,
-    headingDeg: 270,
-    speedMph: 24,
-    originLat: 32.7767,
-    originLng: -96.797,
-    originCity: 'Dallas',
-    originState: 'TX',
-    destinationLat: 32.7555,
-    destinationLng: -97.3308,
-    destinationCity: 'Fort Worth',
-    destinationState: 'TX',
-    homeTerminalLat: 32.7767,
-    homeTerminalLng: -96.797,
-    homeTerminalCity: 'Dallas, TX',
-    currentLocationName: 'I-30 WB Approach · 3.5 mi from Fort Worth Gateway',
-    currentLocationCity: 'Fort Worth',
-    currentLocationState: 'TX',
-    milesRemaining: 4,
-    odometerMiles: 219480,
-    detentionMinutes: 18,
-    detentionHourlyRate: 85,
-    loadNumber: 'COY-91048',
-    bolNumber: 'BOL-DAL-FTW-7021',
-    commodity: 'Frozen Poultry & Specialty Produce (Reefer -10°F)',
-    etaDestination: '08:42 CDT',
-    avatarColor: 'bg-amber-600',
-    avatarInitials: 'MO',
-    lastAlertText: '[CRITICAL ALERT] Unit TR-702 Approaching Dock Door 04. Reefer temp fluctuating +6.2°F above setpoint.',
-    cruiseControlStatus: 'CITY SLOWDOWN',
-    engineRpm: 980,
-    transmissionGear: '4th LOW',
-    fuelLevelPct: 46,
-    defLevelPct: 62,
-    coolantTempF: 208,
-    oilPressurePsi: 38,
-    reeferTempF: -3.8,
-    reeferSetpointF: -10.0,
-    reeferStatusText: 'THERMAL EXCURSION WARNING // TEMP ELEVATED (+6.2°F)',
-    batteryVoltage: 13.6,
-    brakeAirPressurePsi: { primary: 118, secondary: 114 },
-    engineBrakeStatus: 'OFF',
-    instantMpg: 5.9,
-    hosDriveRemainingMin: 185,
-    hosShiftRemainingMin: 220,
-    hosCycleRemainingMin: 1420,
-    axleWeights: { steerLbs: 11950, driveLbs: 33890, trailerLbs: 33920, grossLbs: 79760 },
-    // HIGH PRIORITY ALERT (TRIGGER FOR MAP HIGHLIGHT)
-    hasPriorityAlert: true,
-    priorityAlertLevel: 'CRITICAL',
-    priorityAlertDetails: 'CRITICAL REEFER SPIKE (+6.2°F) // IMMEDIATE DOCK DOOR 04 EXPEDITE',
-    priorityAlertCode: 'REEFER_TEMP_DEV_CRIT',
-  },
-  {
-    id: 'drv-devon-518',
-    name: 'Devon Hayes',
-    truckUnit: 'TR-518',
-    trailerUnit: 'TRL-4419',
-    phone: '(615) 555-7281',
-    email: 'devon.hayes@truckwithease.com',
-    currentStatus: 'ARRIVED_DESTINATION',
     cycleNumber: 2,
-    lat: 36.1627,
-    lng: -86.7816,
-    headingDeg: 0,
-    speedMph: 0,
-    originLat: 41.8781,
-    originLng: -87.6298,
+    lat: 40.012,
+    lng: -83.025,
+    headingDeg: 180,
+    speedMph: 24,
+    originLat: 41.7589,
+    originLng: -87.7412,
     originCity: 'Chicago',
     originState: 'IL',
-    destinationLat: 36.1627,
-    destinationLng: -86.7816,
-    destinationCity: 'Nashville',
-    destinationState: 'TN',
-    homeTerminalLat: 41.8781,
-    homeTerminalLng: -87.6298,
+    destinationLat: 39.9829,
+    destinationLng: -83.1235,
+    destinationCity: 'Columbus',
+    destinationState: 'OH',
+    homeTerminalLat: 41.7589,
+    homeTerminalLng: -87.7412,
     homeTerminalCity: 'Chicago, IL',
-    currentLocationName: 'Nashville Central Crossdock · Staging Bay #14',
-    currentLocationCity: 'Nashville',
-    currentLocationState: 'TN',
-    milesRemaining: 0,
-    odometerMiles: 184510,
-    detentionMinutes: 88,
-    detentionHourlyRate: 75,
-    loadNumber: 'ECH-48192',
-    bolNumber: 'BOL-CHI-BNA-5188',
-    commodity: 'High-Value Automotive Components & Precision Tooling',
-    etaDestination: 'ARRIVED (DETENTION +88m)',
-    avatarColor: 'bg-red-600',
-    avatarInitials: 'DH',
-    lastAlertText: '[DETENTION WARNING] Unit TR-518 waiting on dock door assignment for 88 min. Claim generated: $110.',
-    cruiseControlStatus: 'ENGINE IDLE',
-    engineRpm: 650,
-    transmissionGear: 'PARK / NEUTRAL',
-    fuelLevelPct: 54,
-    defLevelPct: 78,
-    coolantTempF: 188,
-    oilPressurePsi: 36,
-    batteryVoltage: 13.7,
-    brakeAirPressurePsi: { primary: 122, secondary: 120 },
-    instantMpg: 0.0,
-    hosDriveRemainingMin: 240,
-    hosShiftRemainingMin: 290,
-    hosCycleRemainingMin: 1980,
-    axleWeights: { steerLbs: 11700, driveLbs: 32900, trailerLbs: 32800, grossLbs: 77400 },
-    // HIGH PRIORITY ALERT (TRIGGER FOR MAP HIGHLIGHT)
+    currentLocationName: 'I-270 Outerbelt · Exit 12 (Roberts Rd)',
+    currentLocationCity: 'Columbus',
+    currentLocationState: 'OH',
+    milesRemaining: 6.4,
+    odometerMiles: 298104,
+    detentionMinutes: 0,
+    detentionHourlyRate: 75.0,
+    loadNumber: 'TQL-44012',
+    bolNumber: 'BOL-CHI-COL-2081',
+    commodity: 'Automotive Stamping Dies & Tooling',
+    etaDestination: '17:10 EST',
+    avatarColor: '#38BDF8',
+    avatarInitials: 'JH',
+    lastAlertText: 'Within 10-mile radius. Inbound notice transmitted to receiver.',
+    cruiseControlStatus: 'OFF (CITY TRAFFIC)',
+    engineRpm: 1480,
+    transmissionGear: '8th (Manual 13-Spd)',
+    fuelLevelPct: 44,
+    defLevelPct: 62,
+    coolantTempF: 202,
+    oilPressurePsi: 38,
+    reeferTempF: undefined,
+    reeferSetpointF: undefined,
+    reeferStatusText: 'DRY VAN · AMBIENT',
+    batteryVoltage: 13.9,
+    brakeAirPressurePsi: { primary: 125, secondary: 123 },
+    engineBrakeStatus: 'MED',
+    instantMpg: 5.8,
+    hosDriveRemainingMin: 210,
+    hosShiftRemainingMin: 340,
+    hosCycleRemainingMin: 1840,
+    axleWeights: { steerLbs: 12050, driveLbs: 33920, trailerLbs: 33800, grossLbs: 79770 },
     hasPriorityAlert: true,
     priorityAlertLevel: 'HIGH',
-    priorityAlertDetails: 'DETENTION EXCEEDED (+88m) // UNLOAD BOTTLENECK AT BAY 14',
-    priorityAlertCode: 'DETENTION_TIMEOUT_ALERT',
+    priorityAlertDetails: 'Guard Shack Gate Code: #8821*. Receiver Dock #04 assigned.',
+    priorityAlertCode: 'DOCK_ASSIGNED',
   },
   {
-    id: 'drv-sarah-309',
-    name: 'Sarah Kowalski',
-    truckUnit: 'TR-309',
-    trailerUnit: 'TRL-9902',
-    phone: '(317) 555-4491',
-    email: 'sarah.k@truckwithease.com',
-    currentStatus: 'DEPARTED_DESTINATION',
-    cycleNumber: 1,
-    lat: 39.7684,
-    lng: -86.1581,
-    headingDeg: 310,
-    speedMph: 64,
-    originLat: 35.1495,
-    originLng: -90.049,
-    originCity: 'Memphis',
-    originState: 'TN',
-    destinationLat: 39.7684,
-    destinationLng: -86.1581,
-    destinationCity: 'Indianapolis',
-    destinationState: 'IN',
-    homeTerminalLat: 35.1495,
-    homeTerminalLng: -90.049,
-    homeTerminalCity: 'Memphis, TN',
-    currentLocationName: 'I-65 NB Corridor · MP 112 outbound toward Lafayette',
-    currentLocationCity: 'Indianapolis',
-    currentLocationState: 'IN',
-    milesRemaining: 340,
-    odometerMiles: 98400,
-    detentionMinutes: 0,
-    detentionHourlyRate: 75,
-    loadNumber: 'TQL-77190',
-    bolNumber: 'BOL-MEM-IND-3091',
-    commodity: 'Consumer Electronics & Battery Modules (UN3480)',
-    etaDestination: '19:10 CDT',
-    avatarColor: 'bg-emerald-600',
-    avatarInitials: 'SK',
-    lastAlertText: '[DIRECTIVE] Unit TR-309 departed Indianapolis. Electronic POD signed and uploaded to vault.',
-    cruiseControlStatus: 'CRUISE ACTIVE · 64 MPH',
-    engineRpm: 1290,
-    transmissionGear: '12th AUTO',
-    fuelLevelPct: 68,
-    defLevelPct: 82,
-    coolantTempF: 191,
-    oilPressurePsi: 43,
-    batteryVoltage: 14.1,
-    brakeAirPressurePsi: { primary: 126, secondary: 124 },
-    instantMpg: 7.8,
-    hosDriveRemainingMin: 360,
-    hosShiftRemainingMin: 480,
-    hosCycleRemainingMin: 2600,
-    axleWeights: { steerLbs: 11650, driveLbs: 31800, trailerLbs: 32100, grossLbs: 75550 },
-    hasPriorityAlert: false,
-  },
-  {
-    id: 'drv-tyrone-880',
-    name: 'Tyrone Washington',
-    truckUnit: 'TR-880',
-    trailerUnit: 'TRL-5520',
-    phone: '(404) 555-1920',
-    email: 'tyrone.w@truckwithease.com',
-    currentStatus: 'BACK_HOME',
-    cycleNumber: 4,
-    lat: 41.7589,
-    lng: -87.7412,
+    id: 'drv-marcus-711',
+    name: 'Marcus Rodriguez',
+    truckUnit: 'TR-711',
+    trailerUnit: 'TRL-9921',
+    phone: '+16145557732',
+    email: 'marcus.rodriguez@truckwithease.com',
+    currentStatus: 'ARRIVED_DESTINATION',
+    cycleNumber: 3,
+    lat: 39.9829,
+    lng: -83.1235,
     headingDeg: 0,
     speedMph: 0,
     originLat: 41.7589,
     originLng: -87.7412,
     originCity: 'Chicago',
     originState: 'IL',
-    destinationLat: 33.749,
-    destinationLng: -84.388,
-    destinationCity: 'Atlanta',
-    destinationState: 'GA',
+    destinationLat: 39.9829,
+    destinationLng: -83.1235,
+    destinationCity: 'Columbus',
+    destinationState: 'OH',
     homeTerminalLat: 41.7589,
     homeTerminalLng: -87.7412,
     homeTerminalCity: 'Chicago, IL',
-    currentLocationName: 'Chicago Home Base Shop & Fleet Yard #4',
-    currentLocationCity: 'Chicago',
-    currentLocationState: 'IL',
+    currentLocationName: 'Columbus Distribution Center · Dock 04',
+    currentLocationCity: 'Columbus',
+    currentLocationState: 'OH',
     milesRemaining: 0,
-    odometerMiles: 312890,
-    detentionMinutes: 0,
-    detentionHourlyRate: 75,
-    loadNumber: 'LND-33418',
-    bolNumber: 'BOL-ATL-CHI-8804',
-    commodity: 'General Freight & Packaged Retail',
-    etaDestination: 'CYCLE COMPLETE (SHOP)',
-    avatarColor: 'bg-teal-600',
-    avatarInitials: 'TW',
-    lastAlertText: '[LOOP COMPLETE] Unit TR-880 parked at Chicago shop. Post-trip DVIR passed without defects.',
-    cruiseControlStatus: 'PARKED / SECURED',
+    odometerMiles: 88419,
+    detentionMinutes: 48,
+    detentionHourlyRate: 85.0,
+    loadNumber: 'COY-99014',
+    bolNumber: 'BOL-CHI-COL-7118',
+    commodity: 'Retail Consumer Electronics',
+    etaDestination: 'ARRIVED (ON DOCK)',
+    avatarColor: '#10B981',
+    avatarInitials: 'MR',
+    lastAlertText: 'On Dock #04. Detention clock running: 48 min billable ($68.00 accrued).',
+    cruiseControlStatus: 'ENGINE OFF / APU ON',
     engineRpm: 0,
-    transmissionGear: 'PARK',
-    fuelLevelPct: 92,
-    defLevelPct: 95,
-    coolantTempF: 78,
+    transmissionGear: 'Neutral (Parked)',
+    fuelLevelPct: 68,
+    defLevelPct: 84,
+    coolantTempF: 140,
     oilPressurePsi: 0,
+    reeferTempF: undefined,
+    reeferSetpointF: undefined,
+    reeferStatusText: 'SEAL VERIFIED #992104',
     batteryVoltage: 12.8,
-    brakeAirPressurePsi: { primary: 125, secondary: 125 },
+    brakeAirPressurePsi: { primary: 128, secondary: 126 },
+    engineBrakeStatus: 'OFF',
     instantMpg: 0.0,
-    hosDriveRemainingMin: 580,
-    hosShiftRemainingMin: 720,
-    hosCycleRemainingMin: 3400,
-    axleWeights: { steerLbs: 11200, driveLbs: 16500, trailerLbs: 14200, grossLbs: 41900 },
+    hosDriveRemainingMin: 410,
+    hosShiftRemainingMin: 540,
+    hosCycleRemainingMin: 2210,
+    axleWeights: { steerLbs: 11900, driveLbs: 32800, trailerLbs: 33100, grossLbs: 77800 },
+    hasPriorityAlert: false,
+  },
+  {
+    id: 'drv-jamal-611',
+    name: 'Jamal Washington',
+    truckUnit: 'TR-611',
+    trailerUnit: 'TRL-4412',
+    phone: '+13175556214',
+    email: 'jamal.washington@truckwithease.com',
+    currentStatus: 'DEPARTED_DESTINATION',
+    cycleNumber: 2,
+    lat: 40.852,
+    lng: -85.241,
+    headingDeg: 295,
+    speedMph: 65,
+    originLat: 39.9829,
+    originLng: -83.1235,
+    originCity: 'Columbus',
+    originState: 'OH',
+    destinationLat: 41.7589,
+    destinationLng: -87.7412,
+    destinationCity: 'Chicago',
+    destinationState: 'IL',
+    homeTerminalLat: 41.7589,
+    homeTerminalLng: -87.7412,
+    homeTerminalCity: 'Chicago, IL',
+    currentLocationName: 'US-30 WB · MP 122 near Fort Wayne, IN',
+    currentLocationCity: 'Fort Wayne',
+    currentLocationState: 'IN',
+    milesRemaining: 154,
+    odometerMiles: 215430,
+    detentionMinutes: 0,
+    detentionHourlyRate: 75.0,
+    loadNumber: 'DAT-12904',
+    bolNumber: 'BOL-COL-CHI-6114',
+    commodity: 'Empty Pallets & Return Dunnage',
+    etaDestination: '21:15 CST',
+    avatarColor: '#F59E0B',
+    avatarInitials: 'JW',
+    lastAlertText: 'Departed destination Columbus. Inbound return leg to Chicago terminal.',
+    cruiseControlStatus: 'ENGAGED 65 MPH',
+    engineRpm: 1220,
+    transmissionGear: '10th (Manual)',
+    fuelLevelPct: 56,
+    defLevelPct: 78,
+    coolantTempF: 196,
+    oilPressurePsi: 40,
+    reeferTempF: undefined,
+    reeferSetpointF: undefined,
+    reeferStatusText: 'DEADHEAD / RETURN LEG',
+    batteryVoltage: 14.0,
+    brakeAirPressurePsi: { primary: 124, secondary: 122 },
+    engineBrakeStatus: 'LOW',
+    instantMpg: 8.1,
+    hosDriveRemainingMin: 320,
+    hosShiftRemainingMin: 450,
+    hosCycleRemainingMin: 1680,
+    axleWeights: { steerLbs: 11400, driveLbs: 17200, trailerLbs: 14800, grossLbs: 43400 },
     hasPriorityAlert: false,
   },
 ];
@@ -317,98 +266,71 @@ export const ONE_CLICK_MESSAGE_PRESETS = [
       `[CRITICAL DIRECTIVE] Unit ${drv.truckUnit}: Please verify reefer controller display matches manifest setpoint (${drv.reeferSetpointF || 34.0}°F). Transmit manual reading to dispatch.`,
   },
   {
-    id: 'preset-detention-start',
-    title: 'Formal Detention Notice to Shipper',
-    badge: 'DETENTION LOGGED',
-    badgeColor: 'bg-purple-500/20 text-purple-300 border border-purple-500/40',
-    template: (drv: DispatchMonitorDriver) =>
-      `[LEGAL DETENTION RECORD] Unit ${drv.truckUnit} has reached detention threshold at facility dock. Official timer active at $${drv.detentionHourlyRate || 75}/hr under contract terms.`,
+    id: 'status-check',
+    title: 'Location & Load-Status Check-In',
+    badge: 'STATUS CHECK',
+    badgeColor: 'bg-sky-500/20 text-sky-300 border border-sky-500/40',
+    template: (driver: DispatchMonitorDriver) =>
+      `Dispatch check-in: ${driver.truckUnit}, please confirm your current location and load status.`,
+  },
+  {
+    id: 'safety-check',
+    title: 'Driver Safety & Equipment Check-In',
+    badge: 'SAFETY CHECK',
+    badgeColor: 'bg-rose-500/20 text-rose-300 border border-rose-500/40',
+    template: (driver: DispatchMonitorDriver) =>
+      `Safety check for ${driver.truckUnit}: confirm you are safe and report any route or equipment concerns.`,
   },
 ];
 
+const STATUS_ORDER: DispatchMonitorStageStatus[] = [
+  'DEPARTED_ORIGIN',
+  'ARRIVING_DESTINATION',
+  'ARRIVED_DESTINATION',
+  'DEPARTED_DESTINATION',
+  'BACK_HOME',
+];
+
 export function loadMonitorDrivers(): DispatchMonitorDriver[] {
+  if (typeof localStorage === 'undefined') return INITIAL_MONITOR_DRIVERS;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to load monitor drivers from storage:', err);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return INITIAL_MONITOR_DRIVERS;
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_MONITOR_DRIVERS;
+  } catch {
+    return INITIAL_MONITOR_DRIVERS;
   }
-  return INITIAL_MONITOR_DRIVERS;
 }
 
 export function saveMonitorDrivers(drivers: DispatchMonitorDriver[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(drivers));
   } catch (err) {
-    console.warn('Failed to persist monitor drivers:', err);
+    console.warn('Failed to persist monitor drivers to localStorage:', err);
   }
 }
 
-export function getStatusStyle(status: DispatchMonitorStageStatus) {
-  switch (status) {
-    case 'DEPARTED_ORIGIN':
-      return {
-        pillLabel: 'EN ROUTE // DEPARTED ORIGIN',
-        dotColor: 'bg-blue-400',
-        badgeBg: 'bg-blue-500/20',
-        badgeText: 'text-blue-300',
-        borderColor: 'border-blue-500/50',
-      };
-    case 'ARRIVING_DESTINATION':
-      return {
-        pillLabel: 'INBOUND // ARRIVING DESTINATION',
-        dotColor: 'bg-amber-400',
-        badgeBg: 'bg-amber-500/20',
-        badgeText: 'text-amber-300',
-        borderColor: 'border-amber-500/50',
-      };
-    case 'ARRIVED_DESTINATION':
-      return {
-        pillLabel: 'ON-SITE // AT DESTINATION DOCK',
-        dotColor: 'bg-emerald-400',
-        badgeBg: 'bg-emerald-500/20',
-        badgeText: 'text-emerald-300',
-        borderColor: 'border-emerald-500/50',
-      };
-    case 'DEPARTED_DESTINATION':
-      return {
-        pillLabel: 'RETURN TRANSIT // DEPARTED DEST',
-        dotColor: 'bg-purple-400',
-        badgeBg: 'bg-purple-500/20',
-        badgeText: 'text-purple-300',
-        borderColor: 'border-purple-500/50',
-      };
-    case 'BACK_HOME':
-    default:
-      return {
-        pillLabel: 'COMPLETED // BACK AT HOME TERMINAL',
-        dotColor: 'bg-teal-400',
-        badgeBg: 'bg-teal-500/20',
-        badgeText: 'text-teal-300',
-        borderColor: 'border-teal-500/50',
-      };
-  }
+export function getNextMasterLoopStatus(status: DispatchMonitorStageStatus): DispatchMonitorStageStatus {
+  const index = STATUS_ORDER.indexOf(status);
+  return STATUS_ORDER[(index + 1) % STATUS_ORDER.length];
 }
 
-export function getNextMasterLoopStatus(current: DispatchMonitorStageStatus): DispatchMonitorStageStatus {
-  switch (current) {
-    case 'DEPARTED_ORIGIN':
-      return 'ARRIVING_DESTINATION';
-    case 'ARRIVING_DESTINATION':
-      return 'ARRIVED_DESTINATION';
-    case 'ARRIVED_DESTINATION':
-      return 'DEPARTED_DESTINATION';
-    case 'DEPARTED_DESTINATION':
-      return 'BACK_HOME';
-    case 'BACK_HOME':
-    default:
-      return 'DEPARTED_ORIGIN';
-  }
+export function getStatusStyle(status: DispatchMonitorStageStatus): {
+  badgeBg: string;
+  badgeText: string;
+  pillLabel: string;
+  dotColor: string;
+  borderColor?: string;
+} {
+  const styles: Record<DispatchMonitorStageStatus, { badgeBg: string; badgeText: string; pillLabel: string; dotColor: string; borderColor: string }> = {
+    DEPARTED_ORIGIN: { badgeBg: 'bg-sky-500/15', badgeText: 'text-sky-300', pillLabel: 'EN ROUTE // DEPARTED ORIGIN', dotColor: 'bg-sky-400', borderColor: 'border-sky-500/50' },
+    ARRIVING_DESTINATION: { badgeBg: 'bg-amber-500/15', badgeText: 'text-amber-300', pillLabel: 'INBOUND // ARRIVING DESTINATION', dotColor: 'bg-amber-400', borderColor: 'border-amber-500/50' },
+    ARRIVED_DESTINATION: { badgeBg: 'bg-emerald-500/15', badgeText: 'text-emerald-300', pillLabel: 'ON DOCK // AT DESTINATION', dotColor: 'bg-emerald-400', borderColor: 'border-emerald-500/50' },
+    DEPARTED_DESTINATION: { badgeBg: 'bg-violet-500/15', badgeText: 'text-violet-300', pillLabel: 'RETURNING // DEPARTED DESTINATION', dotColor: 'bg-violet-400', borderColor: 'border-violet-500/50' },
+    BACK_HOME: { badgeBg: 'bg-slate-500/15', badgeText: 'text-slate-300', pillLabel: 'COMPLETED // BACK HOME', dotColor: 'bg-slate-400', borderColor: 'border-slate-500/50' },
+  };
+  return styles[status] || styles.DEPARTED_ORIGIN;
 }
 
 export async function advanceDriverStatus(
@@ -451,22 +373,39 @@ export async function advanceDriverStatus(
 export async function sendOneClickMessageToDriver(
   driverId: string,
   text: string,
-  presetId: string,
+  _presetId: string,
   drivers: DispatchMonitorDriver[]
 ): Promise<{ updatedDrivers: DispatchMonitorDriver[]; receiptSid: string; timestamp: string }> {
-  const receiptSid = `SID-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
-  const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const driver = drivers.find((item) => item.id === driverId);
+  if (!driver) throw new Error('Selected driver was not found.');
 
-  const updatedDrivers = drivers.map((drv) => {
-    if (drv.id !== driverId) return drv;
-    return {
-      ...drv,
-      lastAlertText: text,
-    };
-  });
+  let receiptSid = `SID-${Date.now().toString(36).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
+
+  // Attempt backend dispatch route if available
+  try {
+    const response = await fetch('/api/dispatch-messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: driver.phone, text, attachedLoadId: driver.loadNumber }),
+    });
+    const result = await response.json().catch(() => null);
+    if (response.ok && result?.success === true && typeof result.carrierSid === 'string') {
+      receiptSid = result.carrierSid;
+    }
+  } catch {
+    // Offline / client edge fallback
+  }
+
+  const updatedDrivers = drivers.map((item) =>
+    item.id === driverId ? { ...item, lastAlertText: text } : item
+  );
 
   saveMonitorDrivers(updatedDrivers);
-  return { updatedDrivers, receiptSid, timestamp };
+  return {
+    updatedDrivers,
+    receiptSid,
+    timestamp: new Date().toISOString(),
+  };
 }
 
 /**
@@ -486,14 +425,12 @@ export function refreshDriverMarkers5s(drivers: DispatchMonitorDriver[]): Dispat
     }
 
     // Delta movement for 5 seconds at current speed:
-    // 65 mph ≈ 0.018 miles per second => ~0.09 miles per 5s
     const milesIn5s = (drv.speedMph / 3600) * 5;
     const targetLat = drv.currentStatus === 'DEPARTED_DESTINATION' ? drv.homeTerminalLat : drv.destinationLat;
     const targetLng = drv.currentStatus === 'DEPARTED_DESTINATION' ? drv.homeTerminalLng : drv.destinationLng;
 
     const latDelta = targetLat - drv.lat;
     const lngDelta = targetLng - drv.lng;
-    const distanceToTarget = Math.sqrt(latDelta * latDelta + lngDelta * lngDelta) || 0.001;
 
     // Move ~0.0015 to 0.003 degrees per 5s
     const stepPct = Math.min(0.008, 0.0015 + (drv.speedMph / 100) * 0.002);

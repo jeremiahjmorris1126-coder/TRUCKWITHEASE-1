@@ -546,6 +546,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
     const wastedGal = isManual ? 0.22 : Math.max(0.21, telematics.idleFuelWastedGallons);
     const wastedCost = isManual ? 0.85 : Math.max(0.81, telematics.idleFuelCostUsd);
 
+    let smsDispatched = false;
     try {
       const res = await fetch('/api/telematics/idle-alert', {
         method: 'POST',
@@ -564,8 +565,12 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
         }),
       });
       if (res.ok) {
+        smsDispatched = true;
         setLastIdleAlertDispatched(true);
         lastIdleAlertTimestampRef.current = Date.now();
+      } else {
+        const response = await res.json().catch(() => null);
+        console.warn('Backend idle alert was not dispatched:', response?.error || res.status);
       }
     } catch (err) {
       console.warn('Backend idle alert API fallback:', err);
@@ -575,7 +580,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
     const notif: TacticalNotification = {
       id: `idle-alert-${Date.now()}`,
       title: '⚠️ 15-MIN EXCESSIVE IDLE ALERT',
-      description: `Vehicle stationary idle exceeded 15 min (${formatDurationHMS(idleSecs)}). Engine at 650 RPM with ${wastedGal} gal ($${wastedCost}) burned. Alert dispatched to In-Cab Messaging.`,
+      description: `Vehicle stationary idle exceeded 15 min (${formatDurationHMS(idleSecs)}). Engine at 650 RPM with ${wastedGal} gal ($${wastedCost}) burned. ${smsDispatched ? 'SMS accepted by Twilio for dispatch.' : 'SMS delivery was not confirmed; check backend and Twilio configuration.'}`,
       time: new Date().toLocaleTimeString(),
       severity: 'warning',
       read: false,
@@ -585,7 +590,11 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
       onAddNotification(notif);
     }
 
-    setToastMessage('⚠️ 15-MIN IDLE ALERT DISPATCHED TO IN-CAB MESSAGING (DISPATCH & SAFETY)');
+    setToastMessage(
+      smsDispatched
+        ? '⚠️ 15-MIN IDLE ALERT ACCEPTED BY TWILIO FOR DISPATCH'
+        : '⚠️ IDLE ALERT CREATED LOCALLY; SMS DELIVERY NOT CONFIRMED'
+    );
     setTimeout(() => setToastMessage(null), 5000);
   };
 
@@ -707,7 +716,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
                   UNTOUCHABLE TELEMATICS & ELD SAFETY SUITE
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-950/80 border border-emerald-500 text-emerald-400">
-                  FMCSA §395 COMPLIANT
+                  SIMULATED — NOT FMCSA CERTIFIED
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-amber-950/80 border border-amber-500/80 text-amber-400">
                   HARNESS: SIMULATION STREAM
@@ -1242,7 +1251,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
             <div className="bg-[#0C0E14] border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
               <div className="flex items-center justify-between text-xs font-mono text-slate-400 border-b border-slate-800 pb-2">
                 <span>CAN-BUS J1939 POWERTRAIN STATUS</span>
-                <span className="text-emerald-400 font-bold">ECM ONLINE</span>
+                <span className="text-amber-400 font-bold">NO HARDWARE FEED</span>
               </div>
               <div className="grid grid-cols-2 gap-3 font-mono">
                 <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800">

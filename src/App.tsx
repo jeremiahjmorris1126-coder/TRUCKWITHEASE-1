@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { TabId, InspectionLogEntry, InspectionActionType, InspectionTriggerSource } from './types';
 import { INITIAL_INSPECTION_LOGS } from './data/mockData';
 import { Header } from './components/Header';
@@ -48,6 +48,7 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
   voiceControlEnabled: true,
   enabledModules: {
     'master-sync': true,
+    'the-g-o-a-t-': false,
     'night-hud': true,
     'dispatch-eta': true,
     'vault': true,
@@ -78,6 +79,7 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastIcon, setToastIcon] = useState<string>('verified_user');
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
 
   // Fleet Customization Settings
   const [fleetSettings, setFleetSettings] = useState<FleetCustomizationSettings>(() => {
@@ -179,7 +181,6 @@ export default function App() {
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Speed simulation (subtle variance around 65 mph while moving)
@@ -345,7 +346,6 @@ export default function App() {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         enabledModules={fleetSettings.enabledModules}
         onOpenCustomizer={() => setShowCustomizer(true)}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
       {/* Cockpit Header */}
@@ -359,12 +359,25 @@ export default function App() {
         alertnessScore={alertness.alertnessData.score}
         onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
       <main className="lg:pl-72 pt-20 pb-20 min-h-screen w-full transition-all">
-        {renderActiveScreen()}
+        <div
+          role="status"
+          className="mx-4 mb-4 rounded-lg border border-amber-500/60 bg-[#0A0F14] px-4 py-3 text-sm font-semibold text-amber-300"
+        >
+          Demo data may be shown. FMCSA/DOT certification, Drivewyze, NASA telemetry, and vehicle hardware connections are not verified. Do not use this app as a regulatory or safety authority.
+        </div>
+        <Suspense
+          fallback={
+            <div className="flex min-h-[50vh] items-center justify-center bg-[#05080E] font-mono text-sm font-bold uppercase tracking-widest text-[#FFE500]">
+              Loading cockpit module…
+            </div>
+          }
+        >
+          {renderActiveScreen()}
+        </Suspense>
       </main>
 
       {/* Voice Control HUD Overlay & Trigger */}
@@ -434,5 +447,3 @@ export default function App() {
     </div>
   );
 }
-
-

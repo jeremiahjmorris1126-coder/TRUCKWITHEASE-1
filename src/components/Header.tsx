@@ -12,7 +12,6 @@ interface HeaderProps {
   alertnessScore?: number;
   onOpenAlertnessModal?: () => void;
   onToggleMobileSidebar?: () => void;
-  onOpenExportModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,7 +24,6 @@ export const Header: React.FC<HeaderProps> = ({
   alertnessScore = 98,
   onOpenAlertnessModal,
   onToggleMobileSidebar,
-  onOpenExportModal,
 }) => {
   const getTabTitle = (tab: TabId) => {
     switch (tab) {

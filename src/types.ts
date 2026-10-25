@@ -493,6 +493,17 @@ export interface FleetDriverFileRecord {
 // ============================================================================
 // DRIVER DISPATCH MASTER LOOP ENGINE TYPES
 // ============================================================================
+export interface TacticalNotification {
+  id: string;
+  timestamp?: string;
+  time?: string;
+  category?: 'SAFETY' | 'MAINTENANCE' | 'COMPLIANCE' | 'WEATHER' | 'DISPATCH';
+  title: string;
+  description: string;
+  severity: 'CRITICAL' | 'WARNING' | 'INFO' | 'alert' | 'warning' | 'info';
+  read: boolean;
+  actionRequired?: boolean;
+}
 export type MasterLoopMilestone =
   | 'ORIGIN_DEPARTURE'
   | 'DESTINATION_ARRIVAL'
@@ -547,8 +558,8 @@ export interface MasterLoopTripDetails {
   weightLbs: number;
   sealNumber: string;
   reeferTempF: number;
-  originLot: MasterLoopFacility;
-  destination: MasterLoopFacility;
+  originLot: MasterLoopFacility & { gateCode?: string };
+  destination: MasterLoopFacility & { dockNumber?: string; gateCode?: string };
   homeTerminal: MasterLoopFacility;
   totalRoundTripMiles: number;
 }
@@ -600,12 +611,12 @@ export interface MasterLoopCycleHistory {
 }
 
 export interface MasterLoopSystemState {
-  loopId?: string;
+  loopId: string;
   currentCycleNumber: number;
-  currentStageIndex: number;
   currentStage: MasterLoopMilestone;
-  isAutoLoopRunning?: boolean;
-  simulationSpeedMs?: number;
+  currentStageIndex: number;
+  isAutoLoopRunning: boolean;
+  simulationSpeedMs: number;
   odometerMiles: number;
   fuelLevelPct: number;
   stages: MasterLoopStageRecord[];
@@ -613,23 +624,7 @@ export interface MasterLoopSystemState {
   dispatch: MasterLoopDispatchContacts;
   trip: MasterLoopTripDetails;
   history: MasterLoopCycleHistory[];
-  auditLogs?: any[];
+  auditLogs: (string | any)[];
   totalCyclesCompleted: number;
   lastDispatchedAt?: string;
 }
-
-// ============================================================================
-// TELEMATICS SAFETY SUITE TYPES
-// ============================================================================
-export interface TacticalNotification {
-  id: string;
-  timestamp?: string;
-  time?: string;
-  category?: 'SAFETY' | 'MAINTENANCE' | 'COMPLIANCE' | 'WEATHER' | 'DISPATCH';
-  title: string;
-  description: string;
-  severity: 'CRITICAL' | 'WARNING' | 'INFO' | 'alert' | 'warning' | 'info';
-  read: boolean;
-  actionRequired?: boolean;
-}
-
