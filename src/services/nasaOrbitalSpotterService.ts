@@ -53,7 +53,7 @@ export interface DriverPingRecord {
   pingType: 'MANUAL_PULSE' | 'SPEED_CHECK' | 'BRIDGE_VERIFY' | 'NASA_FREEZE_ALERT' | 'DETENTION_PROMPT' | 'SITREP_POLL';
   label: string;
   latencyMs: number;
-  status: 'SENT' | 'DELIVERED_CAB' | 'ACKNOWLEDGED_DRIVER';
+  status: 'SENT' | 'DELIVERED_CAB' | 'ACKNOWLEDGED_DRIVER' | 'SIMULATED';
   notes?: string;
 }
 
@@ -154,48 +154,48 @@ export const INITIAL_PING_HISTORY: DriverPingRecord[] = [
     id: 'png-881',
     driverId: 'drv-vance-904',
     truckUnit: 'TR-904',
-    timestamp: '14:28:12',
+    timestamp: 'DEMO',
     pingType: 'SPEED_CHECK',
-    label: 'Velocity Verification (64 MPH in 65 Zone)',
-    latencyMs: 38,
-    status: 'ACKNOWLEDGED_DRIVER',
-    notes: 'Telematics ping confirmed cruise control steady at 64 MPH.',
+    label: 'DEMO: Speed check example',
+    latencyMs: 0,
+    status: 'SIMULATED',
+    notes: 'Sample record only; no telematics message was sent or acknowledged.',
   },
   {
     id: 'png-882',
     driverId: 'drv-jason-208',
     truckUnit: 'UNIT #208-T',
-    timestamp: '14:26:05',
+    timestamp: 'DEMO',
     pingType: 'BRIDGE_VERIFY',
-    label: 'Bridge Clearance Ping (14\'2" Clearance Confirmed)',
-    latencyMs: 42,
-    status: 'ACKNOWLEDGED_DRIVER',
-    notes: 'Cab audio chime emitted: "Route clearance verified 14 feet 2 inches".',
+    label: 'DEMO: Bridge clearance example',
+    latencyMs: 0,
+    status: 'SIMULATED',
+    notes: 'Sample record only; no clearance was verified and no cab alert was sent.',
   },
   {
     id: 'png-883',
     driverId: 'drv-marcus-711',
     truckUnit: 'TR-711',
-    timestamp: '14:24:49',
+    timestamp: 'DEMO',
     pingType: 'NASA_FREEZE_ALERT',
-    label: 'NASA AIRS Surface Temp Advisory (38°F)',
-    latencyMs: 34,
-    status: 'DELIVERED_CAB',
-    notes: 'Orbital thermal scan pushed to In-Cab HUD with safe wet asphalt index.',
+    label: 'DEMO: Weather advisory example',
+    latencyMs: 0,
+    status: 'SIMULATED',
+    notes: 'Sample record only; no NASA feed or in-cab message is connected.',
   },
 ];
 
 // Default Ping Program Configuration
 export const DEFAULT_PING_CONFIG: DriverPingProgramConfig = {
-  autoPingEnabled: true,
+  autoPingEnabled: false,
   intervalSeconds: 60,
   pingOnSpeedExcess: true,
   speedThresholdMph: 70,
   pingOnBridgeClearanceUnderInches: 164, // 13'8"
   pingOnFreezeDetected: true,
   audibleChimeEnabled: true,
-  inCabVoiceBroadcast: true,
-  smsDispatchSync: true,
+  inCabVoiceBroadcast: false,
+  smsDispatchSync: false,
 };
 
 // Storage keys
