@@ -49,7 +49,7 @@ export const HosDailyLogPdfModal: React.FC<HosDailyLogPdfModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-headline-sm text-[16px] text-on-surface uppercase font-bold tracking-wide">
-                  Official FMCSA 49 CFR § 395.8 Driver's Daily Log
+                  Official FMCSA 49 CFR ï¿½ 395.8 Driver's Daily Log
                 </span>
                 <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#00e676]/15 text-[#00e676] border border-[#00e676]/40 shadow-[0_0_8px_rgba(0,230,118,0.3)]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-pulse" />
@@ -57,7 +57,7 @@ export const HosDailyLogPdfModal: React.FC<HosDailyLogPdfModalProps> = ({
                 </span>
               </div>
               <p className="font-mono text-[11px] text-on-surface-variant">
-                Midnight-to-Midnight Standard • Attested Digital Record of Duty Status (RODS)
+                Midnight-to-Midnight Standard ï¿½ Attested Digital Record of Duty Status (RODS)
               </p>
             </div>
           </div>
@@ -88,7 +88,7 @@ export const HosDailyLogPdfModal: React.FC<HosDailyLogPdfModalProps> = ({
                 <span className="material-symbols-outlined text-[18px]">verified</span>
                 <span>FMCSA eRODS Submission Accepted // Confirmation Code: <strong>RODS-TX-2025-948291</strong></span>
               </div>
-              <span className="text-[10px] opacity-80">Encrypted TLS 1.3 • SHA-256 Validated</span>
+              <span className="text-[10px] opacity-80">Encrypted TLS 1.3 ï¿½ SHA-256 Validated</span>
             </div>
           )}
 
@@ -105,14 +105,14 @@ export const HosDailyLogPdfModal: React.FC<HosDailyLogPdfModalProps> = ({
                     {CARRIER_INFO.name}
                   </span>
                   <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono text-[10px] font-bold">
-                    ELD CERTIFIED #49-395
+                    SAMPLE LOG â€” NOT CERTIFIED
                   </span>
                 </div>
                 <p className="font-mono text-[11px] text-on-surface-variant mt-0.5">
-                  USDOT #{CARRIER_INFO.usdot} • MC #{CARRIER_INFO.mc} • Main Terminal: {CARRIER_INFO.terminal}
+                  USDOT #{CARRIER_INFO.usdot} ï¿½ MC #{CARRIER_INFO.mc} ï¿½ Main Terminal: {CARRIER_INFO.terminal}
                 </p>
                 <p className="font-mono text-[11px] text-on-surface-variant">
-                  24/7 Safety Dispatch: {CARRIER_INFO.phone} • Safety Director: {CARRIER_INFO.safetyOfficer}
+                  24/7 Safety Dispatch: {CARRIER_INFO.phone} ï¿½ Safety Director: {CARRIER_INFO.safetyOfficer}
                 </p>
               </div>
 
@@ -163,7 +163,7 @@ export const HosDailyLogPdfModal: React.FC<HosDailyLogPdfModalProps> = ({
             <div className="space-y-2 border-b border-surface-container-highest/60 pb-4">
               <div className="flex justify-between items-center">
                 <span className="font-label-caps text-primary text-[11px] uppercase tracking-wider font-bold">
-                  24-Hour Record of Duty Status Graph (FMCSA 49 CFR § 395.8)
+                  24-Hour Record of Duty Status Graph (FMCSA 49 CFR ï¿½ 395.8)
                 </span>
                 <span className="font-mono text-[10px] text-on-surface-variant">
                   Midnight-to-Midnight (1hr increments)
@@ -275,7 +275,7 @@ export const HosDailyLogPdfModal: React.FC<HosDailyLogPdfModalProps> = ({
                       <td className="py-1 px-1.5 text-on-surface">Dallas, TX Lot 4B</td>
                       <td className="py-1 px-1.5">142,890</td>
                       <td className="py-1 px-1.5">4,120.2</td>
-                      <td className="py-1 px-1.5 text-primary">Split Sleeper Period 1 (§ 395.1(g) paused 14h window)</td>
+                      <td className="py-1 px-1.5 text-primary">Split Sleeper Period 1 (ï¿½ 395.1(g) paused 14h window)</td>
                     </tr>
                     <tr>
                       <td className="py-1 px-1.5 font-bold text-on-surface">#3</td>
@@ -349,7 +349,7 @@ export const HosDailyLogPdfModal: React.FC<HosDailyLogPdfModalProps> = ({
             {/* Cryptographic Attestation & Driver Signature */}
             <div className="pt-2 text-[10px] space-y-2">
               <div className="p-2 rounded bg-surface-container-high/40 border border-surface-container-highest text-on-surface-variant text-[10px] leading-relaxed">
-                <strong className="text-primary uppercase">Driver Certification Statement (49 CFR § 395.8(a)(2)):</strong>
+                <strong className="text-primary uppercase">Driver Certification Statement (49 CFR ï¿½ 395.8(a)(2)):</strong>
                 <p className="italic mt-0.5">
                   "I hereby certify that my data entries and my record of duty status for this 24-hour period are true and correct, and that all off-duty, sleeper berth, driving, and on-duty hours reflect my actual commercial motor vehicle operations."
                 </p>
@@ -362,7 +362,7 @@ export const HosDailyLogPdfModal: React.FC<HosDailyLogPdfModalProps> = ({
                     Jeremiah J. Morris
                   </span>
                   <span className="font-mono text-[9px] text-on-surface-variant block">
-                    Certified via Biometric PIN • IL-98104820
+                    Certified via Biometric PIN ï¿½ IL-98104820
                   </span>
                 </div>
 
@@ -401,7 +401,7 @@ export const HosDailyLogPdfModal: React.FC<HosDailyLogPdfModalProps> = ({
               className="px-5 py-2 rounded-lg bg-primary text-on-primary font-headline-sm text-[12px] font-bold uppercase shadow-[0_0_16px_rgba(229,169,30,0.35)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px]">print</span>
-              Print / Save PDF (49 CFR § 395.8)
+              Print / Save PDF (49 CFR ï¿½ 395.8)
             </button>
           </div>
         </div>

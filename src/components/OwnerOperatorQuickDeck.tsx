@@ -39,7 +39,7 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
   const etaMinute = (now.getMinutes() + 20) % 60;
   const etaFormatted = `${etaHour.toString().padStart(2, '0')}:${etaMinute.toString().padStart(2, '0')} CDT`;
 
-  const dispatchUpdateText = `[TRUCK #1042 UPDATE] En route I-44 E @ MM 184 // Speed: ${speed} MPH // Weather: Clear & Dry // ETA to Dock Door 14: ${etaFormatted} // Driver: Jeremiah J. Morris // Status: ON TIME & COMPLIANT`;
+  const dispatchUpdateText = `[SAMPLE TRUCK #1042 UPDATE] En route I-44 E @ MM 184 // Speed: ${speed} MPH // Weather: unverified // ETA to Dock Door 14: ${etaFormatted} // Status: sample data; not verified`;
 
   // 1-Tap Fuel Submission
   const handleLogFuelDirect = (gallons: number, pricePerGal: number, itemDesc: string, totalAmount: number) => {
@@ -92,7 +92,7 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
   // 1-Tap Dispatch Broadcast
   const handleSendDispatch = () => {
     navigator.clipboard?.writeText(dispatchUpdateText).catch(() => {});
-    onShowToast('ETA PING COPIED & BROADCAST TO DISPATCH DOCK 14', 'send');
+    onShowToast('ETA update copied to clipboard; not sent to dispatch.', 'send');
     setActiveModal(null);
   };
 
@@ -106,7 +106,7 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
     }
     
     setDvirSigned(true);
-    onShowToast(`DVIR ${dvirType} CERTIFIED & ATTESTED TO VAULT`, 'verified');
+    onShowToast(`Sample DVIR ${dvirType} saved locally; not certified or attested`, 'info');
     setTimeout(() => {
       setDvirSigned(false);
       setActiveModal(null);
@@ -140,7 +140,7 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
           <span className="text-[10px] text-outline hidden md:inline">Current Status:</span>
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-highest text-white border border-surface-container-high flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            ALL SYSTEMS READY
+            DEMO — INTEGRATIONS UNVERIFIED
           </span>
         </div>
       </div>
@@ -493,10 +493,10 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-bold text-emerald-400 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    PREPASS / DRIVEWYZE: GREEN LIGHT
+                    SAMPLE ONLY — NO LIVE BYPASS CONNECTION
                   </span>
                   <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded bg-emerald-500/30">
-                    BYPASS GRANTED
+                    NOT VERIFIED
                   </span>
                 </div>
                 <p className="text-[10px] text-emerald-300">

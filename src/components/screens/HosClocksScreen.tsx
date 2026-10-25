@@ -51,12 +51,12 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
     if (newStatus === currentStatus) return;
     setCurrentStatus(newStatus);
     const labels: Record<DutyStatus, string> = {
-      D: 'STATUS: DRIVING (D) - ECM J1939 LOCK ACTIVE',
+      D: 'STATUS: DRIVING (DEMO)',
       ON: 'STATUS: ON-DUTY NOT DRIVING (ON)',
-      SB: 'STATUS: SLEEPER BERTH (SB) - 14H CLOCK PAUSED',
+      SB: 'STATUS: SLEEPER BERTH (DEMO)',
       OFF: 'STATUS: OFF-DUTY (OFF)',
-      YM: 'STATUS: YARD MOVE (YM - § 395.2 SPECIAL DRIVING)',
-      PC: 'STATUS: PERSONAL CONVEYANCE (PC - AUTHORIZED OFF-DUTY)',
+      YM: 'STATUS: YARD MOVE (DEMO)',
+      PC: 'STATUS: PERSONAL CONVEYANCE (DEMO)',
     };
     onShowToast(labels[newStatus]);
   };
@@ -76,11 +76,11 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-[#00e676]/15 text-[#00e676] border border-[#00e676]/40 shadow-[0_0_8px_rgba(0,230,118,0.3)]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-pulse" />
-                49 CFR § 395.8 COMPLIANT
+                SAMPLE DATA â€” NOT CERTIFIED
               </span>
             </div>
             <p className="font-mono text-[11px] text-on-surface-variant mt-0.5">
-              Current 24H Shift • Midnight-to-Midnight • Digital Attestation Ready for DOT Inspection
+              Sample clock values only; no ECM connection or DOT attestation is available.
             </p>
           </div>
         </div>
@@ -89,7 +89,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
           id="export-official-hos-log-btn"
           onClick={() => {
             setIsExportModalOpen(true);
-            onShowToast('OFFICIAL 24-HOUR HOS LOG PREVIEW GENERATED');
+            onShowToast('Sample HOS log preview generated; not an official record.');
             if (onRecordInspection) {
               onRecordInspection('PDF_GENERATED', 'MANUAL_HUD', 'Driver requested 24-Hour Official HOS Log for DOT inspection.');
             }
@@ -156,7 +156,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
         <div className="bg-surface-container p-space-md rounded-xl border border-surface-container-high/60 shadow-lg space-y-2">
           <div className="flex items-center justify-between">
             <span className="font-label-caps text-[10px] text-outline uppercase tracking-wider">
-              11-Hour Driving Clock (§ 395.3(a)(3))
+              11-Hour Driving Clock (ï¿½ 395.3(a)(3))
             </span>
             <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-telemetry-label text-[10px]">
               61% REMAINING
@@ -278,11 +278,11 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
               calculate
             </span>
             <span className="font-label-caps text-label-caps text-primary uppercase tracking-wider font-bold">
-              49 CFR § 395.1(g) Split Berth Optimizer
+              49 CFR ï¿½ 395.1(g) Split Berth Optimizer
             </span>
           </div>
           <span className="bg-primary/20 text-primary font-telemetry-label text-[10px] px-2 py-0.5 rounded font-bold">
-            FMCSA CERTIFIED
+            DEMO â€” NOT CERTIFIED
           </span>
         </div>
 

@@ -1545,7 +1545,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
                       FMCSA 49 CFR Duty Clocks
                     </span>
                     <span className="text-[10px] text-emerald-400 font-bold tracking-widest uppercase">
-                      COMPLIANT &bull; 0 DEFECTS
+                      SAMPLE DATA — NOT VERIFIED
                     </span>
                   </div>
 

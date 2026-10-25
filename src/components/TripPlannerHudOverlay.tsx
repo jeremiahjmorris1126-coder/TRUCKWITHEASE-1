@@ -203,7 +203,7 @@ export const TripPlannerHudOverlay: React.FC<TripPlannerHudOverlayProps> = ({
                       </span>
                       {wp.prePassAuthorized && (
                         <span className="text-[8px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40 font-bold">
-                          PrePass Bypass ({wp.bypassProbabilityPct}%)
+                          Sample bypass estimate ({wp.bypassProbabilityPct}%) — not provider authorization
                         </span>
                       )}
                     </div>

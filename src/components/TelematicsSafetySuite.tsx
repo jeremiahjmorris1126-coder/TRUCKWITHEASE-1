@@ -716,7 +716,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
                   UNTOUCHABLE TELEMATICS & ELD SAFETY SUITE
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-950/80 border border-emerald-500 text-emerald-400">
-                  FMCSA §395 COMPLIANT
+                  SIMULATED — NOT FMCSA CERTIFIED
                 </span>
               </div>
               <p className="text-sm text-slate-400 font-mono mt-0.5">
@@ -1248,7 +1248,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
             <div className="bg-[#0C0E14] border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
               <div className="flex items-center justify-between text-xs font-mono text-slate-400 border-b border-slate-800 pb-2">
                 <span>CAN-BUS J1939 POWERTRAIN STATUS</span>
-                <span className="text-emerald-400 font-bold">ECM ONLINE</span>
+                <span className="text-amber-400 font-bold">NO HARDWARE FEED</span>
               </div>
               <div className="grid grid-cols-2 gap-3 font-mono">
                 <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
