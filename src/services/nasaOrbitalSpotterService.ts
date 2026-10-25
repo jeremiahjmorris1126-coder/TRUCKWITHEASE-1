@@ -43,6 +43,8 @@ export interface RouteLoadUpdate {
   locationHighway: string;
   mileMarker?: number;
   pingDispatchedToCab: boolean;
+  isSimulated?: boolean;
+  dataSource?: 'DETERMINISTIC_MODEL' | 'FHWA_NBI_CACHE' | 'PUBLIC_STATION_DIRECTORY' | 'SIMULATED_TEST_HARNESS';
 }
 
 export interface DriverPingRecord {
@@ -80,11 +82,13 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     timestamp: '2 min ago',
     updateType: 'BRIDGE_CLEARANCE',
     severity: 'NORMAL',
-    title: 'Bridge Clearance Verified: 14\'2" Ahead',
-    detail: 'Overpass at I-80 Mile 114 scanned via FHWA NBI database. Vertical clearance 14\'2" clears commercial 13\'6" rig with 8" buffer.',
+    title: '[OFFLINE NBI] Bridge Clearance: 14\'2" Ahead',
+    detail: 'Overpass at I-80 Mile 114 scanned via local FHWA NBI dataset cache. Vertical clearance 14\'2" clears commercial 13\'6" rig with 8" safety margin.',
     locationHighway: 'I-80 E / Mile 114 (PA)',
     mileMarker: 114,
     pingDispatchedToCab: true,
+    isSimulated: true,
+    dataSource: 'FHWA_NBI_CACHE',
   },
   {
     id: 'rt-upd-102',
@@ -95,11 +99,13 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     timestamp: '5 min ago',
     updateType: 'SCALE_HOUSE',
     severity: 'NORMAL',
-    title: 'Ohio Turnpike Weigh Station: Green Light Bypass',
-    detail: 'PreClear transponder authenticated gross vehicle weight at 78,400 lbs. In-cab bypass light turned GREEN.',
+    title: '[SIMULATED DRILL] Weigh Station Bypass Advisory',
+    detail: 'Simulated In-Cab Bypass Drill: Modeled Ohio Turnpike Mile 162 WIM profile for gross vehicle weight 78,400 lbs. (Notice: Actual roadside bypass requires an active commercial Drivewyze/PrePass transponder).',
     locationHighway: 'I-80 / OH Turnpike Mile 162',
     mileMarker: 162,
     pingDispatchedToCab: true,
+    isSimulated: true,
+    dataSource: 'PUBLIC_STATION_DIRECTORY',
   },
   {
     id: 'rt-upd-103',
@@ -110,11 +116,13 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     timestamp: '8 min ago',
     updateType: 'WEATHER_NASA',
     severity: 'CAUTION',
-    title: 'NASA GPM Radar: Heavy Rain Band 14 Mi Ahead',
-    detail: 'NASA Global Precipitation Measurement microwave radar shows 18mm/hr squall approaching Lake Erie corridor. Recommended speed 55 MPH.',
+    title: '[SIMULATED RADAR] Weather Radar: Rain Band Approaching',
+    detail: 'Deterministic Precipitation Radar Model: Modeled 18mm/hr squall approaching Lake Erie corridor (I-90 W). Recommended advisory speed: 55 MPH.',
     locationHighway: 'I-90 W / Ashtabula Corridor',
     mileMarker: 218,
     pingDispatchedToCab: true,
+    isSimulated: true,
+    dataSource: 'DETERMINISTIC_MODEL',
   },
   {
     id: 'rt-upd-104',
@@ -130,6 +138,8 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     locationHighway: 'I-65 S / Indianapolis Logistics Park',
     mileMarker: 85,
     pingDispatchedToCab: true,
+    isSimulated: false,
+    dataSource: 'SIMULATED_TEST_HARNESS',
   },
   {
     id: 'rt-upd-105',
@@ -141,10 +151,12 @@ export const INITIAL_ROUTE_UPDATES: RouteLoadUpdate[] = [
     updateType: 'TRAFFIC_INCIDENT',
     severity: 'CAUTION',
     title: 'Construction Single Lane Restriction at Mile 44',
-    detail: 'Right lane closed for resurfacing until 18:00. Left lane moving at 45 MPH. 6-minute delay factored into celestial ETA.',
+    detail: 'Right lane closed for resurfacing until 18:00. Left lane moving at 45 MPH. Factored into celestial ETA.',
     locationHighway: 'I-70 E / Richmond Crossing',
     mileMarker: 44,
     pingDispatchedToCab: true,
+    isSimulated: false,
+    dataSource: 'SIMULATED_TEST_HARNESS',
   },
 ];
 

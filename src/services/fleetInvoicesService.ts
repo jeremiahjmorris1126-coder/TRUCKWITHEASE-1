@@ -1,6 +1,12 @@
 import { FleetInvoiceRecord } from '../types';
 import { INITIAL_FLEET_INVOICES } from '../data/mockInvoicesData';
 
+/**
+ * Edge Storage Adapter for Fleet Invoices
+ *
+ * Persists records locally in browser client storage for instant offline cockpit availability,
+ * and exposes JSON export/backup and cloud sync readiness for Google Cloud Firestore/Storage.
+ */
 const STORAGE_KEY = 'truck_with_ease_fleet_invoices_v1';
 
 class FleetInvoicesService {
@@ -109,6 +115,10 @@ class FleetInvoicesService {
       taxDeductibleTotal,
       categoryTotals,
     };
+  }
+
+  public exportToJson(): string {
+    return JSON.stringify(this.invoices, null, 2);
   }
 }
 

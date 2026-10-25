@@ -709,6 +709,9 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-950/80 border border-emerald-500 text-emerald-400">
                   FMCSA §395 COMPLIANT
                 </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-amber-950/80 border border-amber-500/80 text-amber-400">
+                  HARNESS: SIMULATION STREAM
+                </span>
               </div>
               <p className="text-sm text-slate-400 font-mono mt-0.5">
                 Harsh Braking • Speeding Sentinel • Collision Black Box • Stop Duration • CAN-bus J1939 Engine Fusion
@@ -739,7 +742,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
               }`}
             >
               {isSimulating ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              <span>{isSimulating ? 'LIVE STREAM' : 'PAUSED'}</span>
+              <span>{isSimulating ? 'SIMULATOR: ACTIVE' : 'SIMULATOR: PAUSED'}</span>
             </button>
 
             {/* Providers & Cryptographic Export Dropdown */}

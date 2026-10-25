@@ -1,9 +1,12 @@
 {
     "configurations": [
-        
-
-
-
+        {
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": true,
+            "name": "Launch add-on",
+            "addonPath": "${workspaceFolder}"
+        },
         {
             "args": [
                 "--extensionDevelopmentPath=${workspaceFolder}"
@@ -16,14 +19,12 @@
             "request": "launch",
             "type": "extensionHost"
         },
-
         {
             "type": "node",
             "request": "attach",
             "name": "Containers: Attach to Node",
             "remoteRoot": "/usr/src/app"
         },
-        
         {
             "type": "firefox",
             "request": "launch",
@@ -32,7 +33,6 @@
             "url": "http://localhost/index.html",
             "webRoot": "${workspaceFolder}"
         },
-
         {
             "type": "firefox",
             "request": "launch",
