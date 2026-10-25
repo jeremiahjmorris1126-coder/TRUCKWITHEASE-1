@@ -7,6 +7,8 @@ export class TwilioConfigurationError extends Error {}
 
 export class TwilioDeliveryError extends Error {}
 
+export class TwilioRecipientError extends Error {}
+
 export function isTwilioConfigured(): boolean {
   return Boolean(
     process.env.TWILIO_ACCOUNT_SID &&
@@ -20,20 +22,39 @@ export async function sendDispatchSms(body: string): Promise<{
   sid: string;
   status: string;
   to: string;
+}>;
+export async function sendDispatchSms(body: string, recipient: string): Promise<{
+  sid: string;
+  status: string;
+  to: string;
+}>;
+export async function sendDispatchSms(body: string, recipient?: string): Promise<{
+  sid: string;
+  status: string;
+  to: string;
 }> {
   const {
     TWILIO_ACCOUNT_SID: accountSid,
     TWILIO_AUTH_TOKEN: authToken,
     TWILIO_FROM_NUMBER: from,
-    TWILIO_DISPATCH_TO_NUMBER: to,
+    TWILIO_DISPATCH_TO_NUMBER: dispatchTo,
+    TWILIO_ALLOWED_TO_NUMBERS: allowedRecipients = '',
   } = process.env;
 
-  if (!accountSid || !authToken || !from || !to) {
+  if (!accountSid || !authToken || !from || !dispatchTo) {
     throw new TwilioConfigurationError('Twilio SMS is not configured.');
   }
 
+  const to = recipient || dispatchTo;
   if (!/^\+[1-9]\d{7,14}$/.test(from) || !/^\+[1-9]\d{7,14}$/.test(to)) {
     throw new TwilioConfigurationError('Twilio phone numbers must use E.164 format.');
+  }
+  const allowedNumbers = new Set([
+    dispatchTo,
+    ...allowedRecipients.split(',').map((number) => number.trim()).filter(Boolean),
+  ]);
+  if (!allowedNumbers.has(to)) {
+    throw new TwilioRecipientError('The recipient is not enabled for SMS delivery.');
   }
 
   try {

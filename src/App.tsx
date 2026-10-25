@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { TabId, InspectionLogEntry, InspectionActionType, InspectionTriggerSource } from './types';
 import { INITIAL_INSPECTION_LOGS } from './data/mockData';
 import { Header } from './components/Header';
@@ -19,22 +19,13 @@ import { EnterpriseSidebar } from './components/EnterpriseSidebar';
 import { useVoiceControl } from './hooks/useVoiceControl';
 import { useAlertnessTracker } from './hooks/useAlertnessTracker';
 
-import { NightHudScreen } from './components/screens/NightHudScreen';
-import { HosClocksScreen } from './components/screens/HosClocksScreen';
-import { Radar54bScreen } from './components/screens/Radar54bScreen';
-import { MasterMechanicScreen } from './components/screens/MasterMechanicScreen';
-import { HapticsScreen } from './components/screens/HapticsScreen';
-import { EcosystemTrustHubScreen } from './components/screens/EcosystemTrustHubScreen';
-import { SecurityVaultScreen } from './components/screens/SecurityVaultScreen';
-import { TelemetryScreen } from './components/screens/TelemetryScreen';
-import { DispatchEtaScreen } from './components/screens/DispatchEtaScreen';
-import { MasterSynchronizerScreen } from './components/screens/MasterSynchronizerScreen';
-import { QuantumIndexScreen } from './components/screens/QuantumIndexScreen';
-import { FleetExpensesInvoiceScreen } from './components/screens/FleetExpensesInvoiceScreen';
-import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
-import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
-import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
-import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
+const NightHudScreen = lazy(() => import('./components/screens/NightHudScreen').then((module) => ({ default: module.NightHudScreen })));
+const HosClocksScreen = lazy(() => import('./components/screens/HosClocksScreen').then((module) => ({ default: module.HosClocksScreen })));
+const HapticsScreen = lazy(() => import('./components/screens/HapticsScreen').then((module) => ({ default: module.HapticsScreen })));
+const TelemetryScreen = lazy(() => import('./components/screens/TelemetryScreen').then((module) => ({ default: module.TelemetryScreen })));
+const RouteDispatchHub = lazy(() => import('./components/screens/RouteDispatchHub').then((module) => ({ default: module.RouteDispatchHub })));
+const FleetOperationsHub = lazy(() => import('./components/screens/FleetOperationsHub').then((module) => ({ default: module.FleetOperationsHub })));
+const FleetModuleCustomizer = lazy(() => import('./components/FleetModuleCustomizer').then((module) => ({ default: module.FleetModuleCustomizer })));
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
 
@@ -47,6 +38,7 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
   voiceControlEnabled: true,
   enabledModules: {
     'master-sync': true,
+    'the-g-o-a-t-': false,
     'night-hud': true,
     'dispatch-eta': true,
     'vault': true,
@@ -360,7 +352,15 @@ export default function App() {
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
       <main className="lg:pl-72 pt-20 pb-20 min-h-screen w-full transition-all">
-        {renderActiveScreen()}
+        <Suspense
+          fallback={
+            <div className="flex min-h-[50vh] items-center justify-center bg-[#05080E] font-mono text-sm font-bold uppercase tracking-widest text-[#FFE500]">
+              Loading cockpit module…
+            </div>
+          }
+        >
+          {renderActiveScreen()}
+        </Suspense>
       </main>
 
       {/* Voice Control HUD Overlay & Trigger */}
@@ -424,4 +424,3 @@ export default function App() {
     </div>
   );
 }
-

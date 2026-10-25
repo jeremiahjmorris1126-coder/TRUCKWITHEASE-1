@@ -546,6 +546,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
     const wastedGal = isManual ? 0.22 : Math.max(0.21, telematics.idleFuelWastedGallons);
     const wastedCost = isManual ? 0.85 : Math.max(0.81, telematics.idleFuelCostUsd);
 
+    let smsDispatched = false;
     try {
       const res = await fetch('/api/telematics/idle-alert', {
         method: 'POST',
@@ -564,8 +565,12 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
         }),
       });
       if (res.ok) {
+        smsDispatched = true;
         setLastIdleAlertDispatched(true);
         lastIdleAlertTimestampRef.current = Date.now();
+      } else {
+        const response = await res.json().catch(() => null);
+        console.warn('Backend idle alert was not dispatched:', response?.error || res.status);
       }
     } catch (err) {
       console.warn('Backend idle alert API fallback:', err);
@@ -575,7 +580,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
     const notif: TacticalNotification = {
       id: `idle-alert-${Date.now()}`,
       title: '⚠️ 15-MIN EXCESSIVE IDLE ALERT',
-      description: `Vehicle stationary idle exceeded 15 min (${formatDurationHMS(idleSecs)}). Engine at 650 RPM with ${wastedGal} gal ($${wastedCost}) burned. Alert dispatched to In-Cab Messaging.`,
+      description: `Vehicle stationary idle exceeded 15 min (${formatDurationHMS(idleSecs)}). Engine at 650 RPM with ${wastedGal} gal ($${wastedCost}) burned. ${smsDispatched ? 'SMS accepted by Twilio for dispatch.' : 'SMS delivery was not confirmed; check backend and Twilio configuration.'}`,
       time: new Date().toLocaleTimeString(),
       severity: 'warning',
       read: false,
@@ -585,7 +590,11 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
       onAddNotification(notif);
     }
 
-    setToastMessage('⚠️ 15-MIN IDLE ALERT DISPATCHED TO IN-CAB MESSAGING (DISPATCH & SAFETY)');
+    setToastMessage(
+      smsDispatched
+        ? '⚠️ 15-MIN IDLE ALERT ACCEPTED BY TWILIO FOR DISPATCH'
+        : '⚠️ IDLE ALERT CREATED LOCALLY; SMS DELIVERY NOT CONFIRMED'
+    );
     setTimeout(() => setToastMessage(null), 5000);
   };
 

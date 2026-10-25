@@ -267,7 +267,7 @@ function generateCorridorFallbackReport(
     summary,
     hazards,
     searchGrounding: {
-      grounded: true,
+      grounded: false,
       searchQueries,
       citations,
     },
@@ -376,6 +376,7 @@ Ensure your response contains ONLY the valid JSON object without surrounding pro
       console.warn('[Regional Hazards] Gemini returned unexpected structure, utilizing augmented fallback.');
       const fallback = generateCorridorFallbackReport(locationName, corridor, lat, lon);
       if (citations.length > 0 || searchQueries.length > 0) {
+        fallback.searchGrounding.grounded = true;
         fallback.searchGrounding.citations = citations.length > 0 ? citations : fallback.searchGrounding.citations;
         fallback.searchGrounding.searchQueries = searchQueries.length > 0 ? searchQueries : fallback.searchGrounding.searchQueries;
         fallback.source = 'GEMINI_SEARCH_GROUNDED';

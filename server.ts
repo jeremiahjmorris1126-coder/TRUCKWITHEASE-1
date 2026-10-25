@@ -3,7 +3,12 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { fetchRegionalWeatherHazards } from './server/weatherHazards';
-import { isTwilioConfigured, sendDispatchSms, TwilioConfigurationError } from './server/twilioMessaging';
+import {
+  isTwilioConfigured,
+  sendDispatchSms,
+  TwilioConfigurationError,
+  TwilioRecipientError,
+} from './server/twilioMessaging';
 
 interface MemorySnapshot {
   id: string;
@@ -30,7 +35,7 @@ interface PerformanceOptimization {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
@@ -151,6 +156,49 @@ async function startServer() {
       });
     } catch (err) {
       res.status(500).json({ error: 'Failed to record memory snapshot', details: (err as Error).message });
+    }
+  });
+
+  app.post('/api/dispatch-messages', limitTwilioNotifications, async (req, res) => {
+    const { to, text, attachedLoadId } = req.body || {};
+    if (
+      typeof to !== 'string' ||
+      typeof text !== 'string' ||
+      text.trim().length === 0 ||
+      text.length > 1600
+    ) {
+      res.status(400).json({ success: false, error: 'A valid recipient and message of up to 1600 characters are required.' });
+      return;
+    }
+    try {
+      const delivery = await sendDispatchSms(text.trim(), to);
+      const message = recordInCabMessage({
+        channel: 'DISPATCH',
+        text: text.trim(),
+        priority: 'NORMAL',
+        attachedLoadId: typeof attachedLoadId === 'string' ? attachedLoadId.slice(0, 80) : undefined,
+      });
+      res.status(201).json({
+        success: true,
+        carrierSid: delivery.sid,
+        carrierStatus: delivery.status,
+        to: delivery.to,
+        messageId: message.id,
+      });
+    } catch (error) {
+      const status = error instanceof TwilioConfigurationError
+        ? 503
+        : error instanceof TwilioRecipientError
+        ? 403
+        : 502;
+      res.status(status).json({
+        success: false,
+        error: status === 503
+          ? 'Twilio SMS is not configured.'
+          : status === 403
+          ? 'This recipient is not on the server-configured SMS allowlist.'
+          : 'Twilio could not send the message.',
+      });
     }
   });
 
@@ -481,17 +529,10 @@ async function startServer() {
       memoryUsage: process.memoryUsage(),
       integrations: {
         twilioSms: isTwilioConfigured() ? 'configured' : 'not_configured',
+        geminiWeather: process.env.GEMINI_API_KEY ? 'configured' : 'fallback_mode',
       },
       timestamp: new Date().toISOString(),
     });
-  });
-
-  app.get('/api/messages', (req, res) => {
-    const requestedLimit = Number(req.query.limit);
-    const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
-      ? Math.min(100, Math.floor(requestedLimit))
-      : 50;
-    res.json({ messages: inCabMessages.slice(-limit) });
   });
 
   app.post('/api/messages', (req, res) => {
@@ -634,6 +675,10 @@ async function startServer() {
         details: (err as Error).message,
       });
     }
+  });
+
+  app.use('/api', (req, res) => {
+    res.status(404).json({ error: 'API endpoint not found.' });
   });
 
   // ==========================================
