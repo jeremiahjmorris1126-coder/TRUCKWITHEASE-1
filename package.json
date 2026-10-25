@@ -11,6 +11,9 @@
     "clean": "rm -rf dist server.cjs",
     "lint": "tsc --noEmit",
     "test": "node tests/runner.js",
+    "worker:build": "esbuild server/worker.ts --bundle --format=esm --outfile=dist/worker.js",
+    "worker:deploy": "wrangler deploy",
+    "cloudflare:login": "wrangler login",
     "deploy:firebase": "vite build && firebase deploy --only hosting",
     "firebase:login": "firebase login"
   },
