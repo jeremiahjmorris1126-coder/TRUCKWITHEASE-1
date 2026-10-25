@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { fetchRegionalWeatherHazards } from './server/weatherHazards';
+import { isTwilioConfigured, sendDispatchSms, TwilioConfigurationError } from './server/twilioMessaging';
 
 interface MemorySnapshot {
   id: string;
@@ -31,6 +33,44 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  interface InCabMessage {
+    id: string;
+    channel: string;
+    text: string;
+    priority: string;
+    attachedLoadId?: string;
+    createdAt: string;
+  }
+
+  const inCabMessages: InCabMessage[] = [];
+  const notificationAttempts = new Map<string, { startedAt: number; count: number }>();
+
+  const recordInCabMessage = (message: Omit<InCabMessage, 'id' | 'createdAt'>): InCabMessage => {
+    const storedMessage: InCabMessage = {
+      ...message,
+      id: `msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      createdAt: new Date().toISOString(),
+    };
+    inCabMessages.push(storedMessage);
+    if (inCabMessages.length > 100) inCabMessages.shift();
+    return storedMessage;
+  };
+
+  const limitTwilioNotifications: express.RequestHandler = (req, res, next) => {
+    const now = Date.now();
+    const key = req.ip || 'unknown';
+    const current = notificationAttempts.get(key);
+    if (!current || now - current.startedAt >= 60 * 60 * 1000) {
+      notificationAttempts.set(key, { startedAt: now, count: 1 });
+    } else if (current.count >= 20 || now - current.startedAt < 15 * 1000) {
+      res.status(429).json({ success: false, error: 'Dispatch notification rate limit reached.' });
+      return;
+    } else {
+      current.count += 1;
+    }
+    next();
+  };
 
   // In-Memory Storage for Memory & Performance Telemetry Tracking
   const memoryLogs: MemorySnapshot[] = [];
@@ -439,8 +479,122 @@ async function startServer() {
       status: 'UP',
       uptimeSeconds: Math.floor(process.uptime()),
       memoryUsage: process.memoryUsage(),
+      integrations: {
+        twilioSms: isTwilioConfigured() ? 'configured' : 'not_configured',
+      },
       timestamp: new Date().toISOString(),
     });
+  });
+
+  app.get('/api/messages', (req, res) => {
+    const requestedLimit = Number(req.query.limit);
+    const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
+      ? Math.min(100, Math.floor(requestedLimit))
+      : 50;
+    res.json({ messages: inCabMessages.slice(-limit) });
+  });
+
+  app.post('/api/messages', (req, res) => {
+    const { channel = 'DISPATCH', text, priority = 'NORMAL', attachedLoadId } = req.body || {};
+    if (typeof text !== 'string' || text.trim().length === 0 || text.length > 2000) {
+      res.status(400).json({ success: false, error: 'Message text must contain 1 to 2000 characters.' });
+      return;
+    }
+    const message = recordInCabMessage({
+      channel: typeof channel === 'string' ? channel.slice(0, 40) : 'DISPATCH',
+      text: text.trim(),
+      priority: typeof priority === 'string' ? priority.slice(0, 20) : 'NORMAL',
+      attachedLoadId: typeof attachedLoadId === 'string' ? attachedLoadId.slice(0, 80) : undefined,
+    });
+    res.status(201).json({ success: true, message });
+  });
+
+  app.post('/api/dispatch-loop/alert', limitTwilioNotifications, async (req, res) => {
+    const { smsBody, stage, loopId, cycleNumber, trip } = req.body || {};
+    if (typeof smsBody !== 'string' || smsBody.trim().length === 0 || smsBody.length > 1600) {
+      res.status(400).json({ success: false, error: 'smsBody must contain 1 to 1600 characters.' });
+      return;
+    }
+
+    try {
+      const delivery = await sendDispatchSms(smsBody.trim());
+      const message = recordInCabMessage({
+        channel: 'DISPATCH',
+        text: smsBody.trim(),
+        priority: 'NORMAL',
+        attachedLoadId: typeof trip?.loadNumber === 'string' ? trip.loadNumber.slice(0, 80) : undefined,
+      });
+      res.status(201).json({
+        success: true,
+        channel: 'sms',
+        carrierSid: delivery.sid,
+        carrierStatus: delivery.status,
+        to: delivery.to,
+        messageId: message.id,
+        stage: typeof stage === 'string' ? stage : undefined,
+        loopId: typeof loopId === 'string' ? loopId : undefined,
+        cycleNumber: Number.isFinite(cycleNumber) ? cycleNumber : undefined,
+      });
+    } catch (error) {
+      const status = error instanceof TwilioConfigurationError ? 503 : 502;
+      res.status(status).json({
+        success: false,
+        error: status === 503 ? 'Twilio SMS is not configured.' : 'Twilio could not send the dispatch SMS.',
+      });
+    }
+  });
+
+  app.post('/api/telematics/idle-alert', limitTwilioNotifications, async (req, res) => {
+    const {
+      vehicleUnit,
+      driverName,
+      idleDurationMinutes,
+      idleDurationSeconds,
+      engineRpm,
+      idleFuelWastedGallons,
+      idleCostUsd,
+      locationName,
+    } = req.body || {};
+    if (
+      typeof vehicleUnit !== 'string' ||
+      typeof driverName !== 'string' ||
+      typeof idleDurationMinutes !== 'number' ||
+      !Number.isFinite(idleDurationMinutes) ||
+      idleDurationMinutes < 15
+    ) {
+      res.status(400).json({ success: false, error: 'A valid 15-minute idle alert is required.' });
+      return;
+    }
+
+    const messageBody = [
+      'TRUCKWITHEASE EXCESSIVE IDLE ALERT',
+      `Driver: ${driverName.slice(0, 80)} | Unit: ${vehicleUnit.slice(0, 40)}`,
+      `Idle duration: ${idleDurationMinutes.toFixed(1)} minutes (${Number(idleDurationSeconds) || 0} seconds)`,
+      `Engine: ${Number(engineRpm) || 0} RPM | Fuel wasted: ${Number(idleFuelWastedGallons) || 0} gal ($${(Number(idleCostUsd) || 0).toFixed(2)})`,
+      `Location: ${typeof locationName === 'string' ? locationName.slice(0, 120) : 'Unknown'}`,
+    ].join('\n');
+
+    try {
+      const delivery = await sendDispatchSms(messageBody);
+      const message = recordInCabMessage({
+        channel: 'SAFETY',
+        text: messageBody,
+        priority: 'HIGH',
+      });
+      res.status(201).json({
+        success: true,
+        carrierSid: delivery.sid,
+        carrierStatus: delivery.status,
+        to: delivery.to,
+        messageId: message.id,
+      });
+    } catch (error) {
+      const status = error instanceof TwilioConfigurationError ? 503 : 502;
+      res.status(status).json({
+        success: false,
+        error: status === 503 ? 'Twilio SMS is not configured.' : 'Twilio could not send the idle alert.',
+      });
+    }
   });
 
   // 10. Regional Weather Hazards Feed (Gemini Search Grounded)
