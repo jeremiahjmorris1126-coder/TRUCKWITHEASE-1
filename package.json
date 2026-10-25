@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.cjs",
     "lint": "tsc --noEmit",
-    "test": "tsc --noEmit",
+    "test": "node tests/runner.js",
     "deploy:firebase": "vite build && firebase deploy --only hosting",
     "firebase:login": "firebase login"
   },
