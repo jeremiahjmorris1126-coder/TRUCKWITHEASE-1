@@ -54,7 +54,7 @@ export const INITIAL_WAYPOINTS: TripWaypoint[] = [
     prePassAuthorized: true,
     scaleType: 'WIM (Weigh-In-Motion) & Static Axle Platform',
     bypassProbabilityPct: 88,
-    notes: 'PrePass green light bypass active for carriers with USDOT rating > 95%.',
+    notes: 'Sample station data only; live PrePass/Drivewyze status and bypass authorization are not connected.',
   },
   {
     id: 'wp-fuel-2',

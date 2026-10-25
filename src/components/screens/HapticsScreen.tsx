@@ -73,7 +73,7 @@ export const HapticsScreen: React.FC<HapticsScreenProps> = ({ onShowToast }) => 
         </div>
 
         <span className="px-2.5 py-1 bg-primary/20 text-primary font-telemetry-label text-[10px] font-bold rounded">
-          CONNECTED (CAN J1939)
+          DEMO — NO J1939 CONNECTION
         </span>
       </div>
 
@@ -275,4 +275,3 @@ export const HapticsScreen: React.FC<HapticsScreenProps> = ({ onShowToast }) => 
     </div>
   );
 };
-

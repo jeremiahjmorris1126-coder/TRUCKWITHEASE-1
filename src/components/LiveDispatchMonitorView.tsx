@@ -109,7 +109,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [lastDeliveredReceipt, setLastDeliveredReceipt] = useState<{ sid: string; text: string; driver: string } | null>(null);
   const [displayMode, setDisplayMode] = useState<
-    'EXTENDED_RADAR' | 'GOOGLE_MAPS_REGULAR' | 'ALL_NASA_EXCLUSIVE' | 'SPLIT_VIEW'
+    'EXTENDED_RADAR' | 'GOOGLE_MAPS_REGULAR' | 'ALL_NASA_EXCLUSIVE' | 'SPLIT_VIEW' | 'NASA_GOOGLE_ORBITAL'
   >('EXTENDED_RADAR');
   const [routeUpdates, setRouteUpdates] = useState<RouteLoadUpdate[]>(getStoredRouteUpdates);
   const [isCloseUpSpotterModalOpen, setIsCloseUpSpotterModalOpen] = useState<boolean>(false);
@@ -252,20 +252,23 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
     const text = preset.template(activeSelectedDriver);
     triggerHapticFeedback('double');
 
-    const { updatedDrivers, receiptSid, timestamp } = await sendOneClickMessageToDriver(
-      activeSelectedDriver.id,
-      text,
-      preset.id,
-      drivers
-    );
-    setDrivers(updatedDrivers);
-    setLastDeliveredReceipt({
-      sid: receiptSid,
-      text,
-      driver: `${activeSelectedDriver.name} (${activeSelectedDriver.truckUnit})`,
-    });
-
-    showToast(`DIRECTIVE DISPATCHED: [${preset.badge}] -> ${activeSelectedDriver.name} · SID: ${receiptSid}`);
+    try {
+      const { updatedDrivers, receiptSid } = await sendOneClickMessageToDriver(
+        activeSelectedDriver.id,
+        text,
+        preset.id,
+        drivers
+      );
+      setDrivers(updatedDrivers);
+      setLastDeliveredReceipt({
+        sid: receiptSid,
+        text,
+        driver: `${activeSelectedDriver.name} (${activeSelectedDriver.truckUnit})`,
+      });
+      showToast(`SMS ACCEPTED BY TWILIO: [${preset.badge}] -> ${activeSelectedDriver.name} · SID: ${receiptSid}`);
+    } catch (error) {
+      showToast(`SMS NOT SENT: ${error instanceof Error ? error.message : 'Delivery unavailable.'}`);
+    }
   };
 
   // 1-Click Send Custom Message
@@ -274,20 +277,24 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
     triggerHapticFeedback('success');
 
     const fullMsg = `[DISPATCH DIRECTIVE] Unit ${activeSelectedDriver.truckUnit}: ${customMsgInput.trim()}`;
-    const { updatedDrivers, receiptSid } = await sendOneClickMessageToDriver(
-      activeSelectedDriver.id,
-      fullMsg,
-      'custom-direct',
-      drivers
-    );
-    setDrivers(updatedDrivers);
-    setLastDeliveredReceipt({
-      sid: receiptSid,
-      text: fullMsg,
-      driver: `${activeSelectedDriver.name} (${activeSelectedDriver.truckUnit})`,
-    });
-    setCustomMsgInput('');
-    showToast(`DIRECTIVE TRANSMITTED: ${activeSelectedDriver.name} · SID: ${receiptSid}`);
+    try {
+      const { updatedDrivers, receiptSid } = await sendOneClickMessageToDriver(
+        activeSelectedDriver.id,
+        fullMsg,
+        'custom-direct',
+        drivers
+      );
+      setDrivers(updatedDrivers);
+      setLastDeliveredReceipt({
+        sid: receiptSid,
+        text: fullMsg,
+        driver: `${activeSelectedDriver.name} (${activeSelectedDriver.truckUnit})`,
+      });
+      setCustomMsgInput('');
+      showToast(`SMS ACCEPTED BY TWILIO: ${activeSelectedDriver.name} · SID: ${receiptSid}`);
+    } catch (error) {
+      showToast(`SMS NOT SENT: ${error instanceof Error ? error.message : 'Delivery unavailable.'}`);
+    }
   };
 
   // 1-Click Audio Voice Prompt
@@ -786,8 +793,11 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
 
               <button
                 onClick={() => {
-                  advanceDriverStatus(activeSelectedDriver.id, getNextMasterLoopStatus(activeSelectedDriver.currentStatus));
-                  setDrivers(loadMonitorDrivers());
+                  void advanceDriverStatus(
+                    activeSelectedDriver.id,
+                    getNextMasterLoopStatus(activeSelectedDriver.currentStatus),
+                    drivers
+                  ).then(setDrivers);
                   showToast(`Advanced ${activeSelectedDriver.name} to next stage`);
                 }}
                 className="flex items-center gap-1 px-3 py-1 bg-[#D4AF37] hover:bg-[#E5C158] text-black rounded-md text-xs font-black transition shadow"
@@ -803,7 +813,18 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
       {/* ==================================================================== */}
       {/* MAIN VIEWPORT: RADAR vs NASA x GOOGLE MAPS vs SPLIT SCREEN           */}
       {/* ==================================================================== */}
-      {displayMode === 'GOOGLE_MAPS_REGULAR' ? (
+      {displayMode === 'NASA_GOOGLE_ORBITAL' ? (
+        <div className="w-full h-full relative z-10 pt-16 pb-24 px-2">
+          <NasaGoogleCloseUpOrbitalSpotter
+            selectedDriver={activeSelectedDriver}
+            allDrivers={filteredDrivers}
+            onSelectDriver={handleSelectDriver}
+            initialNasaEnabled
+            initialMapType="hybrid"
+            onClose={() => setDisplayMode('EXTENDED_RADAR')}
+          />
+        </div>
+      ) : displayMode === 'GOOGLE_MAPS_REGULAR' ? (
         <div className="w-full h-full relative z-10 pt-16 pb-24 px-2">
           <NasaGoogleCloseUpOrbitalSpotter
             key="google-maps-regular"
@@ -1498,7 +1519,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-emerald-300 font-bold flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        Transmitted to {lastDeliveredReceipt.driver}
+                        Accepted by Twilio for {lastDeliveredReceipt.driver}
                       </span>
                       <span className="text-emerald-400 font-bold">
                         SID: {lastDeliveredReceipt.sid}
@@ -1524,7 +1545,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
                       FMCSA 49 CFR Duty Clocks
                     </span>
                     <span className="text-[10px] text-emerald-400 font-bold tracking-widest uppercase">
-                      COMPLIANT &bull; 0 DEFECTS
+                      SAMPLE DATA — NOT VERIFIED
                     </span>
                   </div>
 

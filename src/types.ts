@@ -326,3 +326,199 @@ export interface ExternalBenchmarkBridge {
   syncLatencyMs: number;
 }
 
+export interface TacticalNotification {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  severity: 'info' | 'warning' | 'alert';
+  read: boolean;
+}
+
+export type MasterLoopMilestone =
+  | 'ORIGIN_DEPARTURE'
+  | 'DESTINATION_ARRIVAL'
+  | 'DESTINATION_DEPARTURE'
+  | 'HOME_ARRIVAL';
+
+export interface MasterLoopDriverProfile {
+  name: string;
+  driverId: string;
+  phone: string;
+  email: string;
+  truckUnit: string;
+  trailerUnit: string;
+  cdlNumber: string;
+  carrierName: string;
+  usdotNumber: string;
+  currentOdometer: number;
+}
+
+export interface MasterLoopDispatchContacts {
+  dispatcherName: string;
+  dispatchPhone: string;
+  dispatchEmail: string;
+  safetyEmail: string;
+  brokerPhone: string;
+  brokerEmail: string;
+  smsEnabled: boolean;
+  emailEnabled: boolean;
+  inCabVoiceAlerts: boolean;
+  autoLoopAdvance: boolean;
+}
+
+interface MasterLoopFacility {
+  name: string;
+  facilityCode: string;
+  address: string;
+  cityStateZip: string;
+  lat: number;
+  lng: number;
+  geofenceRadiusMiles: number;
+  contactName: string;
+  contactPhone: string;
+}
+
+export interface MasterLoopTripDetails {
+  tripId: string;
+  loadNumber: string;
+  bolNumber: string;
+  commodity: string;
+  weightLbs: number;
+  sealNumber: string;
+  reeferTempF: number;
+  originLot: MasterLoopFacility & { gateCode: string };
+  destination: MasterLoopFacility & { dockNumber: string; gateCode: string };
+  homeTerminal: MasterLoopFacility;
+  totalRoundTripMiles: number;
+}
+
+export interface MasterLoopStageRecord {
+  stage: MasterLoopMilestone;
+  orderNumber: 1 | 2 | 3 | 4;
+  title: string;
+  shortLabel: string;
+  description: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  geofencePassed: boolean;
+  locationSnapshot: string;
+  triggeredAt?: string;
+  odometerMiles?: number;
+  smsAlert: {
+    dispatched: boolean;
+    toPhone: string;
+    body: string;
+    timestamp?: string;
+    carrierSid?: string;
+    carrierStatus?: string;
+  };
+  emailAlert: {
+    dispatched: boolean;
+    toEmail: string;
+    subject: string;
+    bodyText: string;
+    timestamp?: string;
+    deliveryId?: string;
+    status?: string;
+  };
+  inCabAlertSpoken: boolean;
+}
+
+export interface MasterLoopCycleHistory {
+  cycleId: string;
+  cycleNumber: number;
+  tripLoadNumber: string;
+  startedAt: string;
+  completedAt: string;
+  totalDurationMinutes: number;
+  startOdometer: number;
+  endOdometer: number;
+  totalMilesDriven: number;
+  stagesCompleted: number;
+  allAlertsDelivered: boolean;
+  notes: string;
+}
+
+export interface MasterLoopSystemState {
+  loopId: string;
+  currentCycleNumber: number;
+  currentStage: MasterLoopMilestone;
+  currentStageIndex: number;
+  isAutoLoopRunning: boolean;
+  simulationSpeedMs: number;
+  odometerMiles: number;
+  fuelLevelPct: number;
+  driver: MasterLoopDriverProfile;
+  dispatch: MasterLoopDispatchContacts;
+  trip: MasterLoopTripDetails;
+  stages: MasterLoopStageRecord[];
+  history: MasterLoopCycleHistory[];
+  auditLogs: string[];
+  totalCyclesCompleted: number;
+  lastDispatchedAt?: string;
+}
+
+export type DispatchMonitorStageStatus =
+  | 'DEPARTED_ORIGIN'
+  | 'ARRIVING_DESTINATION'
+  | 'ARRIVED_DESTINATION'
+  | 'DEPARTED_DESTINATION'
+  | 'BACK_HOME';
+
+export interface DispatchMonitorDriver {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  truckUnit: string;
+  trailerUnit: string;
+  loadNumber: string;
+  bolNumber: string;
+  commodity: string;
+  currentStatus: DispatchMonitorStageStatus;
+  currentLocationName: string;
+  currentLocationCity: string;
+  currentLocationState: string;
+  originCity: string;
+  originState: string;
+  destinationCity: string;
+  destinationState: string;
+  homeTerminalCity: string;
+  originLat: number;
+  originLng: number;
+  destinationLat: number;
+  destinationLng: number;
+  homeTerminalLat: number;
+  homeTerminalLng: number;
+  lat: number;
+  lng: number;
+  headingDeg: number;
+  speedMph: number;
+  milesRemaining: number;
+  etaDestination: string;
+  odometerMiles: number;
+  cycleNumber: number;
+  avatarColor: string;
+  avatarInitials: string;
+  detentionMinutes: number;
+  detentionHourlyRate?: number;
+  cruiseControlStatus?: string;
+  engineRpm?: number;
+  transmissionGear?: string;
+  fuelLevelPct: number;
+  defLevelPct?: number;
+  coolantTempF?: number;
+  oilPressurePsi?: number;
+  reeferTempF?: number;
+  reeferSetpointF?: number;
+  reeferStatusText?: string;
+  batteryVoltage?: number;
+  brakeAirPressurePsi?: { primary: number; secondary: number };
+  engineBrakeStatus?: string;
+  instantMpg?: number;
+  lastAlertText: string;
+  hosDriveRemainingMin?: number;
+  hosShiftRemainingMin?: number;
+  hosCycleRemainingMin?: number;
+  axleWeights?: { steerLbs: number; driveLbs: number; trailerLbs: number; grossLbs: number };
+}

@@ -178,7 +178,7 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
             </div>
           </div>
           <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30 self-start sm:self-auto">
-            49 CFR &sect; 395 COMPLIANT
+            HOS SAMPLE DATA — NOT A COMPLIANCE ASSESSMENT
           </span>
         </div>
       )}
@@ -364,4 +364,3 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
     </div>
   );
 };
-

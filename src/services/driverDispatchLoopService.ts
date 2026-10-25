@@ -340,11 +340,11 @@ FREIGHT MANIFEST DETAILS:
   • High-Security Seal: ${trip.sealNumber}
   • Continuous Reefer Setting: ${trip.reeferTempF ? trip.reeferTempF + '°F' : 'Dry Van / Non-Temp'}
 
-DISPATCH ACTION LOG:
+DISPATCH DESTINATIONS:
   • Primary Dispatch Desk: ${dispatch.dispatcherName} (${dispatch.dispatchPhone})
-  • Dispatch Email Sent To: ${dispatch.dispatchEmail}
-  • Safety Desk Copy: ${dispatch.safetyEmail}
-  • Automated SMS Sent To: ${dispatch.dispatchPhone}
+  • Dispatch Email Address: ${dispatch.dispatchEmail} (email delivery is not configured)
+  • Safety Desk Address: ${dispatch.safetyEmail}
+  • SMS delivery: requested through the server-side Twilio integration; see the recorded carrier status
   • Public Tracking URL: https://truckwithease.com/t/${trip.loadNumber}
 
 FMCSA REGULATORY INTEGRITY:
@@ -481,7 +481,8 @@ export function saveMasterLoopState(state: MasterLoopSystemState): void {
 export async function transmitDispatchAlertToServer(
   stageRecord: MasterLoopStageRecord,
   state: MasterLoopSystemState
-): Promise<{ success: boolean; carrierSid?: string }> {
+): Promise<{ success: boolean; carrierSid?: string; carrierStatus?: string; error?: string }> {
+  let errorMessage = 'Dispatch SMS delivery could not be confirmed.';
   try {
     const response = await fetch('/api/dispatch-loop/alert', {
       method: 'POST',
@@ -504,15 +505,21 @@ export async function transmitDispatchAlertToServer(
 
     if (response.ok) {
       const data = await response.json();
-      return { success: true, carrierSid: data.carrierSid };
+      return {
+        success: data.success === true,
+        carrierSid: data.carrierSid,
+        carrierStatus: data.carrierStatus,
+      };
     }
+    const data = await response.json().catch(() => null);
+    errorMessage = data?.error || `Dispatch API returned HTTP ${response.status}.`;
   } catch (err) {
-    console.warn('Backend /api/dispatch-loop/alert offline or non-blocking:', err);
+    console.warn('Backend /api/dispatch-loop/alert unavailable:', err);
+    errorMessage = 'Dispatch API is unavailable.';
   }
 
-  // Also post directly to /api/messages so it appears in in-cab chat
   try {
-    await fetch('/api/messages', {
+    const response = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -522,11 +529,14 @@ export async function transmitDispatchAlertToServer(
         attachedLoadId: state.trip.loadNumber,
       }),
     });
+    if (!response.ok) {
+      console.warn('In-cab message API returned HTTP', response.status);
+    }
   } catch (e) {
-    // Non-blocking
+    console.warn('In-cab message API unavailable:', e);
   }
 
-  return { success: true, carrierSid: `SM-${Date.now().toString(36).toUpperCase()}` };
+  return { success: false, error: errorMessage };
 }
 
 // Execute a milestone stage trigger
@@ -578,22 +588,20 @@ export async function triggerMasterLoopStage(
   );
 
   currentStageRecord.smsAlert = {
-    dispatched: state.dispatch.smsEnabled,
+    dispatched: false,
     toPhone: state.dispatch.dispatchPhone,
     body: smsBody,
     timestamp: fullStamp,
-    carrierSid: `SM${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-    carrierStatus: 'DELIVERED',
+    carrierStatus: state.dispatch.smsEnabled ? 'PENDING' : 'DISABLED',
   };
 
   currentStageRecord.emailAlert = {
-    dispatched: state.dispatch.emailEnabled,
+    dispatched: false,
     toEmail: state.dispatch.dispatchEmail,
     subject: emailData.subject,
     bodyText: emailData.bodyText,
     timestamp: fullStamp,
-    deliveryId: `MSG-ID-${Date.now().toString(36).toUpperCase()}`,
-    status: 'DELIVERED',
+    status: state.dispatch.emailEnabled ? 'NOT_CONFIGURED' : 'DISABLED',
   };
 
   // Play audio chime
@@ -603,20 +611,24 @@ export async function triggerMasterLoopStage(
   if (state.dispatch.inCabVoiceAlerts) {
     let speechNotice = '';
     if (stageToTrigger === 'ORIGIN_DEPARTURE') {
-      speechNotice = `Dispatch notified. Driver Vance Reynolds departed origin lot with load ${state.trip.loadNumber}.`;
+      speechNotice = `Departure update prepared for dispatch. Driver ${state.driver.name} departed origin lot with load ${state.trip.loadNumber}.`;
     } else if (stageToTrigger === 'DESTINATION_ARRIVAL') {
-      speechNotice = `Dispatch alerted. Arrived at destination Columbus Crossdock. Gate check-in confirmed.`;
+      speechNotice = `Arrival update prepared for dispatch. Driver arrived at ${state.trip.destination.name}.`;
     } else if (stageToTrigger === 'DESTINATION_DEPARTURE') {
-      speechNotice = `Dispatch alerted. Departed destination. Bill of lading secured. Rolling back to home terminal.`;
+      speechNotice = `Departure update prepared for dispatch. Driver departed destination and is returning to home terminal.`;
     } else if (stageToTrigger === 'HOME_ARRIVAL') {
-      speechNotice = `Dispatch alerted. Back home at origin shop. Round-trip loop completed. Please begin post-trip inspection.`;
+      speechNotice = `Home arrival update prepared for dispatch. Round-trip loop completed. Please begin post-trip inspection.`;
     }
     speakDispatchNotification(speechNotice);
     currentStageRecord.inCabAlertSpoken = true;
   }
 
-  // Transmit to server asynchronously
-  transmitDispatchAlertToServer(currentStageRecord, state);
+  if (state.dispatch.smsEnabled) {
+    const delivery = await transmitDispatchAlertToServer(currentStageRecord, state);
+    currentStageRecord.smsAlert.dispatched = delivery.success;
+    currentStageRecord.smsAlert.carrierStatus = delivery.carrierStatus || (delivery.success ? 'ACCEPTED' : 'FAILED');
+    if (delivery.carrierSid) currentStageRecord.smsAlert.carrierSid = delivery.carrierSid;
+  }
 
   // Determine next stage
   const nextStageIdx = stageIdx + 1;
@@ -640,8 +652,10 @@ export async function triggerMasterLoopStage(
       endOdometer: state.odometerMiles,
       totalMilesDriven: 624,
       stagesCompleted: 4,
-      allAlertsDelivered: true,
-      notes: `Successful 4-stage master loop. Origin lot departure -> Destination arrival -> Destination departure -> Back home at origin shop. Zero safety violations.`,
+      allAlertsDelivered: state.stages.every(
+        (stage) => stage.smsAlert.carrierStatus === 'delivered' && stage.emailAlert.status === 'DELIVERED'
+      ),
+      notes: `4-stage master loop completed. Origin lot departure -> Destination arrival -> Destination departure -> Back home at origin shop. Notification delivery states are recorded per stage.`,
     };
     state.history.unshift(historyEntry);
 

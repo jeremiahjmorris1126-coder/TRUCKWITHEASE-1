@@ -22,7 +22,7 @@ export const US_STATE_DOT_REGULATIONS: Record<string, StateDotRegulation> = {
     carSpeedLimitMph: 75,
     speedLimitNotes: '75 MPH Daytime (80 MPH on designated I-10 / I-20 segments in West TX). 75 MPH Nighttime.',
     laneRestrictions: 'Left lane restriction for 3+ lane highways where posted by TxDOT.',
-    weighStationPolicy: 'Drivewyze & PrePass active at all TX Inspection Stations (Kermit, Seguin, Mount Pleasant).',
+    weighStationPolicy: 'Check official TxDOT signage for current inspection requirements; Drivewyze/PrePass availability is not connected to this app.',
     specialDotMandates: [
       'TxDMV Oversize/Overweight permit required above 80,000 lbs GVW.',
       'Mandatory emergency reflector placement within 10 minutes of roadside shoulder stop.',
@@ -76,7 +76,7 @@ export const US_STATE_DOT_REGULATIONS: Record<string, StateDotRegulation> = {
     carSpeedLimitMph: 70,
     speedLimitNotes: '70 MPH truck speed limit on rural interstate highways & Ohio Turnpike.',
     laneRestrictions: 'Left lane restriction for trucks on 3+ lane interstates (ORC § 4511.27).',
-    weighStationPolicy: 'ODOT Weigh Stations active on I-70, I-75, I-80. Drivewyze bypass active.',
+    weighStationPolicy: 'Check official ODOT signage for current inspection requirements; Drivewyze bypass availability is not connected to this app.',
     specialDotMandates: [
       'Ohio Turnpike E-ZPass tolling integration mandatory for electronic discounts.',
       'ODOT mandatory winter tire traction advisory when snow emergency declared.',

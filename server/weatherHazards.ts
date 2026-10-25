@@ -267,7 +267,7 @@ function generateCorridorFallbackReport(
     summary,
     hazards,
     searchGrounding: {
-      grounded: true,
+      grounded: false,
       searchQueries,
       citations,
     },
@@ -376,6 +376,7 @@ Ensure your response contains ONLY the valid JSON object without surrounding pro
       console.warn('[Regional Hazards] Gemini returned unexpected structure, utilizing augmented fallback.');
       const fallback = generateCorridorFallbackReport(locationName, corridor, lat, lon);
       if (citations.length > 0 || searchQueries.length > 0) {
+        fallback.searchGrounding.grounded = true;
         fallback.searchGrounding.citations = citations.length > 0 ? citations : fallback.searchGrounding.citations;
         fallback.searchGrounding.searchQueries = searchQueries.length > 0 ? searchQueries : fallback.searchGrounding.searchQueries;
         fallback.source = 'GEMINI_SEARCH_GROUNDED';
@@ -384,9 +385,10 @@ Ensure your response contains ONLY the valid JSON object without surrounding pro
       return fallback;
     }
 
+    const hasGrounding = citations.length > 0 || searchQueries.length > 0;
     return {
-      status: 'SUCCESS',
-      source: 'GEMINI_SEARCH_GROUNDED',
+      status: hasGrounding ? 'SUCCESS' : 'FALLBACK',
+      source: hasGrounding ? 'GEMINI_SEARCH_GROUNDED' : 'METEOROLOGICAL_TELEMETRY',
       location: {
         name: locationName,
         corridor,
@@ -416,14 +418,7 @@ Ensure your response contains ONLY the valid JSON object without surrounding pro
         validUntil: h.validUntil || 'Next 4 Hours',
         affectedCorridor: h.affectedCorridor || corridor,
       })),
-      searchGrounding: {
-        grounded: true,
-        searchQueries: searchQueries.length > 0 ? searchQueries : [`current NWS hazards ${locationName} fog wind ice`],
-        citations: citations.length > 0 ? citations : [
-          { title: 'National Weather Service Forecast Office', uri: 'https://www.weather.gov' },
-          { title: 'State DOT Traveler Information Map', uri: 'https://www.fhwa.dot.gov' },
-        ],
-      },
+      searchGrounding: { grounded: hasGrounding, searchQueries, citations },
       timestamp: new Date().toISOString(),
     };
   } catch (err) {
