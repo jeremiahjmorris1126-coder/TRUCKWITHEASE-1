@@ -1,5 +1,5 @@
 # ==============================================================================
-# Cloudflare Worker & Pages Configuration: TruckWithEase & MorrisHive
+# Cloudflare Worker Configuration: TruckWithEase & MorrisHive
 # Target Hostnames: truckwithease.com, morrishive.com
 # ==============================================================================
 
@@ -7,16 +7,24 @@ name = "truckwithease-1"
 main = "server/worker.ts"
 compatibility_date = "2024-09-23"
 
+# Worker API Routes (Direct all /api/* calls to this worker)
+routes = [
+  { pattern = "truckwithease.com/api/*", zone_name = "truckwithease.com" },
+  { pattern = "www.truckwithease.com/api/*", zone_name = "truckwithease.com" },
+  { pattern = "morrishive.com/api/*", zone_name = "morrishive.com" },
+  { pattern = "www.morrishive.com/api/*", zone_name = "morrishive.com" }
+]
+
 # 1. Cloudflare D1 Database Binding
 [[d1_databases]]
 binding = "DB"
 database_name = "truckwithease-db"
-database_id = "truckwithease-db"
+database_id = "865e313e-dbcf-465e-9168-3d8d81936d4a"
 
 # 2. Cloudflare KV Namespace Cache Binding
 [[kv_namespaces]]
 binding = "CACHE"
-id = "truckwithease-cache"
+id = "ee6f61b44acd473dbf5f42ca931e289f"
 
 # 3. Environment Variables
 [vars]
@@ -24,11 +32,3 @@ ENVIRONMENT = "production"
 APP_NAME = "TruckWithEase"
 PRIMARY_DOMAIN = "truckwithease.com"
 ENTERPRISE_PORTAL_DOMAIN = "morrishive.com"
-
-# 4. Worker API Routes (Direct all /api/* calls to this worker)
-routes = [
-  { pattern = "truckwithease.com/api/*", zone_name = "truckwithease.com" },
-  { pattern = "www.truckwithease.com/api/*", zone_name = "truckwithease.com" },
-  { pattern = "morrishive.com/api/*", zone_name = "morrishive.com" },
-  { pattern = "www.morrishive.com/api/*", zone_name = "morrishive.com" }
-]
