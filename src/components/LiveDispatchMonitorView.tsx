@@ -1519,7 +1519,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-emerald-300 font-bold flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        Transmitted to {lastDeliveredReceipt.driver}
+                        Accepted by Twilio for {lastDeliveredReceipt.driver}
                       </span>
                       <span className="text-emerald-400 font-bold">
                         SID: {lastDeliveredReceipt.sid}

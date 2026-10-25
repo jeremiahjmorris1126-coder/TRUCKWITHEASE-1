@@ -50,6 +50,8 @@ async function startServer() {
 
   const inCabMessages: InCabMessage[] = [];
   const notificationAttempts = new Map<string, { startedAt: number; count: number }>();
+  let smsWindowStartedAt = Date.now();
+  let smsSentThisHour = 0;
 
   const recordInCabMessage = (message: Omit<InCabMessage, 'id' | 'createdAt'>): InCabMessage => {
     const storedMessage: InCabMessage = {
@@ -65,14 +67,28 @@ async function startServer() {
   const limitTwilioNotifications: express.RequestHandler = (req, res, next) => {
     const now = Date.now();
     const key = req.ip || 'unknown';
+    if (now - smsWindowStartedAt >= 60 * 60 * 1000) {
+      smsWindowStartedAt = now;
+      smsSentThisHour = 0;
+    }
+    if (smsSentThisHour >= 100) {
+      res.status(429).json({ success: false, error: 'Global dispatch SMS limit reached.' });
+      return;
+    }
     const current = notificationAttempts.get(key);
     if (!current || now - current.startedAt >= 60 * 60 * 1000) {
       notificationAttempts.set(key, { startedAt: now, count: 1 });
-    } else if (current.count >= 20 || now - current.startedAt < 15 * 1000) {
+    } else if (current.count >= 20 || now - current.startedAt < 1000) {
       res.status(429).json({ success: false, error: 'Dispatch notification rate limit reached.' });
       return;
     } else {
       current.count += 1;
+    }
+    smsSentThisHour += 1;
+    if (notificationAttempts.size > 1000) {
+      for (const [ip, attempt] of notificationAttempts) {
+        if (now - attempt.startedAt >= 60 * 60 * 1000) notificationAttempts.delete(ip);
+      }
     }
     next();
   };

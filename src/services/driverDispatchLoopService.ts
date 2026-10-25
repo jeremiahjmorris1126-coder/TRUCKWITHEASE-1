@@ -340,11 +340,11 @@ FREIGHT MANIFEST DETAILS:
   • High-Security Seal: ${trip.sealNumber}
   • Continuous Reefer Setting: ${trip.reeferTempF ? trip.reeferTempF + '°F' : 'Dry Van / Non-Temp'}
 
-DISPATCH ACTION LOG:
+DISPATCH DESTINATIONS:
   • Primary Dispatch Desk: ${dispatch.dispatcherName} (${dispatch.dispatchPhone})
-  • Dispatch Email Sent To: ${dispatch.dispatchEmail}
-  • Safety Desk Copy: ${dispatch.safetyEmail}
-  • Automated SMS Sent To: ${dispatch.dispatchPhone}
+  • Dispatch Email Address: ${dispatch.dispatchEmail} (email delivery is not configured)
+  • Safety Desk Address: ${dispatch.safetyEmail}
+  • SMS delivery: requested through the server-side Twilio integration; see the recorded carrier status
   • Public Tracking URL: https://truckwithease.com/t/${trip.loadNumber}
 
 FMCSA REGULATORY INTEGRITY:

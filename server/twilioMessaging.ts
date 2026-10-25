@@ -18,16 +18,6 @@ export function isTwilioConfigured(): boolean {
   );
 }
 
-export async function sendDispatchSms(body: string): Promise<{
-  sid: string;
-  status: string;
-  to: string;
-}>;
-export async function sendDispatchSms(body: string, recipient: string): Promise<{
-  sid: string;
-  status: string;
-  to: string;
-}>;
 export async function sendDispatchSms(body: string, recipient?: string): Promise<{
   sid: string;
   status: string;
