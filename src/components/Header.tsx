@@ -12,6 +12,8 @@ interface HeaderProps {
   alertnessScore?: number;
   onOpenAlertnessModal?: () => void;
   onToggleMobileSidebar?: () => void;
+  onOpenBluetoothModal?: () => void;
+  isBluetoothConnected?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   alertnessScore = 98,
   onOpenAlertnessModal,
   onToggleMobileSidebar,
+  onOpenBluetoothModal,
+  isBluetoothConnected = false,
 }) => {
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
@@ -100,6 +104,26 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               <span className="font-telemetry-label text-telemetry-label font-bold">
                 {alertnessScore}%
+              </span>
+            </button>
+          )}
+
+          {/* Bluetooth ELD Telemetry Gateway Pill */}
+          {onOpenBluetoothModal && (
+            <button
+              onClick={onOpenBluetoothModal}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 text-xs font-mono font-bold ${
+                isBluetoothConnected
+                  ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                  : 'bg-amber-950/40 text-[#FFE500] border-amber-500/50 hover:bg-amber-900/50'
+              }`}
+              title="Commercial Bluetooth ELD & 10Hz J1939 Telemetry Suite"
+            >
+              <span className="material-symbols-outlined text-[15px] animate-pulse">
+                {isBluetoothConnected ? 'bluetooth_connected' : 'bluetooth'}
+              </span>
+              <span className="hidden sm:inline font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
+                {isBluetoothConnected ? 'ELD PAIRED' : 'PAIR ELD'}
               </span>
             </button>
           )}

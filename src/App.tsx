@@ -36,6 +36,8 @@ import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 import { FirebaseDeploymentModal } from './components/FirebaseDeploymentModal';
+import { BluetoothEldModal } from './components/BluetoothEldModal';
+import { bluetoothEldService } from './services/bluetoothEldService';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
 
@@ -80,6 +82,18 @@ export default function App() {
   const [toastIcon, setToastIcon] = useState<string>('verified_user');
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState<boolean>(false);
+  const [isBluetoothConnected, setIsBluetoothConnected] = useState<boolean>(() => bluetoothEldService.getStatus() === 'CONNECTED');
+
+  // Synchronize with Bluetooth ELD Service
+  useEffect(() => {
+    return bluetoothEldService.subscribe((telemetry, status) => {
+      setIsBluetoothConnected(status === 'CONNECTED');
+      if (status === 'CONNECTED') {
+        setSpeed(telemetry.wheelSpeedMph);
+      }
+    });
+  }, []);
 
   // Fleet Customization Settings
   const [fleetSettings, setFleetSettings] = useState<FleetCustomizationSettings>(() => {
@@ -317,6 +331,7 @@ export default function App() {
             onRecordInspectionLog={(actionType, triggerSource, notes) => {
               handleRecordInspectionPdf(actionType as any, triggerSource as any, notes);
             }}
+            onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
           />
         );
       default:
@@ -358,7 +373,9 @@ export default function App() {
         isListening={voice.isListening}
         alertnessScore={alertness.alertnessData.score}
         onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
-        onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+        onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
+        isBluetoothConnected={isBluetoothConnected}
       />
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
@@ -443,6 +460,14 @@ export default function App() {
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         onShowToast={showToast}
+      />
+
+      {/* Commercial Bluetooth ELD & J1939 Telemetrics Control Suite */}
+      <BluetoothEldModal
+        isOpen={isBluetoothModalOpen}
+        onClose={() => setIsBluetoothModalOpen(false)}
+        onShowToast={showToast}
+        onUpdateVehicleSpeed={(newSpeed) => setSpeed(newSpeed)}
       />
     </div>
   );

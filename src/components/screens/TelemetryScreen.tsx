@@ -4,11 +4,13 @@ import { BridgeGeofence } from '../../types';
 import { memoryPerformanceService, MemoryStatsResponse } from '../../services/memoryPerformanceService';
 import { StateBoundaryAgent } from '../StateBoundaryAgent';
 import { QuantumAlertnessReportCard } from '../QuantumAlertnessReportCard';
+import { bluetoothEldService } from '../../services/bluetoothEldService';
 
 interface TelemetryProps {
   onShowToast: (msg: string, icon?: string) => void;
   speed?: number;
   onRecordInspectionLog?: (actionType: string, triggerSource: string, notes: string) => void;
+  onOpenBluetoothModal?: () => void;
 }
 
 const VEHICLE_HEIGHT_OPTIONS = [
@@ -22,6 +24,7 @@ export const TelemetryScreen: React.FC<TelemetryProps> = ({
   onShowToast,
   speed = 65,
   onRecordInspectionLog,
+  onOpenBluetoothModal,
 }) => {
   // Current vehicle trailer height configuration in decimal feet (default 13.5 = 13' 6")
   const [vehicleHeightFt, setVehicleHeightFt] = useState<number>(13.5);
@@ -134,6 +137,38 @@ export const TelemetryScreen: React.FC<TelemetryProps> = ({
 
   return (
     <div className="flex flex-col w-full max-w-4xl mx-auto px-gutter-mobile pb-space-2xl space-y-space-md">
+      {/* COMMERCIAL BLUETOOTH ELD & J1939 ECM TELEMETRY SUITE BANNER */}
+      <div className="bg-[#05080E] p-4 sm:p-5 rounded-2xl border-2 border-amber-500/50 shadow-[0_0_30px_rgba(255,229,0,0.2)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/40 flex items-center justify-center text-[#FFE500] shrink-0 shadow-[0_0_15px_rgba(255,229,0,0.3)]">
+            <span className="material-symbols-outlined text-[28px] animate-pulse">bluetooth_connected</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-['Space_Grotesk'] text-base font-black text-white uppercase tracking-wider">
+                COMMERCIAL BLUETOOTH ELD & J1939 TELEMETRICS
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-500/60 text-[10px] font-black uppercase font-mono">
+                &#10004; 49 CFR § 395.26
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 font-mono mt-0.5">
+              Hook into Geotab GO9, Samsara VG54, Garmin eLog & 9-Pin J1939 Deutsch diagnostic ports for 10Hz live stream.
+            </p>
+          </div>
+        </div>
+
+        {onOpenBluetoothModal && (
+          <button
+            onClick={onOpenBluetoothModal}
+            className="btn-tactical-yellow px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(255,229,0,0.45)] cursor-pointer whitespace-nowrap self-stretch sm:self-auto"
+          >
+            <span className="material-symbols-outlined text-[16px]">speed</span>
+            <span>OPEN ELD & TELEMETRY SUITE</span>
+          </button>
+        )}
+      </div>
+
       {/* Telemetry Header */}
       <div className="bg-surface-container p-space-md rounded-xl border border-surface-container-high/60 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
         <div className="flex items-center gap-space-sm">
