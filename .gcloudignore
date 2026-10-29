@@ -1,0 +1,39 @@
+.gcloudignore
+.git
+.gitignore
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*service-account*.json
+
+# Dependencies and build outputs
+node_modules/
+dist/
+coverage/
+*.log
+*.tar.gz
+
+# Tests and utility scripts
+tests/
+scripts/
+*.ps1
+
+# Non-cloud-run directories and media assets
+AppStore_Assets_iPhone_6.1_and_6.3/
+detention-proof/
+ios/
+docs/
+scratch/
+
+# IDE, CI, and tooling metadata
+.agents/
+.antigravity/
+.salesforce-ui-script-recorder/
+.vscode/
+.wrangler/
+.github/
+.DS_Store

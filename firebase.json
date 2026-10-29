@@ -44,5 +44,9 @@
         ]
       }
     ]
+  },
+  "firestore": {
+    "database": "app-builder-38a26d99",
+    "rules": "firestore.rules"
   }
 }

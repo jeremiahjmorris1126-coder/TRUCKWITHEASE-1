@@ -14,6 +14,8 @@ interface HeaderProps {
   onToggleMobileSidebar?: () => void;
   onOpenBluetoothModal?: () => void;
   isBluetoothConnected?: boolean;
+  onOpenAuthLogin?: () => void;
+  currentUser?: any;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -28,6 +30,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileSidebar,
   onOpenBluetoothModal,
   isBluetoothConnected = false,
+  onOpenAuthLogin,
+  currentUser = null,
 }) => {
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
@@ -188,6 +192,28 @@ export const Header: React.FC<HeaderProps> = ({
               e911_emergency
             </span>
           </button>
+
+          {/* Firebase Auth Login Button */}
+          {onOpenAuthLogin && (
+            <button
+              id="btn-auth-login"
+              aria-label="Fleet Authenticator"
+              onClick={onOpenAuthLogin}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 text-xs font-mono font-bold ${
+                currentUser
+                  ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/50'
+                  : 'bg-[#FFE500] text-black border-[#FFE500] shadow-[0_0_12px_rgba(255,229,0,0.35)]'
+              }`}
+              title="Firebase Driver & Fleet Admin Login"
+            >
+              <span className="material-symbols-outlined text-[15px]">
+                {currentUser ? 'verified_user' : 'lock'}
+              </span>
+              <span className="hidden sm:inline font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
+                {currentUser ? (currentUser.email ? currentUser.email.split('@')[0] : 'AUTHENTICATED') : 'SIGN IN'}
+              </span>
+            </button>
+          )}
 
           {/* Profile Avatar Button */}
           <button

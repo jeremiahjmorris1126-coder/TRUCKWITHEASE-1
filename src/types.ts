@@ -285,6 +285,12 @@ export interface TripRoutePlan {
   totalEstHours: number;
   activeCorridor: string;
   waypoints: TripWaypoint[];
+  routingEngine?: 'trimble' | 'tomtom' | 'mock';
+  fallbackTriggered?: boolean;
+  tollDistanceMiles?: number;
+  estimatedTollCostUsd?: number;
+  bridgeWarningsCount?: number;
+  cached?: boolean;
 }
 
 export interface FuelLogEntry {

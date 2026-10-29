@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "bun server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
@@ -11,6 +14,7 @@
     "clean": "rm -rf dist server.cjs",
     "lint": "tsc --noEmit",
     "test": "node tests/runner.js",
+    "key:create": "bun scripts/createFleetApiKey.ts",
     "worker:build": "esbuild server/worker.ts --bundle --format=esm --outfile=dist/worker.js",
     "worker:deploy": "wrangler deploy",
     "cloudflare:login": "wrangler login",
@@ -21,19 +25,22 @@
     "@google-cloud/firestore": "^9.4.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
-    "@types/cors": "^2.8.19",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.0.4",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "firebase": "^13.1.0",
+    "firebase-admin": "^14.5.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
-    "react-dom": "^19.0.1"
+    "react-dom": "^19.0.1",
+    "twilio": "^6.2.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",

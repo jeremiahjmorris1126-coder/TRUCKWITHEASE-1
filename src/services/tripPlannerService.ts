@@ -1,5 +1,6 @@
 import { TripWaypoint, TripRoutePlan } from '../types';
 import { MOCK_TRIP_PLAN, INITIAL_WAYPOINTS } from '../data/mockTripData';
+import { authenticatedFetch } from './firebaseClientAuth';
 
 const STORAGE_KEY = 'truck_with_ease_trip_planner_v1';
 
@@ -142,6 +143,60 @@ class TripPlannerService {
       return true;
     }
     return false;
+  }
+
+  public async calculateCommercialEngineRoute(
+    originCoords: { lat: number; lon: number },
+    destCoords: { lat: number; lon: number },
+    vehicleProfile?: {
+      heightFt?: number;
+      weightLbs?: number;
+      avoidTolls?: boolean;
+      isHazmat?: boolean;
+    }
+  ): Promise<TripRoutePlan> {
+    try {
+      const waypointsPayload = this.currentPlan.waypoints.map((wp) => ({
+        coords: { lat: wp.lat, lon: wp.lon },
+        label: wp.name,
+      }));
+
+      const res = await authenticatedFetch('/api/routing/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin: { coords: originCoords, label: this.currentPlan.origin },
+          destination: { coords: destCoords, label: this.currentPlan.destination },
+          waypoints: waypointsPayload,
+          vehicle: {
+            heightFt: vehicleProfile?.heightFt || 13.5,
+            weightLbs: vehicleProfile?.weightLbs || 80000,
+            avoidTolls: vehicleProfile?.avoidTolls || false,
+            isHazmat: vehicleProfile?.isHazmat || false,
+          },
+        }),
+      });
+
+      if (res.ok) {
+        const routeData = (await res.json()) as any;
+        this.currentPlan = {
+          ...this.currentPlan,
+          totalDistanceMiles: routeData.totalDistanceMiles || this.currentPlan.totalDistanceMiles,
+          totalEstHours: parseFloat(((routeData.totalTimeMinutes || 300) / 60).toFixed(1)),
+          routingEngine: routeData.provider,
+          fallbackTriggered: routeData.fallbackTriggered,
+          tollDistanceMiles: routeData.tollDistanceMiles,
+          estimatedTollCostUsd: routeData.estimatedTollCostUsd,
+          bridgeWarningsCount: routeData.bridgeClearanceWarnings?.length || 0,
+          cached: routeData.cached,
+        };
+        this.saveToStorage();
+        return { ...this.currentPlan };
+      }
+    } catch (err) {
+      console.warn('[TripPlannerService] Backend commercial routing request failed, maintaining local plan:', err);
+    }
+    return { ...this.currentPlan };
   }
 
   public resetToDefault(): TripRoutePlan {

@@ -1,0 +1,251 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model & Fleet Isolation Architecture
+// ===============================================================
+//
+// Collection: users/{uid}
+// Collection: fleet_api_keys/{keyHash}
+// Collection: loads/{loadId} and freight_loads/{loadId}
+// Collection: driver_profiles/{profileId}
+// Collection: driver_documents/{docId}
+// Collection: vehicle_profiles/{profileId}
+// Collection: aux_alerts/{alertId}
+// Collection: detentionActiveStops/{stopId}
+// Collection: detentionEvents/{eventId}
+// Collection: detentionCursors/{cursorId}
+// Collection: routing_cache/{cacheKey}
+// Collection: partner_cache/{cacheKey}
+// Collection: system_health_probes/{probeId}
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isNotDisabled() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.disabled == false;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isOwner() {
+      return isNotDisabled() && getUserData().role == 'owner';
+    }
+
+    function isFleetAdmin(fleetId) {
+      return isNotDisabled() &&
+        (getUserData().role == 'owner' ||
+         (getUserData().role == 'fleet_admin' && getUserData().fleetId == fleetId));
+    }
+
+    function isFleetMember(fleetId) {
+      return isNotDisabled() &&
+        (getUserData().role == 'owner' || getUserData().fleetId == fleetId);
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      allow read: if isNotDisabled() && (
+        request.auth.uid == userId ||
+        isOwner() ||
+        (getUserData().role == 'fleet_admin' && getUserData().fleetId == resource.data.fleetId)
+      );
+
+      allow create: if isAuthenticated() &&
+        request.auth.uid == userId &&
+        request.resource.data.uid == userId &&
+        request.resource.data.disabled == false &&
+        request.resource.data.role in ['driver', 'fleet_admin', 'owner'];
+
+      allow update: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role == 'fleet_admin' &&
+         getUserData().fleetId == resource.data.fleetId &&
+         request.resource.data.role != 'owner' &&
+         request.resource.data.uid == resource.data.uid)
+      );
+
+      allow delete: if isOwner();
+    }
+
+    // --- Fleet API Keys Collection ---
+    match /fleet_api_keys/{keyHash} {
+      allow read: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role == 'fleet_admin' && getUserData().fleetId == resource.data.fleetId)
+      );
+      allow write: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role == 'fleet_admin' && getUserData().fleetId == request.resource.data.fleetId)
+      );
+    }
+
+    // --- Canonical Loads Collection (/loads/{loadId}) ---
+    // Gate G-4: All freight loads are canonicalized to /loads/{loadId}.
+    match /loads/{loadId} {
+      allow read: if isNotDisabled() && (
+        isOwner() ||
+        (resource.data.fleetId == getUserData().fleetId &&
+          (getUserData().role in ['fleet_admin', 'owner'] ||
+           resource.data.assignedDriverId == request.auth.uid ||
+           resource.data.status == 'AVAILABLE' ||
+           resource.data.status == 'PENDING'))
+      );
+
+      allow create: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role in ['fleet_admin', 'owner'] && request.resource.data.fleetId == getUserData().fleetId)
+      );
+
+      allow update: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role in ['fleet_admin', 'owner'] && request.resource.data.fleetId == getUserData().fleetId) ||
+        (getUserData().role == 'driver' && resource.data.assignedDriverId == request.auth.uid && request.resource.data.fleetId == getUserData().fleetId && request.resource.data.status in ['IN_TRANSIT', 'DELIVERED'])
+      );
+
+      allow delete: if isOwner() || isFleetAdmin(resource.data.fleetId);
+    }
+
+    // --- Legacy Alias: /freight_loads/{loadId} (Deprecated, mirrors canonical loads rules) ---
+    match /freight_loads/{loadId} {
+      allow read: if isNotDisabled() && (
+        isOwner() ||
+        (resource.data.fleetId == getUserData().fleetId &&
+          (getUserData().role in ['fleet_admin', 'owner'] ||
+           resource.data.assignedDriverId == request.auth.uid ||
+           resource.data.status == 'AVAILABLE' ||
+           resource.data.status == 'PENDING'))
+      );
+
+      allow create: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role in ['fleet_admin', 'owner'] && request.resource.data.fleetId == getUserData().fleetId)
+      );
+
+      allow update: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role in ['fleet_admin', 'owner'] && request.resource.data.fleetId == getUserData().fleetId) ||
+        (getUserData().role == 'driver' && resource.data.assignedDriverId == request.auth.uid && request.resource.data.fleetId == getUserData().fleetId && request.resource.data.status in ['IN_TRANSIT', 'DELIVERED'])
+      );
+
+      allow delete: if isOwner() || isFleetAdmin(resource.data.fleetId);
+    }
+
+    // --- Driver Profiles Collection ---
+    match /driver_profiles/{profileId} {
+      allow read: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role == 'driver' && (resource.data.uid == request.auth.uid || resource.data.driverId == request.auth.uid) && resource.data.fleetId == getUserData().fleetId) ||
+        (getUserData().role == 'fleet_admin' && resource.data.fleetId == getUserData().fleetId)
+      );
+
+      allow create, update: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role == 'fleet_admin' && request.resource.data.fleetId == getUserData().fleetId) ||
+        (getUserData().role == 'driver' && (request.resource.data.uid == request.auth.uid || request.resource.data.driverId == request.auth.uid) && request.resource.data.fleetId == getUserData().fleetId)
+      );
+
+      allow delete: if isOwner() || isFleetAdmin(resource.data.fleetId);
+    }
+
+    // --- Driver Documents Collection ---
+    match /driver_documents/{docId} {
+      allow read: if isNotDisabled() && (
+        isOwner() ||
+        (resource.data.driverId == request.auth.uid && resource.data.fleetId == getUserData().fleetId) ||
+        (getUserData().role == 'fleet_admin' && resource.data.fleetId == getUserData().fleetId)
+      );
+
+      allow create: if isNotDisabled() && (
+        isOwner() ||
+        (request.resource.data.driverId == request.auth.uid && request.resource.data.fleetId == getUserData().fleetId) ||
+        (getUserData().role == 'fleet_admin' && request.resource.data.fleetId == getUserData().fleetId)
+      );
+
+      allow update, delete: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role == 'fleet_admin' && resource.data.fleetId == getUserData().fleetId)
+      );
+    }
+
+    // --- Vehicle Profiles Collection ---
+    match /vehicle_profiles/{profileId} {
+      allow read: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role == 'driver' && resource.data.driverId == request.auth.uid && resource.data.fleetId == getUserData().fleetId) ||
+        (getUserData().role == 'fleet_admin' && resource.data.fleetId == getUserData().fleetId)
+      );
+
+      allow create, update: if isNotDisabled() && (
+        isOwner() ||
+        (getUserData().role == 'fleet_admin' && request.resource.data.fleetId == getUserData().fleetId) ||
+        (getUserData().role == 'driver' && request.resource.data.driverId == request.auth.uid && request.resource.data.fleetId == getUserData().fleetId)
+      );
+
+      allow delete: if isOwner() || isFleetAdmin(resource.data.fleetId);
+    }
+
+    // --- Auxiliary Sensor Alerts Collection ---
+    match /aux_alerts/{alertId} {
+      allow read: if isNotDisabled() && isFleetMember(resource.data.fleetId);
+      allow create, update: if isNotDisabled() && isFleetMember(request.resource.data.fleetId);
+      allow delete: if isOwner();
+    }
+
+    // --- Detention Proof Module Collections ---
+    match /detentionActiveStops/{stopId} {
+      allow read, write: if isNotDisabled() && (
+        isOwner() ||
+        isFleetMember(resource.data.fleetId) ||
+        isFleetMember(request.resource.data.fleetId)
+      );
+    }
+
+    match /detentionEvents/{eventId} {
+      allow read, write: if isNotDisabled() && (
+        isOwner() ||
+        isFleetMember(resource.data.fleetId) ||
+        isFleetMember(request.resource.data.fleetId)
+      );
+    }
+
+    match /detentionCursors/{cursorId} {
+      allow read, write: if isNotDisabled() && (
+        isOwner() ||
+        isFleetMember(resource.data.fleetId) ||
+        isFleetMember(request.resource.data.fleetId)
+      );
+    }
+
+    // --- Partner & Routing Caches (Internal / System Caches) ---
+    match /partner_cache/{cacheKey} {
+      allow read: if isNotDisabled();
+      allow write: if isOwner() || (isNotDisabled() && getUserData().role == 'fleet_admin');
+    }
+
+    match /routing_cache/{cacheKey} {
+      allow read, write: if isNotDisabled();
+    }
+
+    // --- System Health Probes ---
+    match /system_health_probes/{probeId} {
+      allow read, write: if isOwner();
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

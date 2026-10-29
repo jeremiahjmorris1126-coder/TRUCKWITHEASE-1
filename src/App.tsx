@@ -37,6 +37,9 @@ import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 import { FirebaseDeploymentModal } from './components/FirebaseDeploymentModal';
 import { BluetoothEldModal } from './components/BluetoothEldModal';
+import { AuthLoginModal } from './components/AuthLoginModal';
+import { clientAuth } from './services/firebaseClientAuth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { bluetoothEldService } from './services/bluetoothEldService';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
@@ -84,6 +87,16 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState<boolean>(false);
   const [isBluetoothConnected, setIsBluetoothConnected] = useState<boolean>(() => bluetoothEldService.getStatus() === 'CONNECTED');
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+
+  // Synchronize Firebase Auth state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(clientAuth, (user) => {
+      setFirebaseUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Synchronize with Bluetooth ELD Service
   useEffect(() => {
@@ -376,6 +389,8 @@ export default function App() {
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
         onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
         isBluetoothConnected={isBluetoothConnected}
+        onOpenAuthLogin={() => setIsAuthModalOpen(true)}
+        currentUser={firebaseUser}
       />
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
@@ -443,6 +458,14 @@ export default function App() {
         onClose={() => alertness.setIsRestModalOpen(false)}
         onResetAlertness={alertness.resetAlertness}
         onShowToast={showToast}
+      />
+
+      {/* Firebase Driver & Fleet Authenticator Modal */}
+      <AuthLoginModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={firebaseUser}
+        onLoginSuccess={(user) => showToast(`AUTHENTICATED AS ${user.email}`, 'verified_user')}
       />
 
       {/* Fleet & Driver Module Customizer Modal */}

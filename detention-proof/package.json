@@ -1,0 +1,11 @@
+{
+  "name": "truckwithease-detention-proof",
+  "version": "0.1.0",
+  "description": "Automatic detention and cargo-claim evidence for Truckwithease",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node --test test/*.test.js" },
+  "dependencies": {},
+  "optionalDependencies": { "@google-cloud/firestore": "^7.0.0" }
+}

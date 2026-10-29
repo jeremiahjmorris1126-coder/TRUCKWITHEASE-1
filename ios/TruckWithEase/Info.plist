@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.truckwithease.app</string>
+	<key>CFBundleName</key>
+	<string>TruckWithEase</string>
+	<key>CFBundleDisplayName</key>
+	<string>TruckWithEase</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	
+	<!-- Apple Location Privacy Disclosures -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>TruckWithEase requires continuous location access to provide real-time commercial truck turn-by-turn guidance, FHWA low-bridge clearance warnings, and weigh station alerts while driving.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>TruckWithEase requires background location access to deliver audible turn-by-turn voice alerts and critical low-bridge collision radar warnings even when your screen is locked or running ELD hours-of-service logging.</string>
+
+	<!-- Required Background Execution Modes -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>audio</string>
+	</array>
+
+	<!-- Audio session configuration for cab speaker & Bluetooth integration -->
+	<key>UIBackgroundModesDescription</key>
+	<string>Continuous navigation turn guidance and hazard warnings must continue uninterrupted while the driver is operating the commercial motor vehicle.</string>
+
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>
