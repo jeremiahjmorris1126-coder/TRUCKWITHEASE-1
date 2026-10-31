@@ -1,5 +1,7 @@
 import { FuelLogEntry } from '../types';
 import { fleetInvoicesService } from './fleetInvoicesService';
+import { safeStorage } from '../utils/safeStorage.ts';
+import { logger } from '../utils/logger.ts';
 
 const FUEL_LOG_STORAGE_KEY = 'truck_with_ease_fuel_logs_v1';
 
@@ -57,25 +59,17 @@ class FuelLogService {
   }
 
   private loadFromStorage() {
-    try {
-      const stored = localStorage.getItem(FUEL_LOG_STORAGE_KEY);
-      if (stored) {
-        this.logs = JSON.parse(stored);
-      } else {
-        this.logs = INITIAL_FUEL_LOGS;
-        this.saveToStorage();
-      }
-    } catch (e) {
-      console.error('Failed to load fuel logs from localStorage:', e);
-      this.logs = INITIAL_FUEL_LOGS;
+    const res = safeStorage.getItem<FuelLogEntry[]>(FUEL_LOG_STORAGE_KEY, INITIAL_FUEL_LOGS);
+    this.logs = Array.isArray(res.data) && res.data.length > 0 ? res.data : INITIAL_FUEL_LOGS;
+    if (res.isFallback && !res.success) {
+      logger.warn('FUEL_LOG_SERVICE', 'Using default fuel records due to storage access constraint');
     }
   }
 
   private saveToStorage() {
-    try {
-      localStorage.setItem(FUEL_LOG_STORAGE_KEY, JSON.stringify(this.logs));
-    } catch (e) {
-      console.error('Failed to save fuel logs to localStorage:', e);
+    const res = safeStorage.setItem(FUEL_LOG_STORAGE_KEY, this.logs);
+    if (!res.success) {
+      logger.error('FUEL_LOG_SERVICE', 'Failed to persist fuel logs to storage; active in volatile memory', res.error);
     }
     this.notify();
   }
@@ -226,7 +220,7 @@ class FuelLogService {
         ],
       });
     } catch (e) {
-      console.warn('Could not auto-create fleet invoice record:', e);
+      logger.warn('FUEL_LOG_SERVICE', 'Could not auto-create fleet expense invoice record', { fuelLogId: entry.id }, e);
     }
 
     return entry;

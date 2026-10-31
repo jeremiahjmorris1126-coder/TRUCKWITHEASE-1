@@ -8,7 +8,8 @@ import { TabId, InspectionLogEntry, InspectionActionType, InspectionTriggerSourc
 import { INITIAL_INSPECTION_LOGS } from './data/mockData';
 import { Header } from './components/Header';
 import { Navigation } from './components/Navigation';
-import { Toast } from './components/Toast';
+import { Toast, ToastVariant } from './components/Toast';
+import { CockpitErrorBoundary } from './components/CockpitErrorBoundary';
 import { PrivacyLockModal } from './components/PrivacyLockModal';
 import { InspectionPdfModal } from './components/InspectionPdfModal';
 import { DriverProfileModal } from './components/DriverProfileModal';
@@ -82,6 +83,7 @@ export default function App() {
   const [speed, setSpeed] = useState<number>(65);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastIcon, setToastIcon] = useState<string>('verified_user');
+  const [toastVariant, setToastVariant] = useState<ToastVariant>('success');
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState<boolean>(false);
@@ -224,12 +226,13 @@ export default function App() {
     }
   }, [speed]);
 
-  const showToast = (message: string, icon = 'verified_user') => {
+  const showToast = (message: string, icon = 'verified_user', variant: ToastVariant = 'success') => {
     setToastMessage(message);
     setToastIcon(icon);
+    setToastVariant(variant);
     setTimeout(() => {
       setToastMessage((current) => (current === message ? null : current));
-    }, 3200);
+    }, 3500);
   };
 
   // Global Voice Control Hook (Speech Recognition & Global Keyboard Listener)
@@ -355,7 +358,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-surface-container-lowest text-on-surface antialiased select-none font-body selection:bg-primary-container selection:text-on-primary-container">
       {/* Toast Alert */}
-      <Toast icon={toastIcon} message={toastMessage} />
+      <Toast
+        icon={toastIcon}
+        message={toastMessage}
+        variant={toastVariant}
+        onClose={() => setToastMessage(null)}
+      />
 
       {/* Enterprise Side Navigation & Commands Console */}
       <EnterpriseSidebar
@@ -419,7 +427,9 @@ export default function App() {
             </div>
           }
         >
-          {renderActiveScreen()}
+          <CockpitErrorBoundary fallbackScreen={activeTab} onReset={() => setActiveTab('night-hud')}>
+            {renderActiveScreen()}
+          </CockpitErrorBoundary>
         </Suspense>
       </main>
 

@@ -1,9 +1,17 @@
 /**
  * TruckWithEase // Commercial Driver Auth & Fleet Roster Service
  * Manages Driver Sign-Up Sheet, Sign-In, Session, and Roster Selection.
+ *
+ * Implements structured logging and explicit error handling:
+ * - Domain validation errors for missing CDL, invalid PIN, or unauthorized access
+ * - Zero credential leakage (PIN, CDL partially masked, auth token redacted)
+ * - Safe resilient storage fallback with telemetry logging
  */
 
 import { DriverAuthRecord, DriverSignUpPayload, DriverSignInPayload } from '../types';
+import { safeStorage } from '../utils/safeStorage.ts';
+import { logger } from '../utils/logger.ts';
+import { DomainValidationError, NetworkError, AppError } from '../utils/errors.ts';
 
 const STORAGE_KEY_ACTIVE_DRIVER = 'truck_active_driver_profile';
 const STORAGE_KEY_AUTH_TOKEN = 'truck_auth_session_token';
@@ -52,39 +60,30 @@ class AuthDriverService {
   private activeDriver: DriverAuthRecord;
   private token: string | null = null;
   private listeners: Set<DriverChangeListener> = new Set();
-  private isInitialized: boolean = false;
 
   constructor() {
     this.activeDriver = this.loadPersistedDriver();
-    this.token = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_AUTH_TOKEN) : null;
+    const tokenResult = safeStorage.getItem<string | null>(STORAGE_KEY_AUTH_TOKEN, null);
+    this.token = tokenResult.data;
   }
 
   private loadPersistedDriver(): DriverAuthRecord {
-    if (typeof window === 'undefined') return FALLBACK_DEFAULT_DRIVER;
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_ACTIVE_DRIVER);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Could not read cached driver:', e);
-    }
-    return FALLBACK_DEFAULT_DRIVER;
+    const res = safeStorage.getItem<DriverAuthRecord>(STORAGE_KEY_ACTIVE_DRIVER, FALLBACK_DEFAULT_DRIVER);
+    return res.data || FALLBACK_DEFAULT_DRIVER;
   }
 
-  private persistDriver(driver: DriverAuthRecord, token?: string) {
+  private persistDriver(driver: DriverAuthRecord, token?: string): void {
     this.activeDriver = driver;
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEY_ACTIVE_DRIVER, JSON.stringify(driver));
-        if (token) {
-          this.token = token;
-          localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, token);
-        }
-      } catch (e) {
-        console.warn('Failed to cache driver locally:', e);
-      }
+    safeStorage.setItem(STORAGE_KEY_ACTIVE_DRIVER, driver);
+    if (token) {
+      this.token = token;
+      safeStorage.setItem(STORAGE_KEY_AUTH_TOKEN, token);
     }
+    logger.info('AUTH_SERVICE', `Active cockpit driver profile updated: ${driver.name}`, {
+      driverId: driver.driverId,
+      carrierName: driver.carrierName,
+      cdlNumber: driver.cdlNumber, // Automatically masked by logger
+    });
     this.notifyListeners(driver);
   }
 
@@ -94,12 +93,12 @@ class AuthDriverService {
     return () => this.listeners.delete(listener);
   }
 
-  private notifyListeners(driver: DriverAuthRecord) {
+  private notifyListeners(driver: DriverAuthRecord): void {
     this.listeners.forEach((listener) => {
       try {
         listener(driver);
       } catch (err) {
-        console.error('Error in driver listener:', err);
+        logger.error('AUTH_SERVICE', 'Error in driver auth listener', err);
       }
     });
   }
@@ -119,7 +118,7 @@ class AuthDriverService {
         }
       }
     } catch (e) {
-      console.warn('Using local session cache:', e);
+      logger.warn('AUTH_SERVICE', 'Session fetch failed; utilizing local cached session profile', undefined, e);
     }
     return { authenticated: true, driver: this.activeDriver };
   }
@@ -128,6 +127,30 @@ class AuthDriverService {
    * Complete Sign-Up Sheet: Register a new driver with fleet credentials & preferences
    */
   public async signup(payload: DriverSignUpPayload): Promise<{ success: boolean; driver: DriverAuthRecord; message: string }> {
+    // 1. Explicit domain validation
+    if (!payload.name || !payload.name.trim()) {
+      const validationError = new DomainValidationError(
+        'Full driver legal name is required for FMCSA enrollment.',
+        { field: 'name' },
+        'E_AUTH_VALIDATION_FAILED'
+      );
+      logger.warn('AUTH_SERVICE', 'Sign-up rejected: missing driver name', validationError.details, validationError);
+      throw validationError;
+    }
+
+    if (!payload.cdlNumber || !payload.cdlNumber.trim()) {
+      const cdlError = new DomainValidationError(
+        'Commercial Driver License (CDL) number is required for 49 CFR § 383 compliance.',
+        { field: 'cdlNumber' },
+        'E_AUTH_CDL_REQUIRED'
+      );
+      logger.warn('AUTH_SERVICE', 'Sign-up rejected: missing CDL', cdlError.details, cdlError);
+      throw cdlError;
+    }
+
+    let isOfflineNetwork = false;
+
+    // 2. Attempt remote registration
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -140,6 +163,10 @@ class AuthDriverService {
         if (data.driver) {
           this.persistDriver(data.driver, data.token);
           this.appendToLocalRoster(data.driver);
+          logger.info('AUTH_SERVICE', `New driver successfully enrolled: ${data.driver.name}`, {
+            driverId: data.driver.driverId,
+            cdlNumber: data.driver.cdlNumber,
+          });
           return {
             success: true,
             driver: data.driver,
@@ -148,61 +175,90 @@ class AuthDriverService {
         }
       } else {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Sign-up failed with status ${res.status}`);
+        const serverError = new DomainValidationError(
+          errData.error || `Sign-up rejected by carrier registry (HTTP ${res.status}).`,
+          { status: res.status, errorText: errData.error },
+          'E_AUTH_VALIDATION_FAILED'
+        );
+        logger.warn('AUTH_SERVICE', `Server rejected driver registration: ${serverError.userMessage}`, serverError.details, serverError);
+        throw serverError;
       }
     } catch (err) {
-      console.warn('Offline fallback sign-up:', err);
+      if (err instanceof DomainValidationError) {
+        throw err;
+      }
+      isOfflineNetwork = true;
+      logger.warn(
+        'AUTH_SERVICE',
+        'Backend registration endpoint unreachable; generating offline driver profile in local vault',
+        { driverName: payload.name },
+        err
+      );
     }
 
-    // Client-side fallback if server unreachable
-    const cleanName = payload.name.trim();
-    const idSlug = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
-    const driverId = `drv-${idSlug}-${Math.floor(100 + Math.random() * 900)}`;
+    // 3. Resilient Offline Fallback (only for network connectivity drops, NOT validation failures)
+    if (isOfflineNetwork) {
+      const cleanName = payload.name.trim();
+      const idSlug = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+      const driverId = `drv-${idSlug}-${Math.floor(100 + Math.random() * 900)}`;
 
-    const fallbackDriver: DriverAuthRecord = {
-      driverId,
-      name: cleanName,
-      email: payload.email?.trim() || `${idSlug}@morrishive.com`,
-      phone: payload.phone?.trim() || '(555) 000-0000',
-      role: payload.role || 'FLEET_DRIVER',
-      cdlNumber: payload.cdlNumber.trim().toUpperCase(),
-      cdlState: (payload.cdlState || 'IL').toUpperCase(),
-      cdlExpirationDate: payload.cdlExpirationDate || '2028-06-30',
-      medicalCertExp: payload.medicalCertExp || '2027-06-30',
-      assignedUnit: payload.assignedUnit?.trim() || 'TRK-904',
-      assignedTrailer: payload.assignedTrailer?.trim() || 'TRL-5321',
-      carrierName: payload.carrierName?.trim() || 'Morris Hive Freight LLC',
-      usdotNumber: payload.usdotNumber?.trim() || '3948210',
-      fmcsaPin: payload.fmcsaPin?.trim() || '8821',
-      traxxasTransponderId: payload.traxxasTransponderId?.trim() || 'TRAXXAS-BEACON-LOCAL',
-      activeDutyStatus: 'OFF',
-      selectedFunctions: payload.selectedFunctions || [
-        'night-hud',
-        'hos-clocks',
-        'radar-54b',
-        'master-mechanic',
-        'dispatch-eta',
-        'traxxas',
-        'hre',
-      ],
-      createdAt: new Date().toISOString(),
-      dqfStatus: 'FULLY_COMPLIANT',
-    };
+      const fallbackDriver: DriverAuthRecord = {
+        driverId,
+        name: cleanName,
+        email: payload.email?.trim() || `${idSlug}@morrishive.com`,
+        phone: payload.phone?.trim() || '(555) 000-0000',
+        role: payload.role || 'FLEET_DRIVER',
+        cdlNumber: payload.cdlNumber.trim().toUpperCase(),
+        cdlState: (payload.cdlState || 'IL').toUpperCase(),
+        cdlExpirationDate: payload.cdlExpirationDate || '2028-06-30',
+        medicalCertExp: payload.medicalCertExp || '2027-06-30',
+        assignedUnit: payload.assignedUnit?.trim() || 'TRK-904',
+        assignedTrailer: payload.assignedTrailer?.trim() || 'TRL-5321',
+        carrierName: payload.carrierName?.trim() || 'Morris Hive Freight LLC',
+        usdotNumber: payload.usdotNumber?.trim() || '3948210',
+        fmcsaPin: payload.fmcsaPin?.trim() || '8821',
+        traxxasTransponderId: payload.traxxasTransponderId?.trim() || 'TRAXXAS-BEACON-LOCAL',
+        activeDutyStatus: 'OFF',
+        selectedFunctions: payload.selectedFunctions || [
+          'night-hud',
+          'hos-clocks',
+          'radar-54b',
+          'master-mechanic',
+          'dispatch-eta',
+          'traxxas',
+          'hre',
+        ],
+        createdAt: new Date().toISOString(),
+        dqfStatus: 'FULLY_COMPLIANT',
+      };
 
-    this.persistDriver(fallbackDriver, `tok_${fallbackDriver.driverId}`);
-    this.appendToLocalRoster(fallbackDriver);
+      this.persistDriver(fallbackDriver, `tok_${fallbackDriver.driverId}`);
+      this.appendToLocalRoster(fallbackDriver);
 
-    return {
-      success: true,
-      driver: fallbackDriver,
-      message: `Driver ${fallbackDriver.name} enrolled and signed in.`,
-    };
+      return {
+        success: true,
+        driver: fallbackDriver,
+        message: `Driver ${fallbackDriver.name} enrolled in local offline vault.`,
+      };
+    }
+
+    throw new DomainValidationError('Registration failed.', undefined, 'E_AUTH_VALIDATION_FAILED');
   }
 
   /**
-   * Driver Sign-In
+   * Driver Sign-In with FMCSA PIN verification
    */
   public async signin(payload: DriverSignInPayload): Promise<{ success: boolean; driver: DriverAuthRecord }> {
+    if (!payload.identifier || !payload.identifier.trim()) {
+      throw new DomainValidationError(
+        'Driver credential identifier (CDL, Email, or Driver ID) is required.',
+        { field: 'identifier' },
+        'E_AUTH_INVALID_CREDENTIALS'
+      );
+    }
+
+    let isOfflineNetwork = false;
+
     try {
       const res = await fetch('/api/auth/signin', {
         method: 'POST',
@@ -214,33 +270,68 @@ class AuthDriverService {
         const data = await res.json();
         if (data.driver) {
           this.persistDriver(data.driver, data.token);
+          logger.info('AUTH_SERVICE', `Driver sign-in authenticated: ${data.driver.name}`, {
+            driverId: data.driver.driverId,
+            cdlNumber: data.driver.cdlNumber,
+          });
           return { success: true, driver: data.driver };
         }
       } else {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Sign-in failed.');
+        const authError = new DomainValidationError(
+          errData.error || 'Authentication rejected: Invalid CDL or FMCSA Roadside PIN.',
+          { identifier: payload.identifier, status: res.status },
+          'E_AUTH_INVALID_CREDENTIALS'
+        );
+        logger.warn('AUTH_SERVICE', `Driver authentication failure for "${payload.identifier}"`, authError.details, authError);
+        throw authError;
       }
     } catch (err) {
-      console.warn('Sign-in network error:', err);
+      if (err instanceof DomainValidationError) {
+        throw err;
+      }
+      isOfflineNetwork = true;
+      logger.warn('AUTH_SERVICE', 'Sign-in endpoint offline; attempting local fleet roster authentication', { identifier: payload.identifier }, err);
     }
 
-    // Local lookup fallback
-    const roster = await this.getAllDrivers();
-    const clean = payload.identifier.toLowerCase().trim();
-    const match = roster.find(
-      (d) =>
-        d.driverId.toLowerCase() === clean ||
-        d.email.toLowerCase() === clean ||
-        d.cdlNumber.toLowerCase() === clean ||
-        d.name.toLowerCase().includes(clean)
+    // Offline Local Roster Lookup
+    if (isOfflineNetwork) {
+      const roster = await this.getAllDrivers();
+      const clean = payload.identifier.toLowerCase().trim();
+      const match = roster.find(
+        (d) =>
+          d.driverId.toLowerCase() === clean ||
+          d.email.toLowerCase() === clean ||
+          d.cdlNumber.toLowerCase() === clean ||
+          d.name.toLowerCase().includes(clean)
+      );
+
+      if (match) {
+        if (payload.fmcsaPin && match.fmcsaPin && match.fmcsaPin !== payload.fmcsaPin) {
+          const pinError = new DomainValidationError(
+            'FMCSA Roadside PIN mismatch for offline driver profile.',
+            { driverId: match.driverId },
+            'E_AUTH_PIN_MISMATCH'
+          );
+          logger.warn('AUTH_SERVICE', 'Offline PIN verification failed', pinError.details, pinError);
+          throw pinError;
+        }
+
+        this.persistDriver(match, `tok_${match.driverId}`);
+        logger.info('AUTH_SERVICE', `Offline driver signed in successfully: ${match.name}`, {
+          driverId: match.driverId,
+        });
+        return { success: true, driver: match };
+      }
+    }
+
+    const notFoundError = new DomainValidationError(
+      `Commercial driver with identifier "${payload.identifier}" not found in fleet roster.`,
+      { identifier: payload.identifier },
+      'E_AUTH_DRIVER_NOT_FOUND'
     );
-
-    if (match) {
-      this.persistDriver(match, `tok_${match.driverId}`);
-      return { success: true, driver: match };
-    }
-
-    throw new Error(`Driver with credentials "${payload.identifier}" not found in roster.`);
+    logger.warn('AUTH_SERVICE', 'Driver not found in roster', notFoundError.details, notFoundError);
+    throw notFoundError;
   }
 
   /**
@@ -257,18 +348,12 @@ class AuthDriverService {
         }
       }
     } catch (e) {
-      console.warn('Using cached fleet roster:', e);
+      logger.warn('AUTH_SERVICE', 'Failed to retrieve remote drivers list; utilizing local cached roster', undefined, e);
     }
 
-    // Load from local storage
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY_SAVED_DRIVERS);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch (e) {}
+    const savedResult = safeStorage.getItem<DriverAuthRecord[]>(STORAGE_KEY_SAVED_DRIVERS, [FALLBACK_DEFAULT_DRIVER]);
+    if (Array.isArray(savedResult.data) && savedResult.data.length > 0) {
+      return savedResult.data;
     }
 
     return [FALLBACK_DEFAULT_DRIVER];
@@ -292,13 +377,15 @@ class AuthDriverService {
         }
       }
     } catch (e) {
-      console.warn('Offline driver select:', e);
+      logger.warn('AUTH_SERVICE', 'Offline driver select; retrieving from local roster cache', { driverId }, e);
     }
 
     const roster = await this.getAllDrivers();
     const target = roster.find((d) => d.driverId === driverId);
     if (!target) {
-      throw new Error(`Driver ID ${driverId} not found.`);
+      const err = new DomainValidationError(`Driver ID "${driverId}" not found in fleet roster.`, { driverId }, 'E_AUTH_DRIVER_NOT_FOUND');
+      logger.error('AUTH_SERVICE', `Driver selection failed: ${driverId}`, err);
+      throw err;
     }
 
     this.persistDriver(target);
@@ -311,30 +398,27 @@ class AuthDriverService {
   public async signout(): Promise<void> {
     try {
       await fetch('/api/auth/signout', { method: 'POST' });
-    } catch (e) {}
-
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEY_AUTH_TOKEN);
+    } catch (e) {
+      logger.warn('AUTH_SERVICE', 'Remote signout notification failed', undefined, e);
     }
+
+    safeStorage.removeItem(STORAGE_KEY_AUTH_TOKEN);
     this.token = null;
+    logger.info('AUTH_SERVICE', 'Driver signed out successfully', {
+      previousDriverId: this.activeDriver.driverId,
+    });
   }
 
-  private saveRosterLocally(drivers: DriverAuthRecord[]) {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(STORAGE_KEY_SAVED_DRIVERS, JSON.stringify(drivers));
-    } catch (e) {}
+  private saveRosterLocally(drivers: DriverAuthRecord[]): void {
+    safeStorage.setItem(STORAGE_KEY_SAVED_DRIVERS, drivers);
   }
 
-  private appendToLocalRoster(driver: DriverAuthRecord) {
-    if (typeof window === 'undefined') return;
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_SAVED_DRIVERS);
-      let roster: DriverAuthRecord[] = saved ? JSON.parse(saved) : [FALLBACK_DEFAULT_DRIVER];
-      roster = roster.filter((d) => d.driverId !== driver.driverId);
-      roster.unshift(driver);
-      localStorage.setItem(STORAGE_KEY_SAVED_DRIVERS, JSON.stringify(roster));
-    } catch (e) {}
+  private appendToLocalRoster(driver: DriverAuthRecord): void {
+    const saved = safeStorage.getItem<DriverAuthRecord[]>(STORAGE_KEY_SAVED_DRIVERS, [FALLBACK_DEFAULT_DRIVER]);
+    let roster = Array.isArray(saved.data) ? saved.data : [FALLBACK_DEFAULT_DRIVER];
+    roster = roster.filter((d) => d.driverId !== driver.driverId);
+    roster.unshift(driver);
+    safeStorage.setItem(STORAGE_KEY_SAVED_DRIVERS, roster);
   }
 }
 

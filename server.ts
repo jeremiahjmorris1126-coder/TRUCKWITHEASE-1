@@ -12,6 +12,8 @@ import {
   TwilioRecipientError,
 } from './server/twilioMessaging';
 import { fleetCore } from './server/fleetCore';
+import { logger } from './src/utils/logger.ts';
+import { generateCorrelationId, sanitizeMetadata } from './src/utils/errors.ts';
 
 interface MemorySnapshot {
   id: string;
@@ -41,6 +43,42 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
+
+  // Correlation ID & Structured Request Logging Middleware
+  app.use((req, res, next) => {
+    const correlationId =
+      (req.headers['x-correlation-id'] as string) ||
+      (req.headers['x-request-id'] as string) ||
+      generateCorrelationId();
+    (req as any).correlationId = correlationId;
+    res.setHeader('X-Correlation-Id', correlationId);
+
+    const start = Date.now();
+    res.on('finish', () => {
+      const durationMs = Date.now() - start;
+      if (req.path.startsWith('/api')) {
+        const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+        if (level === 'error') {
+          logger.error('SERVER_API', `${req.method} ${req.path} failed with HTTP ${res.statusCode} (${durationMs}ms)`, undefined, {
+            correlationId,
+            method: req.method,
+            path: req.path,
+            statusCode: res.statusCode,
+            durationMs,
+          });
+        } else if (level === 'warn') {
+          logger.warn('SERVER_API', `${req.method} ${req.path} warning response HTTP ${res.statusCode} (${durationMs}ms)`, {
+            correlationId,
+            method: req.method,
+            path: req.path,
+            statusCode: res.statusCode,
+            durationMs,
+          });
+        }
+      }
+    });
+    next();
+  });
 
   // ==========================================
   // MULTI-TENANT AUTHORIZATION & API SECURITY
@@ -1110,7 +1148,45 @@ async function startServer() {
   app.post('/api/export-cloudflare-github/push', handleCloudflarePush);
 
   app.use('/api', (req, res) => {
-    res.status(404).json({ error: 'API endpoint not found.' });
+    const correlationId = (req as any).correlationId || generateCorrelationId();
+    res.status(404).json({
+      success: false,
+      error: {
+        code: 'E_SYS_NOT_FOUND',
+        message: `API endpoint ${req.method} ${req.path} not found.`,
+        correlationId,
+      },
+    });
+  });
+
+  // Centralized Express Error Handling Middleware
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const correlationId = (req as any).correlationId || generateCorrelationId();
+    const statusCode = typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600
+      ? err.statusCode
+      : 500;
+
+    logger.error('SERVER_EXPRESS', `Unhandled error on ${req.method} ${req.path}: ${err.message || err}`, err, {
+      correlationId,
+      path: req.path,
+      method: req.method,
+      statusCode,
+    });
+
+    if (res.headersSent) {
+      return next(err);
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: err.code || 'E_SYS_UNHANDLED_EXCEPTION',
+        message: statusCode >= 500
+          ? 'An internal server error occurred while processing the telematics request.'
+          : (err.userMessage || err.message || 'Request could not be processed.'),
+        correlationId,
+      },
+    });
   });
 
   // ==========================================

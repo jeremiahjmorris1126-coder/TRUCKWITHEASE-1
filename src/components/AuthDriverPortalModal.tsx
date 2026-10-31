@@ -8,11 +8,12 @@ import {
 } from '../types';
 import { authDriverService } from '../services/authDriverService';
 import { fleetFunctionsService } from '../services/fleetFunctionsService';
+import { ToastVariant } from './Toast';
 
 interface AuthDriverPortalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onShowToast: (msg: string, icon?: string) => void;
+  onShowToast: (msg: string, icon?: string, variant?: ToastVariant) => void;
   activeDriver: DriverAuthRecord;
   onDriverChanged: (driver: DriverAuthRecord) => void;
   fleetSettings: FleetCustomizationSettings;
@@ -120,10 +121,12 @@ export const AuthDriverPortalModal: React.FC<AuthDriverPortalModalProps> = ({
         fmcsaPin: signInPin || undefined,
       });
       onDriverChanged(result.driver);
-      onShowToast(`SIGNED IN AS ${result.driver.name.toUpperCase()} (CDL ${result.driver.cdlNumber})`, 'verified');
+      onShowToast(`SIGNED IN AS ${result.driver.name.toUpperCase()} (CDL ${result.driver.cdlNumber})`, 'verified', 'success');
       onClose();
     } catch (err: any) {
-      setSignInError(err.message || 'Driver Sign-In failed.');
+      const displayMsg = err.userMessage || err.message || 'Driver Sign-In failed.';
+      setSignInError(displayMsg);
+      onShowToast(displayMsg, 'warning', 'warning');
     }
     setIsLoading(false);
   };
@@ -152,10 +155,12 @@ export const AuthDriverPortalModal: React.FC<AuthDriverPortalModalProps> = ({
 
       onDriverChanged(result.driver);
       await loadRoster();
-      onShowToast(`NEW DRIVER REGISTERED & SIGNED IN: ${result.driver.name}`, 'person_add');
+      onShowToast(`NEW DRIVER REGISTERED & SIGNED IN: ${result.driver.name}`, 'person_add', 'success');
       onClose();
     } catch (err: any) {
-      setSignUpError(err.message || 'Registration failed.');
+      const displayMsg = err.userMessage || err.message || 'Registration failed.';
+      setSignUpError(displayMsg);
+      onShowToast(displayMsg, 'warning', 'warning');
     }
     setIsLoading(false);
   };

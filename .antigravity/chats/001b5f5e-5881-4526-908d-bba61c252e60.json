@@ -196,6 +196,18 @@
       "created_at": "2026-10-31T16:47:16.329Z",
       "sender": "ios",
       "is_cancelled": false
+    },
+    {
+      "id": "58cae569-32d2-41bf-9e95-4459fbb05719",
+      "role": "user",
+      "content": "Design a consistent error-handling and logging strategy for this codebase:\n\n1. Define error types/codes and who handles what (domain vs infrastructure vs UI)\n2. Where to log (which layer, which level: debug/info/warn/error) and what to include\n3. Replace ad-hoc try/catch or silent failures with explicit handling and user-facing messages\n4. Show one example end-to-end: error raised → logged → surfaced to user\n\nKeep logging structured and avoid leaking sensitive data.",
+      "status": "pending",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-31T17:12:48.488Z",
+      "sender": "ios",
+      "is_cancelled": false
     }
   ]
 }
