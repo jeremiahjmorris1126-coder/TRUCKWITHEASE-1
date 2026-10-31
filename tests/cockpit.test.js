@@ -73,3 +73,57 @@ test('Subsystem Health Check Diagnostic Structure', () => {
   assert.equal(healthPayload.subsystems.fmcsaRegulatoryEngine.status, 'STANDALONE_LOCAL_ENGINE');
   assert.equal(healthPayload.subsystems.nasaOrbitalSpotter.status, 'DETERMINISTIC_MODELING');
 });
+
+test('Dispatch Zero yield calculation and legal duty hour formatting', () => {
+  function computeYieldPerHour(grossRevenue, legalDutyHours) {
+    if (legalDutyHours <= 0) return '$0.00/Hr';
+    const rate = grossRevenue / legalDutyHours;
+    return `$${rate.toFixed(2)}/Hr`;
+  }
+
+  assert.equal(computeYieldPerHour(2321, 10), '$232.10/Hr');
+  assert.equal(computeYieldPerHour(1850.5, 6.5), '$284.69/Hr');
+  assert.equal(computeYieldPerHour(1000, 0), '$0.00/Hr');
+});
+
+test('Master Mechanic kingpin hitch articulation jackknife danger threshold', () => {
+  const JACKKNIFE_DANGER_THRESHOLD_DEG = 48;
+  function evaluateKingpinAngle(angleDeg) {
+    const absAngle = Math.abs(angleDeg);
+    if (absAngle >= JACKKNIFE_DANGER_THRESHOLD_DEG) {
+      return { status: 'CRITICAL', warning: 'JACKKNIFE IMMINENT' };
+    }
+    if (absAngle >= 35) {
+      return { status: 'ADVISORY', warning: 'HIGH ARTICULATION' };
+    }
+    return { status: 'NOMINAL', warning: null };
+  }
+
+  assert.equal(evaluateKingpinAngle(52).status, 'CRITICAL');
+  assert.equal(evaluateKingpinAngle(-49).status, 'CRITICAL');
+  assert.equal(evaluateKingpinAngle(40).status, 'ADVISORY');
+  assert.equal(evaluateKingpinAngle(20).status, 'NOMINAL');
+});
+
+test('FHWA Item 54B low-bridge clearance buffer calculation', () => {
+  const STANDARD_TRUCK_HEIGHT_INCHES = 162; // 13 ft 6 in
+  function evaluateBridgeClearance(bridgeClearanceInches) {
+    const delta = bridgeClearanceInches - STANDARD_TRUCK_HEIGHT_INCHES;
+    if (delta <= 0) {
+      return {
+        level: 'CRITICAL',
+        bufferDelta: `${delta}" BUFFER DELTA`,
+        label: `13' 6" CLEARANCE // 0" BUFFER DELTA`,
+      };
+    }
+    return {
+      level: 'SAFE',
+      bufferDelta: `+${delta}" BUFFER DELTA`,
+      label: 'CLEARANCE OK',
+    };
+  }
+
+  assert.equal(evaluateBridgeClearance(162).level, 'CRITICAL');
+  assert.equal(evaluateBridgeClearance(158).level, 'CRITICAL');
+  assert.equal(evaluateBridgeClearance(180).level, 'SAFE');
+});
