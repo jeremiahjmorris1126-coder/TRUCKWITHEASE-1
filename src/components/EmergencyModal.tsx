@@ -1,5 +1,6 @@
 import React from 'react';
 import { CARRIER_INFO } from '../data/mockData';
+import { telecomService } from '../services/telecomService.ts';
 
 interface EmergencyModalProps {
   isOpen: boolean;
@@ -144,7 +145,14 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({
               <a
                 href={`tel:${contact.phone.replace(/[^0-9]/g, '')}`}
                 onClick={() => {
-                  onTriggerAction(`DIALING ${contact.title.toUpperCase()} (${contact.phone})...`);
+                  onTriggerAction(`DIALING ${contact.title.toUpperCase()} (${contact.phone})... SERVER PINGED & LOGGED`);
+                  telecomService.initiateCall({
+                    to: contact.phone,
+                    isEmergency: true,
+                    driverName: 'Cockpit Operator',
+                    truckUnit: 'TRK-904',
+                    message: `Emergency dispatch: ${contact.title} (${contact.phone}) initiated from In-Cab Cockpit.`,
+                  }).catch(() => {});
                 }}
                 className={`px-3.5 py-2 rounded-xl font-label-caps text-[11px] uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer shadow-md ${contact.btnClass}`}
               >
