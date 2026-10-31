@@ -7,6 +7,8 @@ interface HeaderProps {
   speed: number;
   onOpenEmergency: () => void;
   onOpenProfile: () => void;
+  onOpenDriverPortal?: (tab?: 'signin' | 'signup' | 'roster' | 'functions') => void;
+  activeDriverName?: string;
   onToggleVoice?: () => void;
   isListening?: boolean;
   alertnessScore?: number;
@@ -21,6 +23,8 @@ export const Header: React.FC<HeaderProps> = ({
   speed,
   onOpenEmergency,
   onOpenProfile,
+  onOpenDriverPortal,
+  activeDriverName = DRIVER_INFO.name,
   onToggleVoice,
   isListening = false,
   alertnessScore = 98,
@@ -189,10 +193,23 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
+          {/* Driver Portal & Sign-In/Up Sheet Trigger */}
+          {onOpenDriverPortal && (
+            <button
+              onClick={() => onOpenDriverPortal('roster')}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFE500] hover:bg-[#FFDF00] text-black font-black font-['Space_Grotesk'] text-[11px] uppercase tracking-wider cursor-pointer transition-all shadow-[0_0_15px_rgba(255,229,0,0.35)] hover:brightness-110 active:scale-95"
+              title="Driver Sign-Up, Sign-In, Fleet Roster & Function Manager"
+            >
+              <span className="material-symbols-outlined text-[15px]">badge</span>
+              <span className="hidden sm:inline truncate max-w-[110px]">{activeDriverName.split(' ')[0]}</span>
+              <span className="text-[9px] bg-black text-[#FFE500] px-1 py-0.2 rounded font-mono">PORTAL</span>
+            </button>
+          )}
+
           {/* Profile Avatar Button */}
           <button
             id="btn-driver-profile"
-            aria-label={`Driver: ${DRIVER_INFO.name}`}
+            aria-label={`Driver: ${activeDriverName}`}
             onClick={onOpenProfile}
             className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 ml-space-2xs active:scale-95 transition-transform cursor-pointer shadow-sm hover:brightness-110"
             title="Driver Profile & CDL Credentials"

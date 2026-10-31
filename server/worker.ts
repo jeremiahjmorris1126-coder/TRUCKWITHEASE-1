@@ -178,13 +178,185 @@ export default {
         );
       }
 
+      // 5. Driver Authentication & Sign-Up Sheet
+      if (url.pathname === '/api/auth/signup' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) as any;
+        const name = body.name || 'New Commercial Driver';
+        const driverId = `drv-${name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8)}-${Math.floor(100 + Math.random() * 900)}`;
+        return new Response(
+          JSON.stringify({
+            success: true,
+            driver: {
+              driverId,
+              name,
+              email: body.email || 'driver@morrishive.com',
+              role: body.role || 'FLEET_DRIVER',
+              cdlNumber: body.cdlNumber || 'IL-CDL-98104820',
+              cdlState: body.cdlState || 'IL',
+              assignedUnit: body.assignedUnit || 'TRK-904',
+              fmcsaPin: body.fmcsaPin || '8821',
+              traxxasTransponderId: body.traxxasTransponderId || 'TRAXXAS-TX904',
+              selectedFunctions: body.selectedFunctions || ['night-hud', 'hos-clocks', 'radar-54b', 'master-mechanic', 'traxxas', 'hre'],
+            },
+            token: `tok_${driverId}_${Date.now()}`,
+            message: `Driver ${name} registered on Edge Worker.`,
+          }),
+          { status: 201, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (url.pathname === '/api/auth/signin' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) as any;
+        return new Response(
+          JSON.stringify({
+            success: true,
+            driver: {
+              driverId: 'drv-jeremiah-904',
+              name: 'Jeremiah J. Morris',
+              role: 'OWNER_OPERATOR',
+              cdlNumber: 'IL-CDL-98104820',
+              assignedUnit: 'TRK-904',
+              traxxasTransponderId: 'TRAXXAS-TX904-ENTERPRISE',
+            },
+            token: `tok_drv-jeremiah-904_${Date.now()}`,
+          }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (url.pathname === '/api/auth/session') {
+        return new Response(
+          JSON.stringify({
+            authenticated: true,
+            activeDriver: {
+              driverId: 'drv-jeremiah-904',
+              name: 'Jeremiah J. Morris',
+              role: 'OWNER_OPERATOR',
+              cdlNumber: 'IL-CDL-98104820',
+              assignedUnit: 'TRK-904',
+              traxxasTransponderId: 'TRAXXAS-TX904-ENTERPRISE',
+            },
+            totalDrivers: 6,
+          }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // 6. Fleet Driver Roster & Selection
+      if (url.pathname === '/api/drivers') {
+        const drivers = [
+          { driverId: 'drv-jeremiah-904', name: 'Jeremiah J. Morris', role: 'OWNER_OPERATOR', cdlNumber: 'IL-CDL-98104820', assignedUnit: 'TRK-904', activeDutyStatus: 'D' },
+          { driverId: 'drv-vance-904', name: 'Vance Reynolds', role: 'FLEET_DRIVER', cdlNumber: 'IL-CDL-4910291', assignedUnit: 'TRK-904', activeDutyStatus: 'SB' },
+          { driverId: 'drv-marcus-702', name: 'Marcus Ortiz', role: 'FLEET_DRIVER', cdlNumber: 'TX-CDL-8819204', assignedUnit: 'TRK-702', activeDutyStatus: 'ON' },
+          { driverId: 'drv-devon-518', name: 'Devon Hayes', role: 'FLEET_DRIVER', cdlNumber: 'TN-CDL-3341890', assignedUnit: 'TRK-518', activeDutyStatus: 'OFF' },
+          { driverId: 'drv-sarah-309', name: 'Sarah Kowalski', role: 'FLEET_DRIVER', cdlNumber: 'IN-CDL-7741029', assignedUnit: 'TRK-309', activeDutyStatus: 'D' },
+          { driverId: 'drv-tyrone-880', name: 'Tyrone Washington', role: 'FLEET_DRIVER', cdlNumber: 'GA-CDL-5520194', assignedUnit: 'TRK-880', activeDutyStatus: 'D' },
+        ];
+        return new Response(
+          JSON.stringify({ success: true, drivers, totalDrivers: drivers.length, activeDriverId: 'drv-jeremiah-904' }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (url.pathname === '/api/drivers/select' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) as any;
+        return new Response(
+          JSON.stringify({ success: true, selectedDriverId: body.driverId || 'drv-jeremiah-904', message: 'Driver selected.' }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // 7. Fleet Function Manager
+      if (url.pathname === '/api/fleet/functions') {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            activeFunctions: ['night-hud', 'hos-clocks', 'radar-54b', 'master-mechanic', 'dispatch-eta', 'vault', 'fleet-expenses', 'trip-planner', 'haptics', 'ecosystem', 'telemetry', 'traxxas', 'hre', 'quantum-index'],
+            disabledFunctions: ['the-g-o-a-t-'],
+          }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // 8. HRE (Highway Restriction Engine)
+      if (url.pathname === '/api/hre/restrictions') {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            restrictions: [
+              { id: 'hre-1', restrictionType: 'LOW_BRIDGE', corridor: 'I-20 Eastbound', clearanceDisplay: '13\' 6"', bufferDeltaInches: 0, status: 'CRITICAL' },
+              { id: 'hre-2', restrictionType: 'STEEP_DOWNGRADE', corridor: 'I-24 Westbound', gradePct: 6.0, speedLimitMph: 35, status: 'WARNING' },
+            ],
+          }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (url.pathname === '/api/hre/route-audit' && request.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            auditId: `hre-edge-${Date.now()}`,
+            overallStatus: 'SAFE',
+            criticalCount: 0,
+            warningCount: 0,
+            minimumClearanceDisplay: '14\' 2"',
+            lowestBufferDeltaInches: 8,
+          }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // 9. Traxxas Telemetry Suite
+      if (url.pathname === '/api/traxxas/telemetry') {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            telemetry: {
+              transponderId: 'TRAXXAS-TX904-ENTERPRISE',
+              beaconStatus: 'CONNECTED_10HZ',
+              speedMph: 64.8,
+              headingDeg: 88.5,
+              peakShockG: 0.28,
+              engineCoolantTempF: 194,
+              turboBoostPsi: 22.4,
+              samplingRateHz: 10,
+              latencyMs: 12.8,
+            },
+          }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (url.pathname === '/api/traxxas/ping') {
+        return new Response(
+          JSON.stringify({
+            transponderId: 'TRAXXAS-TX904-ENTERPRISE',
+            pong: true,
+            receivedAt: new Date().toISOString(),
+            latencyMs: 11.4,
+            baudRateKbps: 250,
+          }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Default API 404
       return new Response(
         JSON.stringify({
           error: 'Not Found',
           path: url.pathname,
           worker: 'truckwithease-1',
-          availableEndpoints: ['/api/health', '/api/ready', '/api/auth/tenant', '/api/weather/hazards', '/api/quantum/telemetry-physics'],
+          availableEndpoints: [
+            '/api/health',
+            '/api/ready',
+            '/api/auth/signup',
+            '/api/auth/signin',
+            '/api/auth/session',
+            '/api/drivers',
+            '/api/fleet/functions',
+            '/api/hre/restrictions',
+            '/api/traxxas/telemetry',
+          ],
         }),
         { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );

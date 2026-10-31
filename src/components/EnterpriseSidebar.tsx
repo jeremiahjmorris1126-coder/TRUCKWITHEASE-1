@@ -1,5 +1,5 @@
 import React from 'react';
-import { TabId } from '../types';
+import { TabId, DriverAuthRecord } from '../types';
 import { DRIVER_INFO, CARRIER_INFO } from '../data/mockData';
 
 interface EnterpriseSidebarProps {
@@ -11,6 +11,8 @@ interface EnterpriseSidebarProps {
   onToggleVoice: () => void;
   onOpenEmergency: () => void;
   onOpenProfile: () => void;
+  onOpenDriverPortal?: (tab?: 'signin' | 'signup' | 'roster' | 'functions') => void;
+  activeDriver?: DriverAuthRecord;
   onOpenAlertnessModal: () => void;
   onOpenPrivacyLock: () => void;
   onOpenPdfModal: () => void;
@@ -85,6 +87,8 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   onToggleVoice,
   onOpenEmergency,
   onOpenProfile,
+  onOpenDriverPortal,
+  activeDriver,
   onOpenAlertnessModal,
   onOpenPrivacyLock,
   onOpenPdfModal,
@@ -138,27 +142,53 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
           </div>
 
           {/* Active Driver Profile Widget */}
-          <div
-            onClick={onOpenProfile}
-            className="p-2.5 rounded-xl bg-surface-container border border-surface-container-high/80 hover:border-primary/50 cursor-pointer transition-all flex items-center justify-between"
-            title="View Driver CDL Credentials & Profile"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-primary font-bold text-[12px]">JM</div>
-              <div>
-                <span className="font-bold text-[12px] text-on-surface block leading-tight">
-                  {DRIVER_INFO.name}
-                </span>
-                <span className="text-[9px] text-outline font-mono block">
-                  USDOT #{CARRIER_INFO.usdot} &bull; TRK-904
-                </span>
+          <div className="space-y-1.5">
+            <div
+              onClick={() => onOpenDriverPortal ? onOpenDriverPortal('roster') : onOpenProfile()}
+              className="p-2.5 rounded-xl bg-surface-container border border-[#FFE500]/40 hover:border-[#FFE500] cursor-pointer transition-all flex items-center justify-between shadow-[0_0_12px_rgba(255,229,0,0.15)]"
+              title="Select Drivers, Open Sign-Up Sheet or Manage Functions"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <div className="w-8 h-8 rounded-full bg-[#FFE500] text-black font-black flex items-center justify-center text-[12px] shrink-0">
+                  {(activeDriver?.name || DRIVER_INFO.name).split(' ').map((n) => n[0]).join('')}
+                </div>
+                <div className="truncate">
+                  <span className="font-bold text-[12px] text-white block leading-tight truncate">
+                    {activeDriver?.name || DRIVER_INFO.name}
+                  </span>
+                  <span className="text-[9px] text-[#FFE500] font-mono block truncate">
+                    {activeDriver?.assignedUnit || 'TRK-904'} &bull; CDL {activeDriver?.cdlState || 'IL'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-right font-mono shrink-0 pl-1">
+                <span className="text-[12px] font-bold text-primary block">{speed} MPH</span>
+                <span className="text-[8px] text-emerald-400 block font-bold">ECM 10Hz</span>
               </div>
             </div>
 
-            <div className="text-right font-mono">
-              <span className="text-[12px] font-bold text-primary block">{speed} MPH</span>
-              <span className="text-[8px] text-emerald-400 block font-bold">ECM 10Hz</span>
-            </div>
+            {/* Quick Driver Action Buttons */}
+            {onOpenDriverPortal && (
+              <div className="grid grid-cols-2 gap-1 pt-0.5 text-[9px] font-bold uppercase font-mono">
+                <button
+                  type="button"
+                  onClick={() => onOpenDriverPortal('roster')}
+                  className="py-1 px-1.5 rounded-lg bg-surface-container hover:bg-[#FFE500]/20 text-[#FFE500] border border-[#FFE500]/30 flex items-center justify-center gap-1 cursor-pointer transition-all"
+                >
+                  <span className="material-symbols-outlined text-[13px]">groups</span>
+                  <span>Select Driver</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenDriverPortal('functions')}
+                  className="py-1 px-1.5 rounded-lg bg-surface-container hover:bg-white/10 text-white border border-white/10 flex items-center justify-center gap-1 cursor-pointer transition-all"
+                >
+                  <span className="material-symbols-outlined text-[13px]">tune</span>
+                  <span>Functions</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -168,14 +198,14 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             <span className="text-[10px] font-mono font-bold text-outline uppercase tracking-wider">
               ENTERPRISE COMMAND MODULES
             </span>
-            {onOpenCustomizer && (
+            {onOpenDriverPortal && (
               <button
-                onClick={onOpenCustomizer}
+                onClick={() => onOpenDriverPortal('functions')}
                 className="text-[9px] font-mono text-primary font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
-                title="Customize App Functions & Fleet Settings"
+                title="Choose What Functions You Want & Don't Want"
               >
                 <span className="material-symbols-outlined text-[12px]">tune</span>
-                <span>CUSTOMIZE</span>
+                <span>FUNCTIONS</span>
               </button>
             )}
           </div>

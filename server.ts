@@ -11,6 +11,7 @@ import {
   TwilioConfigurationError,
   TwilioRecipientError,
 } from './server/twilioMessaging';
+import { fleetCore } from './server/fleetCore';
 
 interface MemorySnapshot {
   id: string;
@@ -45,9 +46,26 @@ async function startServer() {
   // MULTI-TENANT AUTHORIZATION & API SECURITY
   // ==========================================
   const tenantAuthMiddleware: express.RequestHandler = (req, res, next) => {
-    // Whitelist public readiness & health endpoints
-    const publicPaths = ['/api/health', '/api/ready', '/api/version'];
-    if (publicPaths.includes(req.path)) {
+    // Whitelist public readiness & health endpoints, driver auth, and cockpit endpoints
+    const publicPaths = [
+      '/api/health',
+      '/api/ready',
+      '/api/version',
+      '/api/auth/signup',
+      '/api/auth/signin',
+      '/api/auth/session',
+      '/api/auth/signout',
+      '/api/auth/tenant',
+      '/api/drivers',
+      '/api/drivers/select',
+      '/api/fleet/functions',
+      '/api/hre/restrictions',
+      '/api/hre/route-audit',
+      '/api/traxxas/telemetry',
+      '/api/traxxas/ping',
+      '/api/traxxas/config',
+    ];
+    if (publicPaths.includes(req.path) || req.path.startsWith('/api/drivers/')) {
       return next();
     }
 
@@ -652,6 +670,173 @@ async function startServer() {
       status: 'OK',
       tenant: (req as any).tenant || { tenantId: 'DEFAULT-CARRIER-TENANT', authenticated: true },
       timestamp: new Date().toISOString(),
+    });
+  });
+
+  // ==========================================
+  // 1. DRIVER AUTHENTICATION & SIGN-UP SHEET API
+  // ==========================================
+  app.post('/api/auth/signup', (req, res) => {
+    try {
+      const result = fleetCore.signupDriver(req.body || {});
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(400).json({ success: false, error: (err as Error).message });
+    }
+  });
+
+  app.post('/api/auth/signin', (req, res) => {
+    try {
+      const { identifier, fmcsaPin } = req.body || {};
+      if (!identifier) {
+        return res.status(400).json({ success: false, error: 'Identifier (Name, CDL, Email, or Driver ID) is required.' });
+      }
+      const result = fleetCore.signinDriver(identifier, fmcsaPin);
+      res.json(result);
+    } catch (err) {
+      res.status(401).json({ success: false, error: (err as Error).message });
+    }
+  });
+
+  app.get('/api/auth/session', (req, res) => {
+    const session = fleetCore.getSession();
+    res.json(session);
+  });
+
+  app.post('/api/auth/signout', (req, res) => {
+    const result = fleetCore.signout();
+    res.json(result);
+  });
+
+  // ==========================================
+  // 2. FLEET DRIVER ROSTER & SELECTION API
+  // ==========================================
+  app.get('/api/drivers', (req, res) => {
+    const drivers = fleetCore.getAllDrivers();
+    const session = fleetCore.getSession();
+    res.json({
+      success: true,
+      drivers,
+      totalDrivers: drivers.length,
+      activeDriverId: session.activeDriver?.driverId || null,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.post('/api/drivers', (req, res) => {
+    try {
+      const result = fleetCore.signupDriver(req.body || {});
+      res.status(201).json({ success: true, driver: result.driver });
+    } catch (err) {
+      res.status(400).json({ success: false, error: (err as Error).message });
+    }
+  });
+
+  app.post('/api/drivers/select', (req, res) => {
+    const { driverId } = req.body || {};
+    if (!driverId || typeof driverId !== 'string') {
+      return res.status(400).json({ success: false, error: 'Valid driverId is required.' });
+    }
+    try {
+      const selected = fleetCore.selectDriver(driverId);
+      res.json({
+        success: true,
+        selectedDriver: selected,
+        message: `Driver ${selected.name} is now the active cockpit profile.`,
+      });
+    } catch (err) {
+      res.status(404).json({ success: false, error: (err as Error).message });
+    }
+  });
+
+  app.put('/api/drivers/:id', (req, res) => {
+    const driverId = req.params.id;
+    try {
+      const updated = fleetCore.updateDriver(driverId, req.body || {});
+      res.json({ success: true, driver: updated });
+    } catch (err) {
+      res.status(404).json({ success: false, error: (err as Error).message });
+    }
+  });
+
+  // ==========================================
+  // 3. FUNCTION & FEATURE MANAGER (CHOOSE WHAT YOU WANT / DON'T WANT)
+  // ==========================================
+  app.get('/api/fleet/functions', (req, res) => {
+    const catalog = fleetCore.getFunctionsCatalog();
+    res.json({
+      success: true,
+      ...catalog,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.post('/api/fleet/functions', (req, res) => {
+    const { enabledModules = {} } = req.body || {};
+    const result = fleetCore.updateFunctionToggles(enabledModules);
+    res.json(result);
+  });
+
+  // ==========================================
+  // 4. HRE (HIGHWAY RESTRICTION & HAZARD ROUTE ENGINE) API
+  // ==========================================
+  app.get('/api/hre/restrictions', (req, res) => {
+    const corridor = (req.query.corridor as string) || undefined;
+    const restrictions = fleetCore.getHreRestrictions(corridor);
+    res.json({
+      success: true,
+      corridor: corridor || 'ALL_CORRIDORS',
+      restrictions,
+      totalCount: restrictions.length,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.post('/api/hre/route-audit', (req, res) => {
+    const { corridor, vehicleHeightFt = 13.5, grossWeightLbs = 79200, hasHazmat = false } = req.body || {};
+    const audit = fleetCore.auditHreRoute({
+      corridor: String(corridor || 'I-20 Eastbound Freight Corridor'),
+      vehicleHeightFt: Number(vehicleHeightFt),
+      grossWeightLbs: Number(grossWeightLbs),
+      hasHazmat: Boolean(hasHazmat),
+    });
+    res.json(audit);
+  });
+
+  // ==========================================
+  // 5. TRAXXAS HIGH-FREQUENCY TELEMETRY SUITE API
+  // ==========================================
+  app.get('/api/traxxas/telemetry', (req, res) => {
+    const telemetry = fleetCore.getTraxxasTelemetry();
+    res.json({
+      success: true,
+      telemetry,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.post('/api/traxxas/telemetry', (req, res) => {
+    const updated = fleetCore.pushTraxxasTelemetry(req.body || {});
+    res.status(201).json({
+      success: true,
+      telemetry: updated,
+    });
+  });
+
+  app.post('/api/traxxas/ping', (req, res) => {
+    const { transponderId } = req.body || {};
+    const pong = fleetCore.pingTraxxasTransponder(transponderId);
+    res.json(pong);
+  });
+
+  app.get('/api/traxxas/config', (req, res) => {
+    res.json({
+      protocol: 'J1939 CAN-Bus // Traxxas Telemetry V4',
+      baudRateKbps: 250,
+      samplingRateHz: 10,
+      accelerometerShockThresholdG: 0.35,
+      crashShockThresholdG: 2.5,
+      status: 'ONLINE',
     });
   });
 

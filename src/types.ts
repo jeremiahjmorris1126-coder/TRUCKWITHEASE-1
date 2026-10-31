@@ -628,3 +628,155 @@ export interface MasterLoopSystemState {
   totalCyclesCompleted: number;
   lastDispatchedAt?: string;
 }
+
+// ============================================================================
+// DRIVER AUTH, ROSTER SELECTION & MODULAR APP FUNCTIONS
+// ============================================================================
+export type DriverRole =
+  | 'OWNER_OPERATOR'
+  | 'FLEET_DRIVER'
+  | 'SAFETY_DISPATCHER'
+  | 'MASTER_MECHANIC';
+
+export interface DriverAuthRecord {
+  driverId: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: DriverRole;
+  cdlNumber: string;
+  cdlState: string;
+  cdlExpirationDate: string;
+  medicalCertExp: string;
+  assignedUnit: string;
+  assignedTrailer: string;
+  carrierName: string;
+  usdotNumber: string;
+  fmcsaPin: string;
+  traxxasTransponderId: string;
+  activeDutyStatus: DutyStatus;
+  selectedFunctions: string[];
+  createdAt: string;
+  dqfStatus: 'FULLY_COMPLIANT' | 'WARNING_EXPIRING' | 'NON_COMPLIANT';
+}
+
+export interface DriverSignUpPayload {
+  name: string;
+  email: string;
+  phone: string;
+  role: DriverRole;
+  cdlNumber: string;
+  cdlState: string;
+  cdlExpirationDate?: string;
+  medicalCertExp?: string;
+  assignedUnit?: string;
+  assignedTrailer?: string;
+  carrierName?: string;
+  usdotNumber?: string;
+  fmcsaPin?: string;
+  traxxasTransponderId?: string;
+  selectedFunctions?: string[];
+}
+
+export interface DriverSignInPayload {
+  identifier: string; // driverId, email, or CDL
+  fmcsaPin?: string;
+}
+
+export interface AppFunctionDefinition {
+  id: string;
+  name: string;
+  description: string;
+  category: 'COCKPIT_HUD' | 'DIAGNOSTICS' | 'TELEMETRY' | 'ROUTE_HAZARD' | 'COMPLIANCE';
+  icon: string;
+  enabled: boolean;
+  isCore: boolean;
+  badge?: string;
+}
+
+// ============================================================================
+// HRE (HIGHWAY RESTRICTION & HAZARD ROUTE ENGINE)
+// ============================================================================
+export type HreRestrictionType =
+  | 'LOW_BRIDGE'
+  | 'STEEP_DOWNGRADE'
+  | 'HAZMAT_PROHIBITED'
+  | 'WEIGHT_LIMIT'
+  | 'WEIGH_STATION_MANDATORY';
+
+export interface HreRestrictionRecord {
+  id: string;
+  restrictionType: HreRestrictionType;
+  corridor: string;
+  mileMarker: number;
+  locationName: string;
+  clearanceFt?: number;
+  clearanceDisplay?: string;
+  bufferDeltaInches?: number;
+  gradePct?: number;
+  speedLimitMph?: number;
+  runawayRampMile?: number;
+  hazmatClassesAffected?: string[];
+  actionRequired: string;
+  status: 'CRITICAL' | 'WARNING' | 'CLEAR';
+  coordinates: { lat: number; lng: number };
+}
+
+export interface HreRouteAuditRequest {
+  corridor: string;
+  vehicleHeightFt: number;
+  grossWeightLbs?: number;
+  hasHazmat?: boolean;
+}
+
+export interface HreRouteAuditResponse {
+  auditId: string;
+  corridor: string;
+  timestamp: string;
+  overallStatus: 'SAFE' | 'ADVISORY' | 'CRITICAL_RESTRICTION';
+  criticalCount: number;
+  warningCount: number;
+  evaluatedHeightFt: number;
+  minimumVerticalClearanceFt: number;
+  minimumClearanceDisplay: string;
+  lowestBufferDeltaInches: number;
+  activeRestrictions: HreRestrictionRecord[];
+  recommendedBypassCorridor?: string;
+  complianceAttestation: string;
+}
+
+// ============================================================================
+// TRAXXAS HIGH-FREQUENCY TELEMETRY SUITE
+// ============================================================================
+export interface TraxxasTelemetryRecord {
+  transponderId: string;
+  beaconStatus: 'CONNECTED_10HZ' | 'STANDBY' | 'ACQUIRING_GPS';
+  firmwareVersion: string;
+  latitude: number;
+  longitude: number;
+  altitudeFt: number;
+  speedMph: number;
+  headingDeg: number;
+  accelerometerG: { x: number; y: number; z: number };
+  peakShockG: number;
+  brakePressurePsi: number;
+  engineCoolantTempF: number;
+  turboBoostPsi: number;
+  clutchPackTempF: number;
+  transmissionOilTempF: number;
+  batteryVoltage: number;
+  canBusHealthPct: number;
+  latencyMs: number;
+  lastPingTimestamp: string;
+  samplingRateHz: number;
+}
+
+export interface TraxxasPingResponse {
+  transponderId: string;
+  pong: boolean;
+  receivedAt: string;
+  latencyMs: number;
+  signalStrengthDbm: number;
+  baudRateKbps: number;
+}
+

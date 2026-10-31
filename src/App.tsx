@@ -37,9 +37,11 @@ import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 import { FirebaseDeploymentModal } from './components/FirebaseDeploymentModal';
 import { BluetoothEldModal } from './components/BluetoothEldModal';
+import { AuthDriverPortalModal } from './components/AuthDriverPortalModal';
 import { bluetoothEldService } from './services/bluetoothEldService';
+import { authDriverService } from './services/authDriverService';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
-import { FleetCustomizationSettings } from './types';
+import { FleetCustomizationSettings, DriverAuthRecord } from './types';
 
 const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
   speedAlertToleranceMph: 5,
@@ -84,6 +86,17 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState<boolean>(false);
   const [isBluetoothConnected, setIsBluetoothConnected] = useState<boolean>(() => bluetoothEldService.getStatus() === 'CONNECTED');
+
+  // Active Commercial Driver & Authentication State
+  const [activeDriver, setActiveDriver] = useState<DriverAuthRecord>(() => authDriverService.getCurrentDriver());
+  const [isAuthPortalOpen, setIsAuthPortalOpen] = useState<boolean>(false);
+  const [authPortalTab, setAuthPortalTab] = useState<'signin' | 'signup' | 'roster' | 'functions'>('roster');
+
+  useEffect(() => {
+    return authDriverService.subscribe((driver) => {
+      setActiveDriver(driver);
+    });
+  }, []);
 
   // Synchronize with Bluetooth ELD Service
   useEffect(() => {
@@ -354,13 +367,21 @@ export default function App() {
         onToggleVoice={voice.toggleListening}
         onOpenEmergency={() => setIsEmergencyOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenDriverPortal={(tab) => {
+          setAuthPortalTab(tab || 'roster');
+          setIsAuthPortalOpen(true);
+        }}
+        activeDriver={activeDriver}
         onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
         onOpenPrivacyLock={() => setIsPrivacyLocked(true)}
         onOpenPdfModal={() => setIsPdfModalOpen(true)}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         enabledModules={fleetSettings.enabledModules}
-        onOpenCustomizer={() => setShowCustomizer(true)}
+        onOpenCustomizer={() => {
+          setAuthPortalTab('functions');
+          setIsAuthPortalOpen(true);
+        }}
       />
 
       {/* Cockpit Header */}
@@ -369,6 +390,11 @@ export default function App() {
         speed={speed}
         onOpenEmergency={() => setIsEmergencyOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenDriverPortal={(tab) => {
+          setAuthPortalTab(tab || 'roster');
+          setIsAuthPortalOpen(true);
+        }}
+        activeDriverName={activeDriver.name}
         onToggleVoice={voice.toggleListening}
         isListening={voice.isListening}
         alertnessScore={alertness.alertnessData.score}
@@ -468,6 +494,18 @@ export default function App() {
         onClose={() => setIsBluetoothModalOpen(false)}
         onShowToast={showToast}
         onUpdateVehicleSpeed={(newSpeed) => setSpeed(newSpeed)}
+      />
+
+      {/* Driver Sign-Up Sheet, Sign-In, Roster & Function Selection Portal Modal */}
+      <AuthDriverPortalModal
+        isOpen={isAuthPortalOpen}
+        onClose={() => setIsAuthPortalOpen(false)}
+        onShowToast={showToast}
+        activeDriver={activeDriver}
+        onDriverChanged={(newDriver) => setActiveDriver(newDriver)}
+        fleetSettings={fleetSettings}
+        onUpdateFleetSettings={handleUpdateFleetSettings}
+        initialTab={authPortalTab}
       />
     </div>
   );

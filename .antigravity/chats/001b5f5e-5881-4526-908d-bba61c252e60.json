@@ -172,6 +172,30 @@
       "created_at": "2026-10-31T13:19:58.293Z",
       "sender": "ios",
       "is_cancelled": false
+    },
+    {
+      "id": "538bd91e-8f06-431d-85d2-dc760653560f",
+      "role": "user",
+      "content": "The sign-up sheet sign in selecting all your drivers making sure you’re choosing what functions you wanna have and what functions you don’t wanna have make sure everything is closed out in the back end. The front end and points are all where they need to be so those are totally functional along with the HRE’s and Traxxas.",
+      "status": "cancelled",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-31T16:35:38.662Z",
+      "sender": "ios",
+      "is_cancelled": true
+    },
+    {
+      "id": "bd2bdd5b-27b8-475e-8d13-10a02c478f0a",
+      "role": "user",
+      "content": "Refactor this code to use clean dependency injection:\n\n1. Identify every external dependency (DB, APIs, config, time, etc.)\n2. Introduce interfaces/abstractions and inject them via constructor or DI container\n3. Remove direct instantiation and static calls; make dependencies explicit and testable\n4. Keep the same public behavior; only change how dependencies are provided\n\nShow the updated code and a brief note on how to unit test the main flow.",
+      "status": "pending",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-31T16:47:16.329Z",
+      "sender": "ios",
+      "is_cancelled": false
     }
   ]
 }

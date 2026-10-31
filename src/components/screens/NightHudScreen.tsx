@@ -16,6 +16,7 @@ import { HudVisionToggle } from '../HudVisionToggle';
 import { MinimalistCruisingOverlay } from '../MinimalistCruisingOverlay';
 import { RouteFocusedCorridorRibbon } from '../RouteFocusedCorridorRibbon';
 import { RegionalWeatherHazardFeed } from '../RegionalWeatherHazardFeed';
+import { HreTraxxasSentinelWidget } from '../HreTraxxasSentinelWidget';
 
 interface NightHudScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -47,7 +48,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
   onNavigateToTab,
 }) => {
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
-  const [cockpitSection, setCockpitSection] = useState<'ROUTE' | 'COMPLIANCE' | 'ALERTNESS'>('ROUTE');
+  const [cockpitSection, setCockpitSection] = useState<'ROUTE' | 'COMPLIANCE' | 'ALERTNESS' | 'HRE_TRAXXAS'>('ROUTE');
   const [copiedHash, setCopiedHash] = useState<boolean>(false);
 
   // Vision Toggle Overlay Profile State ('HIGH_CONTRAST' | 'MINIMALIST' | 'ROUTE_FOCUSED')
@@ -311,7 +312,26 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
             <span className="material-symbols-outlined text-[16px]">psychology</span>
             <span>Driver Alertness &amp; Voice</span>
           </button>
+
+          <button
+            onClick={() => setCockpitSection('HRE_TRAXXAS')}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase transition-all cursor-pointer flex-1 whitespace-nowrap ${
+              cockpitSection === 'HRE_TRAXXAS'
+                ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.4)]'
+                : 'text-outline hover:text-white bg-surface-container/40'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">sensors</span>
+            <span>HRE &amp; Traxxas Live</span>
+          </button>
         </div>
+
+        {/* SECTION 0: HRE & TRAXXAS SUITE */}
+        {cockpitSection === 'HRE_TRAXXAS' && (
+          <div className="space-y-4 animate-fade-in">
+            <HreTraxxasSentinelWidget onShowToast={onShowToast} />
+          </div>
+        )}
 
         {/* SECTION 1: ROUTE & WEATHER */}
         {cockpitSection === 'ROUTE' && (
