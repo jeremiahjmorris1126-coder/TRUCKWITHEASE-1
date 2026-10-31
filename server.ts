@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { execSync } from 'child_process';
 import { createServer as createViteServer } from 'vite';
-import { fetchRegionalWeatherHazards } from './server/weatherHazards';
+import { fetchRegionalWeatherHazards } from './server/weatherHazards.ts';
 import {
   isTwilioConfigured,
   isTwilioVoiceConfigured,
@@ -17,7 +17,7 @@ import {
   TwilioConfigurationError,
   TwilioRecipientError,
 } from './server/twilioMessaging.ts';
-import { fleetCore } from './server/fleetCore';
+import { fleetCore, FleetCoreEngine } from './server/fleetCore.ts';
 import { logger } from './src/utils/logger.ts';
 import { generateCorrelationId, sanitizeMetadata } from './src/utils/errors.ts';
 
@@ -44,9 +44,9 @@ interface PerformanceOptimization {
   appliedState: 'SUCCESS' | 'ACTIVE';
 }
 
-async function startServer() {
+export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express {
+  const core = customFleetCore || fleetCore;
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
@@ -178,6 +178,7 @@ async function startServer() {
   };
 
   const limitTwilioNotifications: express.RequestHandler = (req, res, next) => {
+    if (process.env.NODE_ENV === 'test') return next();
     const now = Date.now();
     const key = req.ip || 'unknown';
     if (now - smsWindowStartedAt >= 60 * 60 * 1000) {
@@ -212,6 +213,7 @@ async function startServer() {
   let voiceWindowStartedAt = Date.now();
 
   const limitTwilioCalls: express.RequestHandler = (req, res, next) => {
+    if (process.env.NODE_ENV === 'test') return next();
     const { isEmergency } = req.body || {};
     if (isEmergency) {
       return next(); // Emergency calls always bypass standard throttling
@@ -881,7 +883,7 @@ async function startServer() {
   // ==========================================
   app.post('/api/auth/signup', (req, res) => {
     try {
-      const result = fleetCore.signupDriver(req.body || {});
+      const result = core.signupDriver(req.body || {});
       res.status(201).json(result);
     } catch (err) {
       res.status(400).json({ success: false, error: (err as Error).message });
@@ -894,7 +896,7 @@ async function startServer() {
       if (!identifier) {
         return res.status(400).json({ success: false, error: 'Identifier (Name, CDL, Email, or Driver ID) is required.' });
       }
-      const result = fleetCore.signinDriver(identifier, fmcsaPin);
+      const result = core.signinDriver(identifier, fmcsaPin);
       res.json(result);
     } catch (err) {
       res.status(401).json({ success: false, error: (err as Error).message });
@@ -902,12 +904,12 @@ async function startServer() {
   });
 
   app.get('/api/auth/session', (req, res) => {
-    const session = fleetCore.getSession();
+    const session = core.getSession();
     res.json(session);
   });
 
   app.post('/api/auth/signout', (req, res) => {
-    const result = fleetCore.signout();
+    const result = core.signout();
     res.json(result);
   });
 
@@ -915,8 +917,8 @@ async function startServer() {
   // 2. FLEET DRIVER ROSTER & SELECTION API
   // ==========================================
   app.get('/api/drivers', (req, res) => {
-    const drivers = fleetCore.getAllDrivers();
-    const session = fleetCore.getSession();
+    const drivers = core.getAllDrivers();
+    const session = core.getSession();
     res.json({
       success: true,
       drivers,
@@ -928,7 +930,7 @@ async function startServer() {
 
   app.post('/api/drivers', (req, res) => {
     try {
-      const result = fleetCore.signupDriver(req.body || {});
+      const result = core.signupDriver(req.body || {});
       res.status(201).json({ success: true, driver: result.driver });
     } catch (err) {
       res.status(400).json({ success: false, error: (err as Error).message });
@@ -941,7 +943,7 @@ async function startServer() {
       return res.status(400).json({ success: false, error: 'Valid driverId is required.' });
     }
     try {
-      const selected = fleetCore.selectDriver(driverId);
+      const selected = core.selectDriver(driverId);
       res.json({
         success: true,
         selectedDriver: selected,
@@ -955,7 +957,7 @@ async function startServer() {
   app.put('/api/drivers/:id', (req, res) => {
     const driverId = req.params.id;
     try {
-      const updated = fleetCore.updateDriver(driverId, req.body || {});
+      const updated = core.updateDriver(driverId, req.body || {});
       res.json({ success: true, driver: updated });
     } catch (err) {
       res.status(404).json({ success: false, error: (err as Error).message });
@@ -966,7 +968,7 @@ async function startServer() {
   // 3. FUNCTION & FEATURE MANAGER (CHOOSE WHAT YOU WANT / DON'T WANT)
   // ==========================================
   app.get('/api/fleet/functions', (req, res) => {
-    const catalog = fleetCore.getFunctionsCatalog();
+    const catalog = core.getFunctionsCatalog();
     res.json({
       success: true,
       ...catalog,
@@ -976,7 +978,7 @@ async function startServer() {
 
   app.post('/api/fleet/functions', (req, res) => {
     const { enabledModules = {} } = req.body || {};
-    const result = fleetCore.updateFunctionToggles(enabledModules);
+    const result = core.updateFunctionToggles(enabledModules);
     res.json(result);
   });
 
@@ -985,7 +987,7 @@ async function startServer() {
   // ==========================================
   app.get('/api/hre/restrictions', (req, res) => {
     const corridor = (req.query.corridor as string) || undefined;
-    const restrictions = fleetCore.getHreRestrictions(corridor);
+    const restrictions = core.getHreRestrictions(corridor);
     res.json({
       success: true,
       corridor: corridor || 'ALL_CORRIDORS',
@@ -997,7 +999,7 @@ async function startServer() {
 
   app.post('/api/hre/route-audit', (req, res) => {
     const { corridor, vehicleHeightFt = 13.5, grossWeightLbs = 79200, hasHazmat = false } = req.body || {};
-    const audit = fleetCore.auditHreRoute({
+    const audit = core.auditHreRoute({
       corridor: String(corridor || 'I-20 Eastbound Freight Corridor'),
       vehicleHeightFt: Number(vehicleHeightFt),
       grossWeightLbs: Number(grossWeightLbs),
@@ -1010,7 +1012,7 @@ async function startServer() {
   // 5. TRAXXAS HIGH-FREQUENCY TELEMETRY SUITE API
   // ==========================================
   app.get('/api/traxxas/telemetry', (req, res) => {
-    const telemetry = fleetCore.getTraxxasTelemetry();
+    const telemetry = core.getTraxxasTelemetry();
     res.json({
       success: true,
       telemetry,
@@ -1019,7 +1021,7 @@ async function startServer() {
   });
 
   app.post('/api/traxxas/telemetry', (req, res) => {
-    const updated = fleetCore.pushTraxxasTelemetry(req.body || {});
+    const updated = core.pushTraxxasTelemetry(req.body || {});
     res.status(201).json({
       success: true,
       telemetry: updated,
@@ -1028,7 +1030,7 @@ async function startServer() {
 
   app.post('/api/traxxas/ping', (req, res) => {
     const { transponderId } = req.body || {};
-    const pong = fleetCore.pingTraxxasTransponder(transponderId);
+    const pong = core.pingTraxxasTransponder(transponderId);
     res.json(pong);
   });
 
@@ -1354,16 +1356,23 @@ async function startServer() {
     });
   });
 
+  return app;
+}
+
+export async function startServer() {
+  const app = createApiApp();
+  const PORT = Number(process.env.PORT) || 3000;
+
   // ==========================================
   // VITE & STATIC SERVING MIDDLEWARE
   // ==========================================
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (process.env.NODE_ENV === 'production') {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -1371,9 +1380,15 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  return app.listen(PORT, '0.0.0.0', () => {
     console.log(`[TruckWithEase Backend] Server running on http://0.0.0.0:${PORT}`);
   });
 }
 
-startServer();
+const isDirectRun =
+  !process.env.NODE_ENV?.includes('test') &&
+  Boolean(process.argv[1] && (process.argv[1].endsWith('server.ts') || process.argv[1].endsWith('server.cjs')));
+
+if (isDirectRun) {
+  startServer();
+}

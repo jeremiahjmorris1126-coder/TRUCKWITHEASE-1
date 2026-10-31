@@ -679,9 +679,11 @@ export class InMemoryHreRestrictionRepository implements IHreRestrictionReposito
 }
 
 export class InMemoryTraxxasTelemetryProvider implements ITraxxasTelemetryProvider {
+  private readonly clock: IClock;
   private currentTelemetry: TraxxasTelemetryRecord;
 
-  constructor(private readonly clock: IClock) {
+  constructor(clock: IClock) {
+    this.clock = clock;
     this.currentTelemetry = {
       transponderId: 'TRAXXAS-TX904-ENTERPRISE',
       beaconStatus: 'CONNECTED_10HZ',
@@ -762,9 +764,11 @@ export interface FleetCoreDependencies {
 }
 
 export class FleetCoreEngine {
+  private readonly deps: FleetCoreDependencies;
   private activeDriverId: string;
 
-  constructor(private readonly deps: FleetCoreDependencies) {
+  constructor(deps: FleetCoreDependencies) {
+    this.deps = deps;
     this.activeDriverId = deps.config.defaultDriverId;
   }
 

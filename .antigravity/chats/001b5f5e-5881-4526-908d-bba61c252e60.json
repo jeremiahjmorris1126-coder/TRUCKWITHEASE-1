@@ -232,6 +232,66 @@
       "created_at": "2026-10-31T17:24:32.419Z",
       "sender": "ios",
       "is_cancelled": false
+    },
+    {
+      "id": "4237ed59-ff36-441e-a66a-a8e6894885c0",
+      "role": "agent",
+      "content": "(empty response)",
+      "status": "completed",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": "4caa92ed-5a50-490b-b94f-f9b97789692f",
+      "created_at": "2026-10-31T17:32:19.319Z",
+      "sender": "macOS",
+      "is_cancelled": false
+    },
+    {
+      "id": "d39ef8cf-c102-4666-9f23-971757157384",
+      "role": "user",
+      "content": "Commit all staged changes with exactly this commit message, unchanged:\n\nCommit",
+      "status": "pending",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-31T17:37:15.284Z",
+      "sender": "ios",
+      "is_cancelled": false
+    },
+    {
+      "id": "e62990d3-3fbe-483a-84a1-7e6829a8c4a5",
+      "role": "agent",
+      "content": "All changes have been committed and pushed to the repository. It is saved.",
+      "status": "completed",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": "d39ef8cf-c102-4666-9f23-971757157384",
+      "created_at": "2026-10-31T17:37:28.194Z",
+      "sender": "macOS",
+      "is_cancelled": false
+    },
+    {
+      "id": "e413c9b6-4e70-4f4b-a7c9-533fc442d689",
+      "role": "user",
+      "content": "Design and sketch integration tests for these API endpoints (or the described API):\n\n1. For each critical endpoint: happy path, validation errors, auth/permission failures\n2. Use the project’s HTTP/test setup; use real DB or a test container if appropriate\n3. Keep tests independent (clean DB or rollback); avoid shared mutable state\n4. One example full test (request → assert status and body)\n\nList the scenarios and provide at least one complete test as a template.",
+      "status": "cancelled",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-31T17:37:38.062Z",
+      "sender": "ios",
+      "is_cancelled": true
+    },
+    {
+      "id": "ba95074b-0a40-4841-82cc-3d67e6bd73d7",
+      "role": "user",
+      "content": "Design and sketch integration tests for these API endpoints (or the described API):\n\n1. For each critical endpoint: happy path, validation errors, auth/permission failures\n2. Use the project’s HTTP/test setup; use real DB or a test container if appropriate\n3. Keep tests independent (clean DB or rollback); avoid shared mutable state\n4. One example full test (request → assert status and body)\n\nList the scenarios and provide at least one complete test as a template.",
+      "status": "pending",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-10-31T17:43:41.724Z",
+      "sender": "ios",
+      "is_cancelled": false
     }
   ]
 }
