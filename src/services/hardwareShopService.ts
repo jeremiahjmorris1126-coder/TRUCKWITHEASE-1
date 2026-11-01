@@ -10,6 +10,7 @@ import type {
   HardwareAddon,
   HardwareOrder,
   HardwareQuoteRequest,
+  HardwareQuote,
   HardwareVendorId,
   HardwareDeliveryMode,
 } from '../types';

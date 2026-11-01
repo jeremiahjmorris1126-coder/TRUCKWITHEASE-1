@@ -957,4 +957,37 @@ export interface HardwareQuoteRequest {
   notes?: string;
 }
 
+export interface HardwareQuote {
+  quoteId: string;
+  issuedAt: string;
+  validUntil: string;
+  quoteRequest: HardwareQuoteRequest;
+  pricingSummary: {
+    product: HardwareProduct;
+    quantity: number;
+    deliveryMode: HardwareDeliveryMode;
+    unitRetailUsd: number;
+    unitWholesaleUsd: number;
+    hardwareSubtotalUsd: number;
+    discountPercent: number;
+    discountUsd: number;
+    discountedHardwareUsd: number;
+    whiteGloveFeeUsd: number;
+    addons: HardwareAddon[];
+    addonsTotalUsd: number;
+    grandTotalUsd: number;
+    monthlySaasTotalUsd: number;
+    totalProfitMarkupUsd: number;
+    marginPercent: number;
+  };
+  salesRep: {
+    name: string;
+    title: string;
+    phone: string;
+    email: string;
+  };
+  guarantee: string;
+}
+
+
 
