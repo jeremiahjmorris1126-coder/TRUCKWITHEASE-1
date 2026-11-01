@@ -132,6 +132,19 @@ export const COMMERCIAL_ELD_PROFILES: EldHardwareProfile[] = [
     batteryPercent: 95,
     isRegisteredFmcsa: true,
   },
+  {
+    id: 'eld-gpstab-direct',
+    name: 'GPSTab Flight ELD & Telematics Gateway',
+    vendor: 'GPSTab / TrackEnsure Inc.',
+    protocol: 'J1939_250K',
+    connectorType: '9-PIN_DEUTSCH_GREEN',
+    firmwareVersion: 'v5.8.12',
+    serialNumber: 'GPSTAB-FLT-88201',
+    fmcsaRegisteredId: 'GPSTAB-001-US',
+    rssi: -44,
+    batteryPercent: 100,
+    isRegisteredFmcsa: true,
+  },
 ];
 
 class BluetoothEldService {

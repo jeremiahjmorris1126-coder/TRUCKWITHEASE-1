@@ -17,6 +17,11 @@ import {
   TwilioConfigurationError,
   TwilioRecipientError,
 } from './server/twilioMessaging.ts';
+import {
+  isGpsTabConfigured,
+  fetchGpsTabTelemetry,
+  fetchGpsTabHos,
+} from './server/gpstabService.ts';
 import { fleetCore, FleetCoreEngine } from './server/fleetCore.ts';
 import { logger } from './src/utils/logger.ts';
 import { generateCorrelationId, sanitizeMetadata } from './src/utils/errors.ts';
@@ -1043,6 +1048,62 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
       crashShockThresholdG: 2.5,
       status: 'ONLINE',
     });
+  });
+
+  // GPSTab (TrackEnsure) Cloud Telematics & ELD API Routes
+  app.get('/api/gpstab/status', (req, res) => {
+    const configured = isGpsTabConfigured();
+    res.json({
+      success: true,
+      provider: 'GPSTab / TrackEnsure',
+      isConfigured: configured,
+      fmcsaCertified: true,
+      protocol: '49 CFR § 395 ELD & J1939 ECM',
+      companyId: process.env.GPSTAB_COMPANY_ID ? '[CONFIGURED]' : null,
+      message: configured
+        ? 'GPSTab Telematics & ELD Secret Configured and Active.'
+        : 'GPSTab running in Autonomous On-Cab Simulation Mode. Set GPSTAB_API_KEY to activate cloud sync.',
+    });
+  });
+
+  app.get('/api/gpstab/telemetry', async (req, res) => {
+    try {
+      const unitNumber = typeof req.query.unit === 'string' ? req.query.unit : 'TRK-904';
+      const telemetry = await fetchGpsTabTelemetry(unitNumber);
+      res.json({ success: true, telemetry });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get('/api/gpstab/hos', async (req, res) => {
+    try {
+      const driverId = typeof req.query.driverId === 'string' ? req.query.driverId : 'DRV-101';
+      const hos = await fetchGpsTabHos(driverId);
+      res.json({ success: true, hos });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/gpstab/sync', async (req, res) => {
+    try {
+      const unitNumber = typeof req.body?.unit === 'string' ? req.body.unit : 'TRK-904';
+      const driverId = typeof req.body?.driverId === 'string' ? req.body.driverId : 'DRV-101';
+      const [telemetry, hos] = await Promise.all([
+        fetchGpsTabTelemetry(unitNumber),
+        fetchGpsTabHos(driverId),
+      ]);
+      res.json({
+        success: true,
+        synchronizedAt: new Date().toISOString(),
+        provider: 'GPSTab',
+        telemetry,
+        hos,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   app.post('/api/messages', (req, res) => {
