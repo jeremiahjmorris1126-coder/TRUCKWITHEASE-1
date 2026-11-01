@@ -1121,6 +1121,29 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
     res.status(201).json({ success: true, message });
   });
 
+  // Safe idempotent chat and message deletion to avoid crashes if deleted twice
+  app.delete('/api/messages/:id', (req, res) => {
+    const { id } = req.params;
+    const index = inCabMessages.findIndex((m) => m.id === id);
+    if (index === -1) {
+      res.json({ success: true, message: 'Message already removed or nonexistent.', alreadyDeleted: true });
+      return;
+    }
+    inCabMessages.splice(index, 1);
+    res.json({ success: true, message: 'Message removed successfully.' });
+  });
+
+  app.delete('/api/chats/:id', (req, res) => {
+    const { id } = req.params;
+    const index = inCabMessages.findIndex((m) => m.id === id || m.attachedLoadId === id);
+    if (index === -1) {
+      res.json({ success: true, message: 'Chat thread already removed or nonexistent.', alreadyDeleted: true });
+      return;
+    }
+    inCabMessages.splice(index, 1);
+    res.json({ success: true, message: 'Chat thread removed successfully.' });
+  });
+
   app.post('/api/dispatch-loop/alert', limitTwilioNotifications, async (req, res) => {
     const { smsBody, stage, loopId, cycleNumber, trip } = req.body || {};
     if (typeof smsBody !== 'string' || smsBody.trim().length === 0 || smsBody.length > 1600) {

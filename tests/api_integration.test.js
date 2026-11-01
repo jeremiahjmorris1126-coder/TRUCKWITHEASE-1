@@ -387,7 +387,42 @@ test('Integration Test Suite: TruckWithEase API Endpoints', async (t) => {
   });
 
   // ==========================================================================
-  // 9. 404 NOT FOUND STRUCTURED HANDLING
+  // 9. IDEMPOTENT CHAT & MESSAGE DELETION (NO CRASH ON DOUBLE DELETE)
+  // ==========================================================================
+  await t.test('DELETE /api/messages/:id and /api/chats/:id -> Idempotent double delete does not crash', async () => {
+    // 1. Create a message
+    const createRes = await fetch(`${env.baseUrl}/api/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'Test chat message for double delete', channel: 'DISPATCH' }),
+    });
+    assert.equal(createRes.status, 201);
+    const createBody = await createRes.json();
+    const msgId = createBody.message.id;
+
+    // 2. First deletion
+    const delRes1 = await fetch(`${env.baseUrl}/api/messages/${msgId}`, { method: 'DELETE' });
+    assert.equal(delRes1.status, 200);
+    const delBody1 = await delRes1.json();
+    assert.equal(delBody1.success, true);
+
+    // 3. Second deletion (idempotent - should not crash or throw 500)
+    const delRes2 = await fetch(`${env.baseUrl}/api/messages/${msgId}`, { method: 'DELETE' });
+    assert.equal(delRes2.status, 200);
+    const delBody2 = await delRes2.json();
+    assert.equal(delBody2.success, true);
+    assert.equal(delBody2.alreadyDeleted, true);
+
+    // 4. Double delete on /api/chats/:id
+    const chatDel1 = await fetch(`${env.baseUrl}/api/chats/nonexistent-chat-999`, { method: 'DELETE' });
+    assert.equal(chatDel1.status, 200);
+    const chatDelBody1 = await chatDel1.json();
+    assert.equal(chatDelBody1.success, true);
+    assert.equal(chatDelBody1.alreadyDeleted, true);
+  });
+
+  // ==========================================================================
+  // 10. 404 NOT FOUND STRUCTURED HANDLING
   // ==========================================================================
   await t.test('GET /api/unmapped-endpoint -> 404 formatted with standard error schema', async () => {
     const res = await fetch(`${env.baseUrl}/api/unmapped-endpoint`);
