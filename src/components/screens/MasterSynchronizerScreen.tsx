@@ -84,9 +84,18 @@ export const MasterSynchronizerScreen: React.FC<MasterSynchronizerProps> = ({
   const [activeScenario, setActiveScenario] = useState<string | null>(null);
 
   // Trigger automated pre-run diagnostic sweep
-  const handleRunMasterSync = () => {
+  const handleRunMasterSync = async () => {
     setIsSyncing(true);
     onShowToast('EXECUTING PRE-RUN MASTER SYNCHRONIZATION SWEEP...', 'sync');
+
+    try {
+      const res = await fetch('/api/health');
+      if (res.ok) {
+        await res.json();
+      }
+    } catch {
+      // Graceful offline fallback
+    }
 
     setTimeout(() => {
       setIsSyncing(false);
@@ -110,7 +119,7 @@ export const MasterSynchronizerScreen: React.FC<MasterSynchronizerProps> = ({
         'DAILY PRE-RUN MASTER SYNC COMPLETE: 100% DISPATCH READINESS CLEARANCE ISSUED!',
         'verified'
       );
-    }, 2200);
+    }, 1200);
   };
 
   const handleApplyScenario = (scenarioId: string, label: string) => {

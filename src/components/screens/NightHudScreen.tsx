@@ -246,7 +246,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               >
                 <div>
                   <span className="text-[9px] text-outline uppercase block">Next Scale</span>
-                  <span className="text-[14px] font-bold text-amber-400">18 Mi â€¢ Bypass</span>
+                  <span className="text-[14px] font-bold text-amber-400">18 Mi • Bypass</span>
                 </div>
                 <span className="material-symbols-outlined text-amber-400 text-[22px]">scale</span>
               </div>
@@ -260,7 +260,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               >
                 <div>
                   <span className="text-[9px] text-outline uppercase block">Corridor &amp; Limit</span>
-                  <span className="text-[14px] font-bold text-sky-400">MO â€¢ 70 MPH</span>
+                  <span className="text-[14px] font-bold text-sky-400">MO • 70 MPH</span>
                 </div>
                 <span className="material-symbols-outlined text-sky-400 text-[22px]">speed</span>
               </div>
@@ -382,7 +382,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                     </span>
                   </div>
                   <span className="font-mono text-[9px] text-outline/80">
-                    KEYBOARD SHORTCUTS: [I] INSPECTION PDF â€¢ [E] E911 â€¢ [V] TOGGLE MIC
+                    KEYBOARD SHORTCUTS: [I] INSPECTION PDF • [E] E911 • [V] TOGGLE MIC
                   </span>
                 </div>
               </div>
@@ -443,7 +443,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               </span>
             </div>
             <span className="bg-primary-container/20 text-primary font-telemetry-label text-[10px] px-space-xs py-0.5 rounded border border-primary/30">
-              49 CFR Â§ 395.15
+              49 CFR § 395.15
             </span>
           </div>
 
@@ -493,7 +493,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                 Split Sleeper
               </span>
               <span className="font-label-caps text-label-caps text-primary-fixed uppercase">
-                Â§ 395.1(g) EXCL
+                § 395.1(g) EXCL
               </span>
             </div>
           </div>
@@ -552,7 +552,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               Carrier &amp; Equipment Identity
             </span>
             <span className="font-telemetry-label text-telemetry-label text-outline">
-              Â§ 395.8(d) FORM
+              § 395.8(d) FORM
             </span>
           </div>
 
@@ -692,7 +692,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               {ACTIVE_HASH}
             </p>
             <div className="flex items-center justify-between pt-space-xs text-outline font-telemetry-label text-[10px]">
-              <span>Merkle #4,132 âž” #4,133</span>
+              <span>Merkle #4,132 ➔ #4,133</span>
               <span className="text-on-surface-variant">2025-03-13 05:14:22 CST</span>
             </div>
           </div>
@@ -717,7 +717,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
           </div>
         </div>
 
-        {/* 49 CFR Â§ 395 STATUTORY CLOCKS */}
+        {/* 49 CFR § 395 STATUTORY CLOCKS */}
         <div className="flex flex-col bg-surface-container p-space-md rounded-xl space-y-space-md shadow-lg border border-surface-container-high/50">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
@@ -750,7 +750,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                 <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '61%' }} />
               </div>
               <span className="font-telemetry-label text-[9px] text-on-surface-variant">
-                0 Violations â€¢ 04h 16m Driven
+                0 Violations • 04h 16m Driven
               </span>
             </div>
 
@@ -769,7 +769,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                 <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '66%' }} />
               </div>
               <span className="font-telemetry-label text-[9px] text-primary truncate font-bold">
-                Split-Reset Â§ 395.1(g)
+                Split-Reset § 395.1(g)
               </span>
             </div>
 
@@ -825,7 +825,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               </span>
             </div>
             <p className="font-body-sm text-[11px] text-on-surface-variant leading-relaxed">
-              Pursuant to <strong className="text-on-surface">49 CFR Â§ 395.1(g)(1)(ii)(A)</strong>, Qualifying Period 1 (07h 12m Sleeper Berth continuous duration) completed at 05:12 CST is legally excluded from calculation against the 14-hour on-duty operating window limit.
+              Pursuant to <strong className="text-on-surface">49 CFR § 395.1(g)(1)(ii)(A)</strong>, Qualifying Period 1 (07h 12m Sleeper Berth continuous duration) completed at 05:12 CST is legally excluded from calculation against the 14-hour on-duty operating window limit.
             </p>
           </div>
         </div>
@@ -1030,7 +1030,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                   {activeDay.dateStr}
                 </span>
                 <span className="font-telemetry-label text-[10px] text-outline">
-                  DRIVE: {activeDay.driveHours} â€¢ ON-DUTY: {activeDay.onDutyHours} â€¢ {activeDay.deficiencies} DEFICIENCIES
+                  DRIVE: {activeDay.driveHours} • ON-DUTY: {activeDay.onDutyHours} • {activeDay.deficiencies} DEFICIENCIES
                 </span>
               </div>
             </div>

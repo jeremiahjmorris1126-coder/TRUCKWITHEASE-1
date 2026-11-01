@@ -433,4 +433,84 @@ test('Integration Test Suite: TruckWithEase API Endpoints', async (t) => {
     assert.equal(body.error.code, 'E_SYS_NOT_FOUND');
     assert.ok(body.error.correlationId);
   });
+
+  // ==========================================================================
+  // 11. FLEET FUNCTIONS CATALOG & TOGGLES (THE G.O.A.T. PERMANENTLY REMOVED)
+  // ==========================================================================
+  await t.test('GET and POST /api/fleet/functions -> Enforces Master Mechanic and disables the-g-o-a-t-', async () => {
+    // 1. GET functions catalog
+    const getRes = await fetch(`${env.baseUrl}/api/fleet/functions`);
+    assert.equal(getRes.status, 200);
+    const getBody = await getRes.json();
+    assert.equal(getBody.success, true);
+    assert.ok(Array.isArray(getBody.functions));
+
+    // 2. POST function toggles: user attempts to turn on deprecated module
+    const postRes = await fetch(`${env.baseUrl}/api/fleet/functions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        enabledModules: {
+          'night-hud': true,
+          'hos-clocks': true,
+          'radar-54b': true,
+          'master-mechanic': true,
+          'the-g-o-a-t-': true, // Must be forced to false per GEMINI.md
+        },
+      }),
+    });
+    assert.equal(postRes.status, 200);
+    const postBody = await postRes.json();
+    assert.equal(postBody.success, true);
+    assert.equal(postBody.disabledFunctions.includes('the-g-o-a-t-'), true);
+    assert.equal(postBody.activeFunctions.includes('the-g-o-a-t-'), false);
+    assert.equal(postBody.activeFunctions.includes('master-mechanic'), true);
+  });
+
+  // ==========================================================================
+  // 12. PREDICTIVE ANALYTICS & STATE RESOLUTION
+  // ==========================================================================
+  await t.test('POST /api/predictive/resolve-states -> Returns resolved eigenstate and physical metrics', async () => {
+    const res = await fetch(`${env.baseUrl}/api/predictive/resolve-states`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        speedMph: 68,
+        grossWeightLbs: 78000,
+        routeCorridor: 'I-20',
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.status, 'SUCCESS');
+    assert.ok(body.resolvedState);
+    assert.ok(body.resolvedState.primaryRouteEigenstate.includes('I-20'));
+    assert.equal(typeof body.resolvedState.kineticMomentumKgMs, 'number');
+    assert.equal(typeof body.resolvedState.brakeRotorHeatDissipationKw, 'number');
+  });
+
+  // ==========================================================================
+  // 13. MEMORY OPTIMIZATION & TELEMETRY HEALTH
+  // ==========================================================================
+  await t.test('POST /api/memory/apply-optimization and GET /api/memory/stats', async () => {
+    const optRes = await fetch(`${env.baseUrl}/api/memory/apply-optimization`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actionType: 'GC_DOM_PRUNE',
+        targetScope: 'TELEMETRY_ENGINE',
+      }),
+    });
+    assert.equal(optRes.status, 200);
+    const optBody = await optRes.json();
+    assert.equal(optBody.status, 'SUCCESS');
+    assert.ok(optBody.optimization?.memorySavedMb > 0);
+
+    const statsRes = await fetch(`${env.baseUrl}/api/memory/stats`);
+    assert.equal(statsRes.status, 200);
+    const statsBody = await statsRes.json();
+    assert.ok(statsBody.latestSnapshot);
+    assert.ok(statsBody.aggregatedStats);
+    assert.ok(statsBody.aggregatedStats.totalMemorySavedMb > 0);
+  });
 });

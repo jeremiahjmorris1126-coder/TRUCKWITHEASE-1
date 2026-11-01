@@ -156,7 +156,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
         <div className="bg-surface-container p-space-md rounded-xl border border-surface-container-high/60 shadow-lg space-y-2">
           <div className="flex items-center justify-between">
             <span className="font-label-caps text-[10px] text-outline uppercase tracking-wider">
-              11-Hour Driving Clock (� 395.3(a)(3))
+              11-Hour Driving Clock (§ 395.3(a)(3))
             </span>
             <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-telemetry-label text-[10px]">
               61% REMAINING
@@ -278,7 +278,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
               calculate
             </span>
             <span className="font-label-caps text-label-caps text-primary uppercase tracking-wider font-bold">
-              49 CFR � 395.1(g) Split Berth Optimizer
+              49 CFR § 395.1(g) Split Berth Optimizer
             </span>
           </div>
           <span className="bg-primary/20 text-primary font-telemetry-label text-[10px] px-2 py-0.5 rounded font-bold">

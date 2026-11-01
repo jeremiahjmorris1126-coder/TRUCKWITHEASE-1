@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TabId } from '../../types';
 import { TripPlannerScreen } from './TripPlannerScreen';
 import { Radar54bScreen } from './Radar54bScreen';
@@ -21,6 +21,10 @@ export const RouteDispatchHub: React.FC<RouteDispatchHubProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'planner' | 'weigh-scales' | 'dispatch' | 'clearance'>(
     initialSubTab
   );
+
+  useEffect(() => {
+    setActiveSubTab(initialSubTab);
+  }, [initialSubTab]);
 
   return (
     <div className="flex flex-col w-full max-w-5xl mx-auto space-y-4">

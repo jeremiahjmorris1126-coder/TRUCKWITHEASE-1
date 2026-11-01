@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InspectionLogEntry } from '../../types';
 import { FleetExpensesInvoiceScreen } from './FleetExpensesInvoiceScreen';
 import { SecurityVaultScreen } from './SecurityVaultScreen';
 import { EcosystemTrustHubScreen } from './EcosystemTrustHubScreen';
 import { MasterSynchronizerScreen } from './MasterSynchronizerScreen';
+import { QuantumIndexScreen } from './QuantumIndexScreen';
 
 interface FleetOperationsHubProps {
-  initialSubTab?: 'invoices' | 'vault' | 'trust' | 'sync';
+  initialSubTab?: 'invoices' | 'vault' | 'trust' | 'sync' | 'quantum';
   onShowToast: (msg: string, icon?: string) => void;
   onOpenPdfModal?: () => void;
   inspectionLogs: InspectionLogEntry[];
@@ -22,9 +23,13 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
   onGenerateNewPdf,
   onClearLogs,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'vault' | 'trust' | 'sync'>(
+  const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'vault' | 'trust' | 'sync' | 'quantum'>(
     initialSubTab
   );
+
+  useEffect(() => {
+    setActiveSubTab(initialSubTab);
+  }, [initialSubTab]);
 
   return (
     <div className="flex flex-col w-full max-w-5xl mx-auto space-y-4">
@@ -79,6 +84,18 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
               <span className="material-symbols-outlined text-[16px]">cloud_sync</span>
               <span>System & Sync</span>
             </button>
+
+            <button
+              onClick={() => setActiveSubTab('quantum')}
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer whitespace-nowrap flex-1 ${
+                activeSubTab === 'quantum'
+                  ? 'bg-primary text-on-primary shadow-md'
+                  : 'bg-surface-container/60 hover:bg-surface-container text-outline hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">waves</span>
+              <span>Quantum Index</span>
+            </button>
           </div>
         </div>
       </div>
@@ -102,6 +119,9 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
         )}
         {activeSubTab === 'sync' && (
           <MasterSynchronizerScreen onShowToast={onShowToast} />
+        )}
+        {activeSubTab === 'quantum' && (
+          <QuantumIndexScreen onShowToast={onShowToast} speed={65} />
         )}
       </div>
     </div>

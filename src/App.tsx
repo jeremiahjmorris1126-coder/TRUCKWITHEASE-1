@@ -39,6 +39,7 @@ import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 import { FirebaseDeploymentModal } from './components/FirebaseDeploymentModal';
 import { BluetoothEldModal } from './components/BluetoothEldModal';
 import { AuthDriverPortalModal } from './components/AuthDriverPortalModal';
+import { TelecommunicationsModal } from './components/TelecommunicationsModal';
 import { bluetoothEldService } from './services/bluetoothEldService';
 import { authDriverService } from './services/authDriverService';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
@@ -164,7 +165,7 @@ export default function App() {
     ).join('');
     const recNum = `REC-${now.getFullYear()}-${pad(now.getMonth() + 1)}${pad(now.getDate())}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    let title = 'FMCSA Â§ 395.8 Driver Daily Log (8-Day Package)';
+    let title = 'FMCSA § 395.8 Driver Daily Log (8-Day Package)';
     if (actionType === 'PRINTED') {
       title = 'In-Cab Mobile Bluetooth Printer Dispatch';
     } else if (actionType === 'ROADSIDE_AUDIT') {
@@ -189,7 +190,7 @@ export default function App() {
       verified: true,
       notes:
         notes ||
-        `Attested by Jeremiah J. Morris (CDL IL-98104820) at ${displayTime}. Verified compliant under 49 CFR Â§ 395.8.`,
+        `Attested by Jeremiah J. Morris (CDL IL-98104820) at ${displayTime}. Verified compliant under 49 CFR § 395.8.`,
     };
 
     setInspectionLogs((prev) => {
@@ -316,7 +317,9 @@ export default function App() {
                 ? 'vault'
                 : activeTab === 'ecosystem'
                 ? 'trust'
-                : activeTab === 'master-sync' || activeTab === 'quantum-index'
+                : activeTab === 'quantum-index'
+                ? 'quantum'
+                : activeTab === 'master-sync'
                 ? 'sync'
                 : 'invoices'
             }
@@ -516,6 +519,13 @@ export default function App() {
         fleetSettings={fleetSettings}
         onUpdateFleetSettings={handleUpdateFleetSettings}
         initialTab={authPortalTab}
+      />
+
+      {/* In-Cab Voice Calling & Telecom Server Toll Console */}
+      <TelecommunicationsModal
+        isOpen={false}
+        onClose={() => {}}
+        onShowToast={showToast}
       />
     </div>
   );
