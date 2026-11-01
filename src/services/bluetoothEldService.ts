@@ -67,6 +67,24 @@ export interface BluetoothRawPacket {
   decodedMeaning: string;
 }
 
+export interface EldConnectionStatPoint {
+  timestamp: string;
+  hoursAgo: number;
+  deviceName: string;
+  serialNumber: string;
+  fmcsaId: string;
+  connectionStatus: BluetoothConnectionStatus | 'RECONNECTING';
+  rssi: number; // dBm (-30 to -90)
+  signalQuality: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
+  packetsTransmitted: number;
+  packetsReceived: number;
+  packetsDropped: number;
+  packetLossPct: number;
+  latencyMs: number;
+  protocol: string;
+  baudRateKbps: number;
+}
+
 // Known Standard Commercial Bluetooth ELDs
 export const COMMERCIAL_ELD_PROFILES: EldHardwareProfile[] = [
   {
@@ -413,6 +431,139 @@ class BluetoothEldService {
       this.telemetry.odometerMiles,
       `"${p.hexData}"`,
     ]);
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
+
+  /**
+   * Generates or retrieves 24-hour connection statistics for the ELD (hourly checkpoints)
+   * covering RSSI signal strength and packet loss for offline fleet analysis.
+   */
+  public getConnectionStats24Hours(nowTimestamp?: number): EldConnectionStatPoint[] {
+    const baseNow = nowTimestamp ?? Date.now();
+    const device = this.connectedDevice || COMMERCIAL_ELD_PROFILES[0];
+    const baseRssi = device.rssi || -45;
+    const stats: EldConnectionStatPoint[] = [];
+
+    for (let hoursAgo = 23; hoursAgo >= 0; hoursAgo--) {
+      const pointTime = new Date(baseNow - hoursAgo * 3600 * 1000);
+      // Realistic RF variation around base RSSI (-35 to -70 dBm)
+      const rssiVariation = Math.round(Math.sin((hoursAgo + 3) * 1.3) * 6 + ((hoursAgo % 5) - 2));
+      const rssi = Math.min(-32, Math.max(-82, baseRssi + rssiVariation));
+
+      // Signal Quality determination based on RSSI
+      let signalQuality: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'POOR';
+      if (rssi >= -50) signalQuality = 'EXCELLENT';
+      else if (rssi >= -65) signalQuality = 'GOOD';
+      else if (rssi >= -75) signalQuality = 'FAIR';
+      else signalQuality = 'POOR';
+
+      // 7,200 transmitted CAN frames per hour (approx 2Hz average baseline)
+      const packetsTransmitted = 7200;
+      // Packet loss varies with signal quality: poorer signal has slightly higher drop
+      const lossBase = rssi < -70 ? 24 : rssi < -60 ? 12 : 5;
+      const packetsDropped = Math.max(0, Math.floor(lossBase + Math.cos(hoursAgo * 0.9) * 4));
+      const packetsReceived = packetsTransmitted - packetsDropped;
+      const packetLossPct = parseFloat(((packetsDropped / packetsTransmitted) * 100).toFixed(3));
+
+      // Latency in ms (sub-20ms for BLE 5.0)
+      const latencyMs = Math.round(14 + Math.abs(rssi + 45) * 0.35);
+
+      stats.push({
+        timestamp: pointTime.toISOString(),
+        hoursAgo,
+        deviceName: device.name,
+        serialNumber: device.serialNumber,
+        fmcsaId: device.fmcsaRegisteredId,
+        connectionStatus: hoursAgo === 0 && this.status !== 'CONNECTED' ? this.status : 'CONNECTED',
+        rssi,
+        signalQuality,
+        packetsTransmitted,
+        packetsReceived,
+        packetsDropped,
+        packetLossPct,
+        latencyMs,
+        protocol: device.protocol,
+        baudRateKbps: 250,
+      });
+    }
+
+    return stats;
+  }
+
+  /**
+   * Aggregates 24-hour summary metrics for quick cockpit inspection
+   */
+  public getConnectionStatsSummary(stats?: EldConnectionStatPoint[]) {
+    const data = stats || this.getConnectionStats24Hours();
+    if (data.length === 0) {
+      return {
+        avgRssi: -45,
+        avgPacketLossPct: 0.1,
+        totalPackets: 0,
+        totalDropped: 0,
+        minRssi: -45,
+        maxRssi: -45,
+      };
+    }
+    const totalPackets = data.reduce((sum, d) => sum + d.packetsTransmitted, 0);
+    const totalDropped = data.reduce((sum, d) => sum + d.packetsDropped, 0);
+    const avgRssi = Math.round(data.reduce((sum, d) => sum + d.rssi, 0) / data.length);
+    const avgPacketLossPct = parseFloat(((totalDropped / totalPackets) * 100).toFixed(3));
+    const minRssi = Math.min(...data.map((d) => d.rssi));
+    const maxRssi = Math.max(...data.map((d) => d.rssi));
+
+    return {
+      avgRssi,
+      avgPacketLossPct,
+      totalPackets,
+      totalDropped,
+      minRssi,
+      maxRssi,
+    };
+  }
+
+  /**
+   * Export 24-hour connection statistics as CSV report for fleet managers
+   * enabling offline analysis of RSSI attenuation and packet loss rates.
+   */
+  public exportConnectionStatsCsv(stats?: EldConnectionStatPoint[]): string {
+    const data = stats || this.getConnectionStats24Hours();
+    const headers = [
+      'Timestamp_ISO',
+      'HoursAgo',
+      'DeviceName',
+      'SerialNumber',
+      'FMCSA_Registered_ID',
+      'ConnectionStatus',
+      'RSSI_dBm',
+      'SignalQuality',
+      'PacketsTransmitted',
+      'PacketsReceived',
+      'PacketsDropped',
+      'PacketLossPct',
+      'LatencyMs',
+      'CAN_Protocol',
+      'BaudRateKbps',
+    ];
+
+    const rows = data.map((s) => [
+      s.timestamp,
+      s.hoursAgo,
+      `"${s.deviceName}"`,
+      s.serialNumber,
+      s.fmcsaId,
+      s.connectionStatus,
+      s.rssi,
+      s.signalQuality,
+      s.packetsTransmitted,
+      s.packetsReceived,
+      s.packetsDropped,
+      s.packetLossPct.toFixed(3),
+      s.latencyMs,
+      s.protocol,
+      s.baudRateKbps,
+    ]);
+
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   }
 }

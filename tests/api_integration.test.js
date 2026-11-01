@@ -721,4 +721,81 @@ test('Integration Test Suite: TruckWithEase API Endpoints', async (t) => {
     assert.match(raw, /SE\*14\*/);
     assert.match(raw, /IEA\*1\*/);
   });
+
+  // ==========================================================================
+  // 16. FMCSA ERODS TAG-A-LONG & ROADSIDE INSPECTION ENDPOINTS
+  // ==========================================================================
+  await t.test('POST /api/erods/tag-along/upload -> Happy Path transfers Tag-a-Long ERoDS & returns receipt', async () => {
+    const payload = {
+      routingKeyComment: 'TX-DPS-INSP-4920',
+      reportNumber: 'TX-2026-094821-I',
+      inspectionLevel: 'LEVEL_2_WALK_AROUND',
+      officerName: 'Trooper J. Miller',
+      officerBadgeNumber: 'Badge #4920',
+      cleanInspection: true,
+      cvsaDecalIssued: true,
+      cvsaDecalNumber: 'CVSA-2026-Q4-88194',
+    };
+
+    const res = await fetch(`${env.baseUrl}/api/erods/tag-along/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.ok(body.bundle);
+    assert.equal(body.bundle.routingKeyComment, 'TX-DPS-INSP-4920');
+    assert.equal(body.bundle.reportNumber, 'TX-2026-094821-I');
+    assert.equal(body.bundle.fmcsaWebServicesStatus, 'ACCEPTED');
+    assert.ok(body.bundle.fmcsaSubmissionReceiptCode.startsWith('RODS-TX-'));
+    assert.ok(body.bundle.cryptographicHashSha256.startsWith('SHA256:'));
+  });
+
+  await t.test('POST /api/erods/tag-along/upload -> Validation Error when routingKeyComment is empty', async () => {
+    const res = await fetch(`${env.baseUrl}/api/erods/tag-along/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        routingKeyComment: '   ',
+        reportNumber: 'TX-2026-094821-I',
+      }),
+    });
+
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.match(body.error, /routing key .* required/i);
+  });
+
+  await t.test('GET /api/erods/tag-along/records -> Happy Path returns list of Tag-a-Long inspection records', async () => {
+    const res = await fetch(`${env.baseUrl}/api/erods/tag-along/records`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.ok(Array.isArray(body.records));
+    assert.ok(body.count >= 2);
+    assert.ok(body.records.some((r) => r.routingKeyComment === 'TX-DPS-INSP-4920'));
+  });
+
+  await t.test('POST /api/erods/tag-along/parse-ocr -> Happy Path extracts inspection sheet metadata', async () => {
+    const res = await fetch(`${env.baseUrl}/api/erods/tag-along/parse-ocr`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        documentName: 'TX_DPS_MCSA5884.pdf',
+        rawText: 'STATE OF TEXAS FORM MCSA-5884 ROADSIDE REPORT',
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.ok(body.scannedInspection);
+    assert.equal(body.scannedInspection.inspectionLevel, 'LEVEL_2_WALK_AROUND');
+    assert.equal(body.scannedInspection.cleanInspection, true);
+    assert.ok(body.scannedInspection.ocrConfidenceScore >= 95);
+  });
 });

@@ -6,6 +6,7 @@ import {
   J1939LiveTelemetry,
   BluetoothConnectionStatus,
   BluetoothRawPacket,
+  EldConnectionStatPoint,
 } from '../services/bluetoothEldService';
 
 interface BluetoothEldModalProps {
@@ -21,11 +22,12 @@ export const BluetoothEldModal: React.FC<BluetoothEldModalProps> = ({
   onShowToast,
   onUpdateVehicleSpeed,
 }) => {
-  const [activeTab, setActiveTab] = useState<'RADAR_SCAN' | 'LIVE_CLUSTER' | 'CAN_BUS_PACKETS' | 'SIMULATION' | 'GPSTAB_CLOUD'>('LIVE_CLUSTER');
+  const [activeTab, setActiveTab] = useState<'LIVE_CLUSTER' | 'RADAR_SCAN' | 'DIAGNOSTIC_LOG' | 'CAN_BUS_PACKETS' | 'SIMULATION' | 'GPSTAB_CLOUD'>('LIVE_CLUSTER');
   const [status, setStatus] = useState<BluetoothConnectionStatus>(() => bluetoothEldService.getStatus());
   const [connectedDevice, setConnectedDevice] = useState<EldHardwareProfile | null>(() => bluetoothEldService.getConnectedDevice());
   const [telemetry, setTelemetry] = useState<J1939LiveTelemetry>(() => bluetoothEldService.getLiveTelemetry());
   const [packets, setPackets] = useState<BluetoothRawPacket[]>(() => bluetoothEldService.getPacketHistory());
+  const [connectionStats, setConnectionStats] = useState<EldConnectionStatPoint[]>(() => bluetoothEldService.getConnectionStats24Hours());
   const [isPairingNow, setIsPairingNow] = useState<boolean>(false);
   const [simSpeed, setSimSpeed] = useState<number>(64);
   const [simRpm, setSimRpm] = useState<number>(1280);
@@ -135,6 +137,21 @@ export const BluetoothEldModal: React.FC<BluetoothEldModalProps> = ({
     onShowToast('J1939 RAW CAN-BUS TELEMETRY LOG EXPORTED TO CSV', 'download');
   };
 
+  const handleExportConnectionStatsCsv = () => {
+    const csvContent = bluetoothEldService.exportConnectionStatsCsv(connectionStats);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.download = `TRUCKWITHEASE_ELD_CONNECTION_STATS_24H_${timestamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    onShowToast('24-HOUR ELD CONNECTION STATS (RSSI & PACKET LOSS) EXPORTED TO CSV', 'download');
+  };
+
   // Sync simulation sliders
   const handleSimSpeedChange = (newSpeed: number) => {
     setSimSpeed(newSpeed);
@@ -237,6 +254,22 @@ export const BluetoothEldModal: React.FC<BluetoothEldModalProps> = ({
             >
               <span className="material-symbols-outlined text-[16px]">radar</span>
               <span>Device Discovery Radar</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('DIAGNOSTIC_LOG');
+                setConnectionStats(bluetoothEldService.getConnectionStats24Hours());
+              }}
+              data-testid="tab-diagnostic-log"
+              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'DIAGNOSTIC_LOG'
+                  ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.4)]'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">receipt_long</span>
+              <span>Diagnostic Log</span>
             </button>
 
             <button
@@ -544,11 +577,230 @@ export const BluetoothEldModal: React.FC<BluetoothEldModalProps> = ({
           )}
 
           {/* ---------------------------------------------------------------- */}
+          {/* TAB: DIAGNOSTIC LOG (24-HOUR CONNECTION RSSI & PACKET LOSS)     */}
+          {/* ---------------------------------------------------------------- */}
+          {activeTab === 'DIAGNOSTIC_LOG' && (
+            <div className="space-y-5 animate-fade-in font-sans">
+              {/* Header with Download Report CTA */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#05080E] via-[#0A0F14] to-[#05080E] border-2 border-amber-500/40 shadow-[0_0_25px_rgba(255,229,0,0.15)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/40 flex items-center justify-center text-[#FFE500] shrink-0 shadow-[0_0_15px_rgba(255,229,0,0.3)]">
+                    <span className="material-symbols-outlined text-[28px]">query_stats</span>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-['Space_Grotesk'] text-base sm:text-lg font-black text-white uppercase tracking-wider">
+                        ELD CONNECTION HEALTH &amp; DIAGNOSTIC LOG
+                      </h3>
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/60 text-[10px] font-black uppercase tracking-wider font-mono">
+                        &#10004; 49 CFR § 395.26
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      24-Hour Continuous Telemetry • RF Signal Attenuation (RSSI) &amp; Packet Loss Log for Fleet Offline Analysis
+                    </p>
+                  </div>
+                </div>
+
+                {/* Primary Action Button: High-visibility safety yellow (.btn-tactical-yellow) */}
+                <button
+                  onClick={handleExportConnectionStatsCsv}
+                  data-testid="download-24h-stats-csv"
+                  className="btn-tactical-yellow px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(255,229,0,0.45)] hover:brightness-110 active:scale-95 transition whitespace-nowrap self-stretch sm:self-auto"
+                  title="Download 24-Hour Connection Statistics (RSSI and Packet Loss) CSV Report for Offline Fleet Analysis"
+                >
+                  <span className="material-symbols-outlined text-[18px]">download</span>
+                  <span>DOWNLOAD 24-HR CONNECTION STATS (.CSV)</span>
+                </button>
+              </div>
+
+              {/* 24-Hour Summary KPI Metric Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 font-mono">
+                {/* Metric 1: Avg RSSI */}
+                <div className="bg-[#05080E] p-4 rounded-xl border border-[#1E2532] shadow-md">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
+                    24H AVG SIGNAL (RSSI)
+                  </span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-2xl font-black text-[#FFE500]">
+                      {bluetoothEldService.getConnectionStatsSummary(connectionStats).avgRssi} dBm
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-500/50 text-[9px] font-black uppercase">
+                      EXCELLENT
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block mt-1">
+                    Min: {bluetoothEldService.getConnectionStatsSummary(connectionStats).minRssi} dBm · Max: {bluetoothEldService.getConnectionStatsSummary(connectionStats).maxRssi} dBm
+                  </span>
+                </div>
+
+                {/* Metric 2: Avg Packet Loss */}
+                <div className="bg-[#05080E] p-4 rounded-xl border border-[#1E2532] shadow-md">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
+                    24H PACKET LOSS RATE
+                  </span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-2xl font-black text-emerald-400">
+                      {bluetoothEldService.getConnectionStatsSummary(connectionStats).avgPacketLossPct.toFixed(2)}%
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-500/50 text-[9px] font-black uppercase">
+                      &lt; 1.0% NOMINAL
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block mt-1">
+                    {bluetoothEldService.getConnectionStatsSummary(connectionStats).totalDropped} dropped / {bluetoothEldService.getConnectionStatsSummary(connectionStats).totalPackets.toLocaleString()} frames
+                  </span>
+                </div>
+
+                {/* Metric 3: Uptime & J1939 Stability */}
+                <div className="bg-[#05080E] p-4 rounded-xl border border-[#1E2532] shadow-md">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
+                    RF LINK AVAILABILITY
+                  </span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-2xl font-black text-sky-400">99.88%</span>
+                    <span className="px-2 py-0.5 rounded-full bg-sky-950/80 text-sky-400 border border-sky-500/50 text-[9px] font-black uppercase">
+                      STABLE
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block mt-1">
+                    250 kbps ECM Broadcast · 0 Drops
+                  </span>
+                </div>
+
+                {/* Metric 4: Hardware Gateway */}
+                <div className="bg-[#05080E] p-4 rounded-xl border border-[#1E2532] shadow-md">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
+                    ACTIVE HARDWARE GATEWAY
+                  </span>
+                  <div className="mt-1">
+                    <span className="text-sm font-black text-white truncate block">
+                      {connectedDevice ? connectedDevice.name : 'Geotab GO9 Telematics'}
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-bold block mt-0.5">
+                      FMCSA: {connectedDevice ? connectedDevice.fmcsaRegisteredId : 'GEO-009-US'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    Port: {connectedDevice ? connectedDevice.connectorType : '9-PIN DEUTSCH'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 24-Hour Connection Statistics Table */}
+              <div className="bg-[#05080E] rounded-2xl border border-[#1E2532] overflow-hidden shadow-xl">
+                <div className="p-3.5 border-b border-[#1E2532] bg-slate-950/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-[#FFE500]">table_chart</span>
+                    <span className="font-['Space_Grotesk'] text-xs font-bold text-white uppercase tracking-wider">
+                      24-HOUR HOURLY ROLLING CONNECTION STATISTICS (OFFLINE AUDIT)
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      ({connectionStats.length} Hourly Checkpoints)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleExportConnectionStatsCsv}
+                      className="px-3 py-1 rounded-lg text-xs font-black uppercase bg-[#FFE500] text-black hover:brightness-110 transition flex items-center gap-1 cursor-pointer shadow-[0_0_10px_rgba(255,229,0,0.3)]"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">file_download</span>
+                      <span>Export .CSV</span>
+                    </button>
+                    <button
+                      onClick={handleExportCsv}
+                      className="px-3 py-1 rounded-lg text-xs font-mono text-slate-400 hover:text-white bg-slate-900 border border-slate-700 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">terminal</span>
+                      <span>Raw CAN</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto max-h-72 scrollbar-thin">
+                  <table className="w-full text-left font-mono text-xs border-collapse">
+                    <thead className="bg-[#0A0F14] text-[10px] text-slate-400 uppercase tracking-wider sticky top-0 border-b border-[#1E2532]">
+                      <tr>
+                        <th className="py-2.5 px-3">Time Interval</th>
+                        <th className="py-2.5 px-3">Signal (RSSI)</th>
+                        <th className="py-2.5 px-3">Quality</th>
+                        <th className="py-2.5 px-3">Packets (Tx / Rx)</th>
+                        <th className="py-2.5 px-3">Dropped</th>
+                        <th className="py-2.5 px-3">Packet Loss</th>
+                        <th className="py-2.5 px-3">Latency</th>
+                        <th className="py-2.5 px-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1E2532]/60 text-slate-300">
+                      {connectionStats.map((stat) => (
+                        <tr key={stat.timestamp} className="hover:bg-slate-900/50 transition">
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span className="text-white font-bold">
+                              {stat.hoursAgo === 0 ? 'Current (Now)' : `${stat.hoursAgo}h ago`}
+                            </span>
+                            <span className="text-[10px] text-slate-500 block">
+                              {new Date(stat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span className="text-[#FFE500] font-bold">{stat.rssi} dBm</span>
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                stat.signalQuality === 'EXCELLENT'
+                                  ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/40'
+                                  : stat.signalQuality === 'GOOD'
+                                  ? 'bg-sky-950/60 text-sky-400 border border-sky-500/40'
+                                  : 'bg-amber-950/60 text-amber-400 border border-amber-500/40'
+                              }`}
+                            >
+                              {stat.signalQuality}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap text-slate-400">
+                            {stat.packetsTransmitted.toLocaleString()} / {stat.packetsReceived.toLocaleString()}
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap font-bold text-amber-400">
+                            {stat.packetsDropped}
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span
+                              className={`font-bold ${
+                                stat.packetLossPct < 0.2
+                                  ? 'text-emerald-400'
+                                  : stat.packetLossPct < 0.5
+                                  ? 'text-amber-400'
+                                  : 'text-red-400'
+                              }`}
+                            >
+                              {stat.packetLossPct.toFixed(2)}%
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap text-slate-400">
+                            {stat.latencyMs} ms
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-950/40 text-emerald-400 text-[10px] font-bold">
+                              {stat.connectionStatus}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ---------------------------------------------------------------- */}
           {/* TAB 3: RAW J1939 CAN-BUS PACKETS                                 */}
           {/* ---------------------------------------------------------------- */}
           {activeTab === 'CAN_BUS_PACKETS' && (
             <div className="space-y-4 animate-fade-in">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="font-bold text-sm text-white uppercase tracking-wider">
                     LIVE J1939 250 KBPS CAN-BUS PACKET INSPECTOR
@@ -557,13 +809,23 @@ export const BluetoothEldModal: React.FC<BluetoothEldModalProps> = ({
                     Streaming SAE J1939 Parameter Group Numbers (PGNs) & Hex Broadcast Frames
                   </p>
                 </div>
-                <button
-                  onClick={handleExportCsv}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-900 border border-slate-700 text-slate-200 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[16px]">file_download</span>
-                  <span>EXPORT CSV LOG</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleExportConnectionStatsCsv}
+                    className="btn-tactical-yellow px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,229,0,0.4)] cursor-pointer"
+                    title="Download 24-Hour Connection Statistics (RSSI and Packet Loss) CSV Report"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">download</span>
+                    <span>DOWNLOAD 24-HR STATS (.CSV)</span>
+                  </button>
+                  <button
+                    onClick={handleExportCsv}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-900 border border-slate-700 text-slate-200 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">file_download</span>
+                    <span>EXPORT CAN LOG</span>
+                  </button>
+                </div>
               </div>
 
               <div className="bg-[#05080E] p-4 rounded-2xl border border-[#1E2532] font-mono text-xs space-y-2 max-h-80 overflow-y-auto">

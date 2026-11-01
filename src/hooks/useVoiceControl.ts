@@ -8,6 +8,7 @@ export interface VoiceControlOptions {
   onTriggerProfile?: () => void;
   onSelectTab?: (tab: TabId) => void;
   onShowToast: (msg: string, icon?: string) => void;
+  onTriggerErodsTagAlong?: () => void;
 }
 
 export interface VoiceControlReturn {
@@ -73,6 +74,7 @@ export const useVoiceControl = ({
   onTriggerProfile,
   onSelectTab,
   onShowToast,
+  onTriggerErodsTagAlong,
 }: VoiceControlOptions): VoiceControlReturn => {
   const [isListening, setIsListening] = useState<boolean>(false);
   const [transcript, setTranscript] = useState<string>('');
@@ -111,6 +113,29 @@ export const useVoiceControl = ({
       if (!phrase) return;
 
       setTranscript(rawPhrase);
+
+      // 0. "Tag-a-Long ERoDS" / Roadside Scanner Modal
+      if (
+        phrase.includes('tag along') ||
+        phrase.includes('tag a long') ||
+        phrase.includes('tagalong') ||
+        phrase.includes('erod') ||
+        phrase.includes('erods') ||
+        phrase.includes('scan inspection') ||
+        phrase.includes('upload inspection')
+      ) {
+        setTimedFeedback(
+          'TAG-A-LONG ERODS',
+          'OPENING FMCSA ROADSIDE INSPECTION SCANNER & UPLOADER',
+          'document_scanner'
+        );
+        if (onTriggerErodsTagAlong) {
+          onTriggerErodsTagAlong();
+        } else {
+          onTriggerInspection();
+        }
+        return;
+      }
 
       // 1. "Show Inspection" / Roadside PDF Modal
       if (

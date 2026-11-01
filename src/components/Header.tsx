@@ -16,6 +16,7 @@ interface HeaderProps {
   onToggleMobileSidebar?: () => void;
   onOpenBluetoothModal?: () => void;
   isBluetoothConnected?: boolean;
+  onOpenErodsModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileSidebar,
   onOpenBluetoothModal,
   isBluetoothConnected = false,
+  onOpenErodsModal,
 }) => {
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
@@ -128,6 +130,20 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               <span className="hidden sm:inline font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
                 {isBluetoothConnected ? 'ELD PAIRED' : 'PAIR ELD'}
+              </span>
+            </button>
+          )}
+
+          {/* FMCSA ERoDS Tag-a-Long & Roadside Inspection Scanner Pill */}
+          {onOpenErodsModal && (
+            <button
+              onClick={onOpenErodsModal}
+              className="flex items-center gap-1 px-2.5 py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 text-xs font-mono font-bold bg-[#FFE500]/15 text-[#FFE500] border-[#FFE500]/40 hover:bg-[#FFE500]/25 shadow-[0_0_10px_rgba(255,229,0,0.25)]"
+              title="FMCSA ERoDS Tag-a-Long & Roadside Inspection Scanner"
+            >
+              <span className="material-symbols-outlined text-[15px]">document_scanner</span>
+              <span className="hidden sm:inline font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
+                ERODS TAG-A-LONG
               </span>
             </button>
           )}

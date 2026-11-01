@@ -38,6 +38,7 @@ import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 import { FirebaseDeploymentModal } from './components/FirebaseDeploymentModal';
 import { BluetoothEldModal } from './components/BluetoothEldModal';
+import { ErodsTagAlongModal } from './components/ErodsTagAlongModal';
 import { AuthDriverPortalModal } from './components/AuthDriverPortalModal';
 import { TelecommunicationsModal } from './components/TelecommunicationsModal';
 import { bluetoothEldService } from './services/bluetoothEldService';
@@ -88,6 +89,7 @@ export default function App() {
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState<boolean>(false);
+  const [isErodsTagAlongOpen, setIsErodsTagAlongOpen] = useState<boolean>(false);
   const [isBluetoothConnected, setIsBluetoothConnected] = useState<boolean>(() => bluetoothEldService.getStatus() === 'CONNECTED');
 
   // Active Commercial Driver & Authentication State
@@ -247,6 +249,7 @@ export default function App() {
     onTriggerProfile: () => setIsProfileOpen(true),
     onSelectTab: (tab) => setActiveTab(tab),
     onShowToast: showToast,
+    onTriggerErodsTagAlong: () => setIsErodsTagAlongOpen(true),
   });
 
   // Driver Alertness Index & Interaction Latency Tracker Hook
@@ -282,6 +285,7 @@ export default function App() {
             onShowToast={showToast}
             speed={speed}
             onRecordInspection={handleRecordInspectionPdf}
+            onOpenErodsTagAlong={() => setIsErodsTagAlongOpen(true)}
           />
         );
       case 'trip-planner':
@@ -413,6 +417,7 @@ export default function App() {
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
         onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
         isBluetoothConnected={isBluetoothConnected}
+        onOpenErodsModal={() => setIsErodsTagAlongOpen(true)}
       />
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
@@ -507,6 +512,16 @@ export default function App() {
         onClose={() => setIsBluetoothModalOpen(false)}
         onShowToast={showToast}
         onUpdateVehicleSpeed={(newSpeed) => setSpeed(newSpeed)}
+      />
+
+      {/* FMCSA ERoDS Tag-a-Long & Roadside Document Scanner Suite */}
+      <ErodsTagAlongModal
+        isOpen={isErodsTagAlongOpen}
+        onClose={() => setIsErodsTagAlongOpen(false)}
+        onShowToast={showToast}
+        onRecordInspectionLog={(actionType, triggerSource, notes) => {
+          handleRecordInspectionPdf(actionType as any, triggerSource as any, notes);
+        }}
       />
 
       {/* Driver Sign-Up Sheet, Sign-In, Roster & Function Selection Portal Modal */}

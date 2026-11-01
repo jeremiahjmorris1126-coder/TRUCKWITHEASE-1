@@ -386,4 +386,113 @@ test('Dependency Injection: FleetCoreEngine flow with MockClock, MockRandomGener
   assert.equal(driverRepo.getById('drv-mock-jere').createdAt, '2026-10-31T16:00:00.000Z');
 });
 
+// ============================================================================
+// BLUETOOTH ELD 24-HOUR CONNECTION STATISTICS (RSSI & PACKET LOSS) TEST SUITE
+// ============================================================================
+test('Bluetooth ELD 24-hour connection statistics (RSSI and packet loss) calculation and CSV export', async () => {
+  const { bluetoothEldService } = await import('../src/services/bluetoothEldService.ts');
+
+  // 1. Generate 24-hour statistics checkpoints
+  const stats = bluetoothEldService.getConnectionStats24Hours();
+  assert.equal(stats.length, 24, 'Must return exactly 24 hourly checkpoints covering the last 24 hours');
+
+  // 2. Validate hourly sequential ordering & time bounds
+  const hoursAgoValues = stats.map((s) => s.hoursAgo);
+  assert.equal(hoursAgoValues[0], 23, 'First record must be 23 hours ago');
+  assert.equal(hoursAgoValues[23], 0, 'Last record must be current hour (0 hours ago)');
+
+  // 3. Validate RF metrics: RSSI and Packet Loss
+  stats.forEach((pt) => {
+    assert.ok(typeof pt.rssi === 'number', 'RSSI must be a number');
+    assert.ok(pt.rssi >= -90 && pt.rssi <= -30, `RSSI (${pt.rssi} dBm) must be within valid commercial BLE range (-90 to -30 dBm)`);
+    assert.ok(['EXCELLENT', 'GOOD', 'FAIR', 'POOR'].includes(pt.signalQuality), 'Signal quality must be categorized');
+    assert.ok(typeof pt.packetLossPct === 'number', 'Packet loss must be a number');
+    assert.ok(pt.packetLossPct >= 0 && pt.packetLossPct <= 100, 'Packet loss percent must be between 0 and 100');
+    assert.equal(pt.packetsTransmitted, pt.packetsReceived + pt.packetsDropped, 'Packets transmitted must equal received + dropped');
+    assert.ok(pt.latencyMs >= 10 && pt.latencyMs <= 60, 'BLE latency must be within realistic commercial range');
+    assert.ok(pt.deviceName && pt.deviceName.length > 0, 'Device name must be populated');
+    assert.ok(pt.fmcsaId && pt.fmcsaId.length > 0, 'FMCSA ID must be populated');
+  });
+
+  // 4. Validate Summary Aggregates
+  const summary = bluetoothEldService.getConnectionStatsSummary(stats);
+  assert.ok(typeof summary.avgRssi === 'number');
+  assert.ok(summary.avgRssi >= -90 && summary.avgRssi <= -30);
+  assert.ok(typeof summary.avgPacketLossPct === 'number');
+  assert.ok(summary.avgPacketLossPct >= 0 && summary.avgPacketLossPct <= 5);
+  assert.equal(summary.totalPackets, 24 * 7200);
+  assert.ok(summary.totalDropped >= 0);
+
+  // 5. Validate CSV Export formatting for offline fleet analysis
+  const csv = bluetoothEldService.exportConnectionStatsCsv(stats);
+  assert.ok(csv.startsWith('Timestamp_ISO,HoursAgo,DeviceName,SerialNumber,FMCSA_Registered_ID,ConnectionStatus,RSSI_dBm,SignalQuality,PacketsTransmitted,PacketsReceived,PacketsDropped,PacketLossPct,LatencyMs,CAN_Protocol,BaudRateKbps'));
+  const lines = csv.trim().split('\n');
+  assert.equal(lines.length, 25, 'CSV must contain 1 header row + 24 hourly data rows');
+  assert.match(lines[1], /^-?[0-9]+/);
+  assert.ok(csv.includes('GEO-009-US') || csv.includes('SAM-054') || csv.includes('GRM-ELOG') || csv.includes('MOT-304'));
+});
+
+// ============================================================================
+// FMCSA ERODS TAG-A-LONG & ROADSIDE INSPECTION TEST SUITE (49 CFR § 395.24)
+// ============================================================================
+test('FMCSA ERoDS Tag-a-Long: Document Scanning, OCR, Pairing & FMCSA Web Services Transfer', async () => {
+  const { erodsTagAlongService, DEFAULT_SAMPLE_INSPECTIONS } = await import('../src/services/erodsTagAlongService.ts');
+
+  // 1. Scan and OCR Parse Roadside Inspection Form MCSA-5884
+  const scanned = await erodsTagAlongService.scanAndParseInspectionSheet(
+    'TX_DPS_MCSA5884_EXAM_REPORT_SIGNED.pdf',
+    DEFAULT_SAMPLE_INSPECTIONS[0].ocrExtractedText
+  );
+
+  assert.ok(scanned.reportNumber.startsWith('TX-'));
+  assert.equal(scanned.jurisdictionState, 'TX');
+  assert.equal(scanned.inspectionLevel, 'LEVEL_2_WALK_AROUND');
+  assert.ok(scanned.officerName.includes('Trooper'));
+  assert.ok(scanned.officerBadgeNumber.includes('4920'));
+  assert.equal(scanned.cleanInspection, true);
+  assert.equal(scanned.cvsaDecalIssued, true);
+  assert.ok(scanned.cvsaDecalNumber?.startsWith('CVSA-'));
+  assert.ok(scanned.ocrConfidenceScore >= 95.0);
+
+  // 2. Generate 49 CFR Part 395 Compliant ERoDS Output File
+  const erodsContent = erodsTagAlongService.generateCompliantErodsFile('TX-DPS-INSP-4920');
+  assert.match(erodsContent, /ELD_REGISTRATION_ID:TWES-ELD-001/);
+  assert.match(erodsContent, /ELD_IDENTIFIER:TRUCKWITHEASE-CAB-GATEWAY-V4/);
+  assert.match(erodsContent, /HEADER:CARRIER_NAME:.*:ROUTING_KEY:TX-DPS-INSP-4920/);
+  assert.match(erodsContent, /DRIVER:NAME:.*:RULES:60HR_7DAYS/);
+  assert.match(erodsContent, /EVENT:POWER_UP/);
+  assert.match(erodsContent, /DIAGNOSTIC_MALFUNCTIONS:MALFUNCTION_INDICATOR:0/);
+  assert.match(erodsContent, /HMAC_SHA256_ATTESTATION_DIGEST:SHA256:/);
+
+  // 3. Create Tag-a-Long Bundle & Transmit to FMCSA Web Services
+  const bundle = await erodsTagAlongService.createTagAlongBundle(
+    scanned,
+    'TX-DPS-INSP-4920',
+    'FMCSA_WEB_SERVICES'
+  );
+
+  assert.ok(bundle.bundleId.startsWith('TAG-ERODS-'));
+  assert.equal(bundle.routingKeyComment, 'TX-DPS-INSP-4920');
+  assert.equal(bundle.fmcsaWebServicesStatus, 'ACCEPTED');
+  assert.ok(bundle.fmcsaSubmissionReceiptCode.startsWith('RODS-TX-'));
+  assert.ok(bundle.cryptographicHashSha256.startsWith('SHA256:'));
+  assert.equal(bundle.attestationSigned, true);
+  assert.equal(bundle.complianceStatus, 'FULLY_COMPLIANT');
+  assert.equal(bundle.eightDayDutyHoursSummary.totalDrivingHours, 48.5);
+
+  // 4. Export Tag-a-Long Audit CSV for fleet offline analysis
+  const auditCsv = erodsTagAlongService.exportTagAlongAuditCsv(bundle);
+  assert.match(auditCsv, /^BundleID,Timestamp_ISO,RoutingKeyComment,CarrierName,USDOT/);
+  assert.ok(auditCsv.includes('TX-DPS-INSP-4920'));
+  assert.ok(auditCsv.includes(bundle.fmcsaSubmissionReceiptCode));
+  assert.ok(auditCsv.includes(bundle.cryptographicHashSha256));
+
+  // 5. History retrieval
+  const allBundles = erodsTagAlongService.getBundles();
+  assert.ok(allBundles.length >= 1);
+  const retrieved = erodsTagAlongService.getBundleById(bundle.bundleId);
+  assert.equal(retrieved?.bundleId, bundle.bundleId);
+});
+
+
 

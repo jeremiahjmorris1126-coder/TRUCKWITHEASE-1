@@ -16,6 +16,54 @@
       "created_at": "2026-11-01T08:45:48.792Z",
       "sender": "ios",
       "is_cancelled": false
+    },
+    {
+      "id": "c8c89442-1421-4ebe-81ad-4ecc5878f990",
+      "role": "user",
+      "content": "Add a button to the ELD Pairing 'Diagnostic Log' sub-tab that generates a downloadable .csv report of the connection statistics (RSSI and packet loss) for the last 24 hours of operation, enabling fleet managers to conduct offline analysis.",
+      "status": "pending",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-11-01T10:05:49.780Z",
+      "sender": "ios",
+      "is_cancelled": false
+    },
+    {
+      "id": "51fa1744-8fb3-4ab3-8baf-e12233b3899e",
+      "role": "agent",
+      "content": "Your weekly Google allowance for this model is used up.\nIt comes back in about 6 days.\nTwo ways to keep going now:\n- Pick another model in the app — each family has its own allowance, and the picker shows what's left.\n- Get more from Google: https://antigravity.google/g1-upgrade",
+      "status": "error",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": "c8c89442-1421-4ebe-81ad-4ecc5878f990",
+      "created_at": "2026-11-01T10:06:56.197Z",
+      "sender": "macOS",
+      "is_cancelled": false
+    },
+    {
+      "id": "fd4d8e2e-0c0f-4179-bae0-eddd60e8e469",
+      "role": "user",
+      "content": "Please commit all staged changes with a descriptive commit message",
+      "status": "cancelled",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-11-01T10:08:47.066Z",
+      "sender": "ios",
+      "is_cancelled": true
+    },
+    {
+      "id": "beb845fc-fd1d-4a98-b130-7d48009ee05c",
+      "role": "user",
+      "content": "Build a tag a long system for Erods so we can do exactly what FMSCA is requiring truckwithease that can scan and upload a Erod or roadside inspection",
+      "status": "cancelled",
+      "model": "gemini-3.8-flash-high",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-11-01T10:13:15.220Z",
+      "sender": "ios",
+      "is_cancelled": true
     }
   ]
 }

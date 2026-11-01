@@ -9,6 +9,7 @@ interface DotComplianceVaultScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
   onRecordInspectionLog?: (actionType: string, triggerSource: string, notes: string) => void;
   onGenerateNewPdf?: (source?: InspectionTriggerSource, notes?: string) => void;
+  onOpenErodsTagAlong?: () => void;
 }
 
 type VaultSubModule = 'DRIVER_DQF' | 'VEHICLE_FLEET' | 'ELD_HOS_LOGS' | 'ALL_RECORDS' | 'FEDERAL_CUSTODY';
@@ -17,6 +18,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
   onShowToast,
   onRecordInspectionLog,
   onGenerateNewPdf,
+  onOpenErodsTagAlong,
 }) => {
   const [activeSubModule, setActiveSubModule] = useState<VaultSubModule>('DRIVER_DQF');
   const [documents, setDocuments] = useState<DotDocumentRecord[]>([]);
@@ -219,6 +221,17 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
               <span className="material-symbols-outlined text-[16px]">draw</span>
               <span>Sign Legal Custody</span>
             </button>
+
+            {onOpenErodsTagAlong && (
+              <button
+                onClick={onOpenErodsTagAlong}
+                className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,229,0,0.4)] flex items-center gap-1.5 cursor-pointer"
+                title="Scan & Upload Roadside Inspections with FMCSA ERoDS Tag-a-Long"
+              >
+                <span className="material-symbols-outlined text-[16px]">document_scanner</span>
+                <span>ERoDS Tag-a-Long</span>
+              </button>
+            )}
 
             <button
               onClick={handleExportFullDossier}

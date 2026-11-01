@@ -10,12 +10,14 @@ interface HosClocksScreenProps {
     triggerSource: InspectionTriggerSource,
     notes: string
   ) => void;
+  onOpenErodsTagAlong?: () => void;
 }
 
 export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
   onShowToast,
   speed,
   onRecordInspection,
+  onOpenErodsTagAlong,
 }) => {
   const [currentStatus, setCurrentStatus] = useState<DutyStatus>('D');
   const [drivingSecondsRemaining, setDrivingSecondsRemaining] = useState<number>(6 * 3600 + 44 * 60 + 12);
@@ -85,23 +87,39 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
           </div>
         </div>
 
-        <button
-          id="export-official-hos-log-btn"
-          onClick={() => {
-            setIsExportModalOpen(true);
-            onShowToast('Sample HOS log preview generated; not an official record.');
-            if (onRecordInspection) {
-              onRecordInspection('PDF_GENERATED', 'MANUAL_HUD', 'Driver requested 24-Hour Official HOS Log for DOT inspection.');
-            }
-          }}
-          className="btn-primary-tactical px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all hover:brightness-110 active:scale-95 shadow-[0_0_16px_rgba(229,169,30,0.35)] shrink-0"
-          title="Export compliant 24-hour log as signed PDF"
-        >
-          <span className="material-symbols-outlined text-[20px] font-bold">picture_as_pdf</span>
-          <span className="font-headline-sm text-[12px] tracking-wider uppercase font-bold">
-            Export Official Log
-          </span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          {onOpenErodsTagAlong && (
+            <button
+              id="erods-tagalong-scanner-btn"
+              onClick={onOpenErodsTagAlong}
+              className="btn-tactical-yellow px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all hover:brightness-110 active:scale-95 shadow-[0_0_16px_rgba(255,229,0,0.4)]"
+              title="FMCSA Tag-a-Long ERoDS & Roadside Document Scanner (49 CFR § 395.24)"
+            >
+              <span className="material-symbols-outlined text-[20px] font-bold">document_scanner</span>
+              <span className="font-headline-sm text-[12px] tracking-wider uppercase font-black">
+                Tag-a-Long ERoDS
+              </span>
+            </button>
+          )}
+
+          <button
+            id="export-official-hos-log-btn"
+            onClick={() => {
+              setIsExportModalOpen(true);
+              onShowToast('Sample HOS log preview generated; not an official record.');
+              if (onRecordInspection) {
+                onRecordInspection('PDF_GENERATED', 'MANUAL_HUD', 'Driver requested 24-Hour Official HOS Log for DOT inspection.');
+              }
+            }}
+            className="btn-primary-tactical px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all hover:brightness-110 active:scale-95 shadow-[0_0_16px_rgba(229,169,30,0.35)]"
+            title="Export compliant 24-hour log as signed PDF"
+          >
+            <span className="material-symbols-outlined text-[20px] font-bold">picture_as_pdf</span>
+            <span className="font-headline-sm text-[12px] tracking-wider uppercase font-bold">
+              Export Official Log
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Real-time Status Switcher */}
