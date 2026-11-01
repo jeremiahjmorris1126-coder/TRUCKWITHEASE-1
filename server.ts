@@ -22,6 +22,8 @@ import {
   fetchGpsTabTelemetry,
   fetchGpsTabHos,
 } from './server/gpstabService.ts';
+import { salesforceSubscriptionService } from './server/salesforceService.ts';
+import { ediIntegrationService } from './server/ediService.ts';
 import { fleetCore, FleetCoreEngine } from './server/fleetCore.ts';
 import { logger } from './src/utils/logger.ts';
 import { generateCorrelationId, sanitizeMetadata } from './src/utils/errors.ts';
@@ -119,11 +121,23 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
       '/api/telecom/voice-twiml',
       '/api/dispatch-calls',
       '/api/dispatch-messages',
+      '/api/subscriptions',
+      '/api/salesforce/status',
+      '/api/salesforce/sync',
+      '/api/edi/transactions',
+      '/api/edi/alternatives',
+      '/api/edi/generate-204',
+      '/api/edi/generate-214',
+      '/api/edi/generate-210',
+      '/api/edi/generate-990',
     ];
     if (
       publicPaths.includes(req.path) ||
       req.path.startsWith('/api/drivers/') ||
-      req.path.startsWith('/api/telecom/')
+      req.path.startsWith('/api/telecom/') ||
+      req.path.startsWith('/api/subscriptions') ||
+      req.path.startsWith('/api/salesforce/') ||
+      req.path.startsWith('/api/edi/')
     ) {
       return next();
     }
@@ -1268,6 +1282,246 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
         error: 'Failed to retrieve grounded weather hazards',
         details: (err as Error).message,
       });
+    }
+  });
+
+  // ==========================================
+  // SALESFORCE ENTERPRISE CRM & SUBSCRIPTION API
+  // Tracks WHO, TIME, and HOW MUCH with automated Salesforce synchronization
+  // ==========================================
+  app.get('/api/subscriptions', (req, res) => {
+    try {
+      const subscriptions = salesforceSubscriptionService.getAllSubscriptions();
+      const status = salesforceSubscriptionService.getStatus();
+      res.json({
+        subscriptions,
+        salesforceStatus: status,
+        count: subscriptions.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to retrieve subscriptions', details: err.message });
+    }
+  });
+
+  app.post('/api/subscriptions', async (req, res) => {
+    try {
+      const {
+        userId,
+        driverName,
+        email,
+        phone,
+        cdlNumber,
+        cdlState,
+        carrierName,
+        usdotNumber,
+        assignedUnit,
+        tier,
+        billingCycle,
+        paymentMethod,
+      } = req.body;
+
+      if (!userId || !driverName || !email || !cdlNumber || !tier) {
+        return res.status(400).json({
+          error: 'Missing required subscription fields',
+          required: ['userId', 'driverName', 'email', 'cdlNumber', 'tier'],
+        });
+      }
+
+      const subscription = await salesforceSubscriptionService.createSubscription({
+        userId,
+        driverName,
+        email,
+        phone,
+        cdlNumber,
+        cdlState,
+        carrierName,
+        usdotNumber,
+        assignedUnit,
+        tier,
+        billingCycle,
+        paymentMethod,
+      });
+
+      res.status(201).json({
+        success: true,
+        subscription,
+        salesforceAttested: subscription.salesforce.status === 'SYNCED',
+        who: subscription.who,
+        time: subscription.time,
+        howMuch: subscription.howMuch,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to create subscription', details: err.message });
+    }
+  });
+
+  app.get('/api/salesforce/status', (req, res) => {
+    try {
+      const status = salesforceSubscriptionService.getStatus();
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to query Salesforce status', details: err.message });
+    }
+  });
+
+  app.post('/api/salesforce/sync', (req, res) => {
+    try {
+      const result = salesforceSubscriptionService.flushQueue();
+      const status = salesforceSubscriptionService.getStatus();
+      res.json({
+        success: true,
+        flushed: result,
+        salesforceStatus: status,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to flush Salesforce queue', details: err.message });
+    }
+  });
+
+  // ==========================================
+  // ANSI ASC X12 EDI & COST MINIMIZATION ENGINE
+  // Eliminates paid REST API polling via standard 204, 214, 210, 990 flat files
+  // ==========================================
+  app.get('/api/edi/transactions', (req, res) => {
+    try {
+      const transactions = ediIntegrationService.getAllTransactions();
+      res.json({
+        transactions,
+        count: transactions.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to retrieve EDI transactions', details: err.message });
+    }
+  });
+
+  app.get('/api/edi/alternatives', (req, res) => {
+    try {
+      const alternatives = ediIntegrationService.getCostMinimizationAlternatives();
+      res.json({
+        alternatives,
+        totalAlternatives: alternatives.length,
+        recommendation: 'Adopt ANSI ASC X12 EDI for load tenders (204) & invoicing (210); adopt edge geofencing for bridge radar to achieve zero cloud API expenses.',
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to retrieve EDI alternatives', details: err.message });
+    }
+  });
+
+  app.post('/api/edi/generate-204', (req, res) => {
+    try {
+      const {
+        loadId,
+        billOfLading,
+        shipperName,
+        shipperAddress,
+        shipperCity,
+        shipperState,
+        shipperZip,
+        consigneeName,
+        consigneeAddress,
+        consigneeCity,
+        consigneeState,
+        consigneeZip,
+        commodityDescription,
+        grossWeightLbs,
+        contractRateUsd,
+        carrierScac,
+      } = req.body;
+
+      if (!loadId || !contractRateUsd) {
+        return res.status(400).json({ error: 'Missing loadId or contractRateUsd' });
+      }
+
+      const ediRecord = ediIntegrationService.generateEdi204({
+        loadId,
+        billOfLading: billOfLading || `BOL-${loadId}`,
+        shipperName: shipperName || 'Dallas Distribution Center Dock 4',
+        shipperAddress: shipperAddress || '3400 Interstate 20 East',
+        shipperCity: shipperCity || 'Dallas',
+        shipperState: shipperState || 'TX',
+        shipperZip: shipperZip || '75236',
+        consigneeName: consigneeName || 'Atlanta Southeast Freight Terminal',
+        consigneeAddress: consigneeAddress || '8800 Logistics Way',
+        consigneeCity: consigneeCity || 'Atlanta',
+        consigneeState: consigneeState || 'GA',
+        consigneeZip: consigneeZip || '30301',
+        commodityDescription: commodityDescription || 'High-Value Cold-Chain Freight',
+        grossWeightLbs: Number(grossWeightLbs) || 42800,
+        contractRateUsd: Number(contractRateUsd),
+        carrierScac: carrierScac || 'TWES',
+      });
+
+      res.status(201).json({ success: true, transaction: ediRecord });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to generate EDI 204', details: err.message });
+    }
+  });
+
+  app.post('/api/edi/generate-214', (req, res) => {
+    try {
+      const { loadId, statusCode, statusDescription, cityName, stateCode, latitude, longitude, unitNumber, trailerNumber } = req.body;
+      if (!loadId || !statusCode) {
+        return res.status(400).json({ error: 'Missing loadId or statusCode' });
+      }
+
+      const ediRecord = ediIntegrationService.generateEdi214({
+        loadId,
+        statusCode: statusCode || 'X6',
+        statusDescription: statusDescription || 'En Route Highway Corridor',
+        cityName: cityName || 'Springfield',
+        stateCode: stateCode || 'MO',
+        latitude: Number(latitude) || 37.2,
+        longitude: Number(longitude) || -93.3,
+        unitNumber: unitNumber || 'TRK-904',
+        trailerNumber: trailerNumber || 'TRL-5321',
+      });
+
+      res.status(201).json({ success: true, transaction: ediRecord });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to generate EDI 214', details: err.message });
+    }
+  });
+
+  app.post('/api/edi/generate-210', (req, res) => {
+    try {
+      const { invoiceNumber, loadId, billToName, billToAddress, billToCity, billToState, billToZip, linehaulAmountUsd, fuelSurchargeUsd, totalAmountUsd, mileage } = req.body;
+      if (!invoiceNumber || !loadId || !totalAmountUsd) {
+        return res.status(400).json({ error: 'Missing invoiceNumber, loadId, or totalAmountUsd' });
+      }
+
+      const ediRecord = ediIntegrationService.generateEdi210({
+        invoiceNumber,
+        loadId,
+        billToName: billToName || 'Freight Brokerage Direct',
+        billToAddress: billToAddress || '100 Broker Blvd',
+        billToCity: billToCity || 'Chicago',
+        billToState: billToState || 'IL',
+        billToZip: billToZip || '60601',
+        linehaulAmountUsd: Number(linehaulAmountUsd) || Number(totalAmountUsd) * 0.85,
+        fuelSurchargeUsd: Number(fuelSurchargeUsd) || Number(totalAmountUsd) * 0.15,
+        totalAmountUsd: Number(totalAmountUsd),
+        mileage: Number(mileage) || 650,
+      });
+
+      res.status(201).json({ success: true, transaction: ediRecord });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to generate EDI 210', details: err.message });
+    }
+  });
+
+  app.post('/api/edi/generate-990', (req, res) => {
+    try {
+      const { loadId, accepted } = req.body;
+      if (!loadId) {
+        return res.status(400).json({ error: 'Missing loadId' });
+      }
+
+      const ediRecord = ediIntegrationService.generateEdi990(loadId, accepted !== false);
+      res.status(201).json({ success: true, transaction: ediRecord });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to generate EDI 990', details: err.message });
     }
   });
 

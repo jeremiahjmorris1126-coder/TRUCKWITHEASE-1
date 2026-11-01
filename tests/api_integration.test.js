@@ -513,4 +513,212 @@ test('Integration Test Suite: TruckWithEase API Endpoints', async (t) => {
     assert.ok(statsBody.aggregatedStats);
     assert.ok(statsBody.aggregatedStats.totalMemorySavedMb > 0);
   });
+
+  // ==========================================================================
+  // 14. SALESFORCE ENTERPRISE CRM & USER SUBSCRIPTION LEDGER (WHO, TIME, HOW MUCH)
+  // ==========================================================================
+  await t.test('POST /api/subscriptions -> Registers commercial subscriber with WHO, TIME, HOW MUCH & Salesforce sync', async () => {
+    const newSubPayload = {
+      userId: 'usr-jeremiah-101',
+      driverName: 'Jeremiah J. Morris',
+      email: 'jeremiah.morris@morrishive.com',
+      phone: '+1 (312) 555-8821',
+      cdlNumber: 'IL-CDL-98104820',
+      cdlState: 'IL',
+      carrierName: 'Morris Hive Freight LLC',
+      usdotNumber: '3948210',
+      assignedUnit: 'TRK-904',
+      tier: 'FLEET_PRO',
+      billingCycle: 'MONTHLY',
+      paymentMethod: 'Corporate ACH Direct •••• 4962',
+    };
+
+    const res = await fetch(`${env.baseUrl}/api/subscriptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newSubPayload),
+    });
+
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.ok(body.subscription);
+
+    // Verify WHO: driver name, email, CDL, carrier
+    assert.equal(body.who.driverName, 'Jeremiah J. Morris');
+    assert.equal(body.who.email, 'jeremiah.morris@morrishive.com');
+    assert.equal(body.who.cdlNumber, 'IL-CDL-98104820');
+    assert.equal(body.who.carrierName, 'Morris Hive Freight LLC');
+
+    // Verify TIME: timestamp, cycle, expiresAt
+    assert.ok(body.time.subscribedAt);
+    assert.equal(body.time.billingCycle, 'MONTHLY');
+    assert.ok(body.time.expiresAt);
+    assert.ok(body.time.formattedTime);
+
+    // Verify HOW MUCH: tier, rate, currency
+    assert.equal(body.howMuch.tier, 'FLEET_PRO');
+    assert.equal(body.howMuch.amountUsd, 99.0);
+    assert.equal(body.howMuch.currency, 'USD');
+
+    // Verify Salesforce attestation & audit ledger hash
+    assert.ok(body.subscription.salesforce);
+    assert.ok(['SYNCED', 'FALLBACK_LEDGER'].includes(body.subscription.salesforce.status));
+    assert.ok(body.subscription.salesforce.auditLedgerHash);
+  });
+
+  await t.test('GET /api/subscriptions & /api/salesforce/status -> Returns registered subscriptions & CRM sync state', async () => {
+    const res = await fetch(`${env.baseUrl}/api/subscriptions`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(Array.isArray(body.subscriptions));
+    assert.ok(body.count >= 2);
+    assert.ok(body.salesforceStatus);
+    assert.equal(typeof body.salesforceStatus.totalSynced, 'number');
+
+    const statusRes = await fetch(`${env.baseUrl}/api/salesforce/status`);
+    assert.equal(statusRes.status, 200);
+    const statusBody = await statusRes.json();
+    assert.ok(statusBody.instanceUrl);
+    assert.ok(['PRODUCTION', 'SANDBOX', 'FALLBACK_LOCAL_LEDGER'].includes(statusBody.environment));
+  });
+
+  // ==========================================================================
+  // 15. ANSI ASC X12 EDI INTEGRATION & 4 COST-MINIMIZING ALTERNATIVES
+  // ==========================================================================
+  await t.test('GET /api/edi/alternatives -> Returns 4 concrete cost-minimizing alternatives to high-cost REST APIs', async () => {
+    const res = await fetch(`${env.baseUrl}/api/edi/alternatives`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.totalAlternatives, 4);
+    assert.ok(Array.isArray(body.alternatives));
+
+    const titles = body.alternatives.map((a) => a.title);
+    assert.ok(titles.some((t) => t.includes('ANSI ASC X12 EDI')));
+    assert.ok(titles.some((t) => t.includes('Webhook / WebSocket')));
+    assert.ok(titles.some((t) => t.includes('Edge Computing') || t.includes('Geofence Mesh')));
+    assert.ok(titles.some((t) => t.includes('MQTT')));
+  });
+
+  await t.test('POST /api/edi/generate-204 -> Generates valid ANSI ASC X12 EDI 204 Motor Carrier Load Tender', async () => {
+    const tenderPayload = {
+      loadId: 'LD-TX-GA-904',
+      billOfLading: 'BOL-88190',
+      shipperName: 'Dallas Distribution Center Dock 4',
+      shipperAddress: '3400 Interstate 20 East',
+      shipperCity: 'Dallas',
+      shipperState: 'TX',
+      shipperZip: '75236',
+      consigneeName: 'Atlanta Southeast Terminal',
+      consigneeAddress: '8800 Logistics Way',
+      consigneeCity: 'Atlanta',
+      consigneeState: 'GA',
+      consigneeZip: '30301',
+      commodityDescription: 'High-Value Cold-Chain Freight',
+      grossWeightLbs: 42800,
+      contractRateUsd: 2540.0,
+      carrierScac: 'TWES',
+    };
+
+    const res = await fetch(`${env.baseUrl}/api/edi/generate-204`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tenderPayload),
+    });
+
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.equal(body.transaction.transactionType, '204');
+    assert.equal(body.transaction.carrierScac, 'TWES');
+    assert.equal(body.transaction.parsedSummary.amountUsd, 2540.0);
+
+    // Verify ANSI ASC X12 structural control segments
+    const raw = body.transaction.rawEdiContent;
+    assert.match(raw, /^ISA\*00\*/);
+    assert.match(raw, /GS\*SM\*MORRISHIVE\*TWES/);
+    assert.match(raw, /ST\*204\*/);
+    assert.match(raw, /B2\*\*TWES\*LD-TX-GA-904\*\*PP/);
+    assert.match(raw, /L11\*BOL-88190\*BM/);
+    assert.match(raw, /N1\*SH\*Dallas Distribution Center Dock 4/);
+    assert.match(raw, /N1\*CN\*Atlanta Southeast Terminal/);
+    assert.match(raw, /SE\*17\*/);
+    assert.match(raw, /GE\*1\*/);
+    assert.match(raw, /IEA\*1\*/);
+  });
+
+  await t.test('POST /api/edi/generate-214 -> Generates valid ANSI ASC X12 EDI 214 Shipment Status Message', async () => {
+    const statusPayload = {
+      loadId: 'LD-TX-GA-904',
+      statusCode: 'X6',
+      statusDescription: 'En Route Interstate 20 Eastbound Corridor',
+      cityName: 'Terrell',
+      stateCode: 'TX',
+      latitude: 32.735,
+      longitude: -96.275,
+      unitNumber: 'TRK-904',
+      trailerNumber: 'TRL-5321',
+    };
+
+    const res = await fetch(`${env.baseUrl}/api/edi/generate-214`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(statusPayload),
+    });
+
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.equal(body.transaction.transactionType, '214');
+
+    const raw = body.transaction.rawEdiContent;
+    assert.match(raw, /^ISA\*00\*/);
+    assert.match(raw, /GS\*QM\*TWES\*MORRISHIVE/);
+    assert.match(raw, /ST\*214\*/);
+    assert.match(raw, /B10\*LD-TX-GA-904/);
+    assert.match(raw, /AT7\*X6\*NS/);
+    assert.match(raw, /MS1\*Terrell\*TX\*USA/);
+    assert.match(raw, /MS2\*TWES\*TRK-904/);
+    assert.match(raw, /MS3\*TWES\*B\*O\*A\*TRL-5321/);
+    assert.match(raw, /SE\*11\*/);
+    assert.match(raw, /IEA\*1\*/);
+  });
+
+  await t.test('POST /api/edi/generate-210 -> Generates valid ANSI ASC X12 EDI 210 Freight Invoice', async () => {
+    const invPayload = {
+      invoiceNumber: 'INV-2026-904',
+      loadId: 'LD-TX-GA-904',
+      billToName: 'Morris Hive Freight Network Direct',
+      billToAddress: '100 Logistics Blvd',
+      billToCity: 'Dallas',
+      billToState: 'TX',
+      billToZip: '75201',
+      linehaulAmountUsd: 2159.0,
+      fuelSurchargeUsd: 381.0,
+      totalAmountUsd: 2540.0,
+      mileage: 780,
+    };
+
+    const res = await fetch(`${env.baseUrl}/api/edi/generate-210`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invPayload),
+    });
+
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.equal(body.transaction.transactionType, '210');
+
+    const raw = body.transaction.rawEdiContent;
+    assert.match(raw, /^ISA\*00\*/);
+    assert.match(raw, /GS\*IM\*TWES\*MORRISHIVE/);
+    assert.match(raw, /ST\*210\*/);
+    assert.match(raw, /B3\*B\*INV-2026-904\*LD-TX-GA-904/);
+    assert.match(raw, /L1\*1\*215900\*FR\*215900/);
+    assert.match(raw, /L1\*2\*38100\*PM\*38100/);
+    assert.match(raw, /L3\*254000\*G\*254000/);
+    assert.match(raw, /SE\*14\*/);
+    assert.match(raw, /IEA\*1\*/);
+  });
 });

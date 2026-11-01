@@ -780,3 +780,82 @@ export interface TraxxasPingResponse {
   baudRateKbps: number;
 }
 
+// ============================================================================
+// SUBSCRIPTIONS & SALESFORCE LEDGER
+// ============================================================================
+export type SubscriptionTier = 'SOLO_OWNER_OPERATOR' | 'FLEET_PRO' | 'ENTERPRISE_COMMAND';
+
+export interface UserSubscriptionRecord {
+  id: string;
+  who: {
+    userId: string;
+    driverName: string;
+    email: string;
+    phone: string;
+    cdlNumber: string;
+    cdlState: string;
+    carrierName: string;
+    usdotNumber?: string;
+    assignedUnit: string;
+  };
+  time: {
+    subscribedAt: string;
+    billingCycle: 'MONTHLY' | 'ANNUAL';
+    expiresAt: string;
+    formattedTime: string;
+  };
+  howMuch: {
+    amountUsd: number;
+    tier: SubscriptionTier;
+    tierName: string;
+    currency: 'USD';
+    paymentMethod: string;
+    autoRenew: boolean;
+  };
+  salesforce: {
+    status: 'SYNCED' | 'QUEUED' | 'FALLBACK_LEDGER';
+    salesforceOpportunityId?: string;
+    salesforceAccountId?: string;
+    salesforceContactId?: string;
+    syncedAt?: string;
+    auditLedgerHash: string;
+    notes: string;
+  };
+}
+
+export interface SalesforceSyncStatus {
+  connected: boolean;
+  instanceUrl?: string;
+  totalSynced: number;
+  queuedCount: number;
+  lastSyncTimestamp: string;
+  environment: 'PRODUCTION' | 'SANDBOX' | 'FALLBACK_LOCAL_LEDGER';
+}
+
+// ============================================================================
+// ANSI ASC X12 EDI TRANSACTIONS (COST-MINIMIZATION ALTERNATIVE)
+// ============================================================================
+export type EdiTransactionType = '204' | '214' | '210' | '990' | '997';
+
+export interface EdiTransactionRecord {
+  id: string;
+  controlNumber: string;
+  transactionType: EdiTransactionType;
+  title: string;
+  direction: 'OUTBOUND' | 'INBOUND';
+  carrierScac: string;
+  tradingPartner: string;
+  timestamp: string;
+  rawEdiContent: string;
+  parsedSummary: {
+    loadId?: string;
+    statusDescription?: string;
+    origin?: string;
+    destination?: string;
+    amountUsd?: number;
+    mileage?: number;
+  };
+  transportMethod: 'AS2' | 'SFTP_MAILBOX' | 'DIRECT_EXPORT';
+  status: 'GENERATED' | 'TRANSMITTED' | 'ACKNOWLEDGED';
+}
+

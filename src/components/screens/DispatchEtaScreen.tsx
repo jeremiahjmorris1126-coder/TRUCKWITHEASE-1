@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { MOCK_DISPATCH_LOADS } from '../../data/mockData';
-import { DispatchLoad, LoadStatus, DispatchMonitorDriver, BrokeredLoadMemory } from '../../types';
+import { DispatchLoad, LoadStatus, DispatchMonitorDriver, BrokeredLoadMemory, EdiTransactionRecord } from '../../types';
 import {
   loadMonitorDrivers,
   saveMonitorDrivers,
@@ -13,6 +13,7 @@ import {
 } from '../../services/liveDispatchMonitorService';
 import { brokeredLoadsMemoryService } from '../../services/brokeredLoadsMemoryService';
 import { buildSmsDeepLink, playDispatchLoopChime, speakDispatchNotification } from '../../services/driverDispatchLoopService';
+import { subscriptionEdiService, EdiCostAlternative } from '../../services/subscriptionEdiService';
 
 interface DispatchEtaProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -81,7 +82,7 @@ const INITIAL_YIELD_LOADS: QuantumYieldLoad[] = [
 
 export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) => {
   const [dispatchViewMode, setDispatchViewMode] = useState<
-    'DISPATCH_ZERO' | 'LIVE_DISPATCH_MONITOR' | 'BROKERED_MEMORY' | 'DOCK_TIMELINE'
+    'DISPATCH_ZERO' | 'LIVE_DISPATCH_MONITOR' | 'BROKERED_MEMORY' | 'DOCK_TIMELINE' | 'EDI_X12_CENTER'
   >('DISPATCH_ZERO');
   const [yieldLoads, setYieldLoads] = useState<QuantumYieldLoad[]>(INITIAL_YIELD_LOADS);
   const [loads, setLoads] = useState<DispatchLoad[]>(MOCK_DISPATCH_LOADS);
@@ -91,6 +92,50 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSplitViewActive, setIsSplitViewActive] = useState<boolean>(true);
   const [mapLayer, setMapLayer] = useState<'VECTOR' | 'TRAFFIC' | 'SATELLITE'>('TRAFFIC');
+
+  // ==========================================================================
+  // ANSI ASC X12 EDI STATE & TRANSACTION ENGINE
+  // ==========================================================================
+  const [ediTransactions, setEdiTransactions] = useState<EdiTransactionRecord[]>([]);
+  const [selectedEdiTransaction, setSelectedEdiTransaction] = useState<EdiTransactionRecord | null>(null);
+  const [isGeneratingEdi, setIsGeneratingEdi] = useState<boolean>(false);
+  const [activeEdiSubtab, setActiveEdiSubtab] = useState<'TRANSACTIONS' | 'NEW_TENDER_204' | 'STATUS_214' | 'INVOICE_210' | 'ALTERNATIVES'>('TRANSACTIONS');
+  const [ediAlternatives, setEdiAlternatives] = useState<EdiCostAlternative[]>([]);
+
+  // EDI 204 form inputs
+  const [edi204LoadId, setEdi204LoadId] = useState<string>('LD-904-TX-GA');
+  const [edi204Bol, setEdi204Bol] = useState<string>('BOL-884910');
+  const [edi204Shipper, setEdi204Shipper] = useState<string>('Dallas Cold Storage Facility');
+  const [edi204ShipperCity, setEdi204ShipperCity] = useState<string>('Dallas');
+  const [edi204ShipperState, setEdi204ShipperState] = useState<string>('TX');
+  const [edi204ShipperZip, setEdi204ShipperZip] = useState<string>('75201');
+  const [edi204Consignee, setEdi204Consignee] = useState<string>('Atlanta Distribution Dock 14');
+  const [edi204ConsigneeCity, setEdi204ConsigneeCity] = useState<string>('Atlanta');
+  const [edi204ConsigneeState, setEdi204ConsigneeState] = useState<string>('GA');
+  const [edi204ConsigneeZip, setEdi204ConsigneeZip] = useState<string>('30301');
+  const [edi204Commodity, setEdi204Commodity] = useState<string>('Frozen Poultry & Foodstuffs');
+  const [edi204Weight, setEdi204Weight] = useState<number>(43200);
+  const [edi204Rate, setEdi204Rate] = useState<number>(2540.0);
+
+  // EDI 214 form inputs
+  const [edi214LoadId, setEdi214LoadId] = useState<string>('LD-904-TX-GA');
+  const [edi214StatusCode, setEdi214StatusCode] = useState<'X6' | 'AF' | 'D1' | 'X1' | 'X4' | 'CD'>('X6');
+  const [edi214StatusDesc, setEdi214StatusDesc] = useState<string>('En Route Interstate 20 Eastbound (MM 492)');
+  const [edi214City, setEdi214City] = useState<string>('Terrell');
+  const [edi214State, setEdi214State] = useState<string>('TX');
+  const [edi214Lat, setEdi214Lat] = useState<number>(32.735);
+  const [edi214Lon, setEdi214Lon] = useState<number>(-96.275);
+  const [edi214Unit, setEdi214Unit] = useState<string>('TRK-904');
+
+  // EDI 210 form inputs
+  const [edi210InvoiceNum, setEdi210InvoiceNum] = useState<string>('INV-2026-904');
+  const [edi210LoadId, setEdi210LoadId] = useState<string>('LD-904-TX-GA');
+  const [edi210BillTo, setEdi210BillTo] = useState<string>('Morris Hive Brokerage Operations');
+  const [edi210BillCity, setEdi210BillCity] = useState<string>('Dallas');
+  const [edi210BillState, setEdi210BillState] = useState<string>('TX');
+  const [edi210BillZip, setEdi210BillZip] = useState<string>('75201');
+  const [edi210Total, setEdi210Total] = useState<number>(2540.0);
+  const [edi210Miles, setEdi210Miles] = useState<number>(781);
 
   // ==========================================================================
   // LIVE DISPATCH MONITOR STATE & 5-SECOND GPS REFRESH ENGINE
@@ -377,13 +422,126 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
     onShowToast(`ONE-CLICK QUANTUM DISPATCH LOCKED // ${target?.revenuePerDutyHour} FOR ${target?.origin} -> ${target?.destination}`, 'bolt');
   };
 
+  const loadEdiData = async () => {
+    try {
+      const [txRes, altRes] = await Promise.all([
+        subscriptionEdiService.getEdiTransactions(),
+        subscriptionEdiService.getEdiAlternatives(),
+      ]);
+      setEdiTransactions(txRes.transactions || []);
+      if (txRes.transactions?.length && !selectedEdiTransaction) {
+        setSelectedEdiTransaction(txRes.transactions[0]);
+      }
+      setEdiAlternatives(altRes.alternatives || []);
+    } catch (e) {
+      console.warn('Failed to load EDI transactions:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (dispatchViewMode === 'EDI_X12_CENTER') {
+      loadEdiData();
+    }
+  }, [dispatchViewMode]);
+
+  const handleGenerateEdi204 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsGeneratingEdi(true);
+    try {
+      const res = await subscriptionEdiService.generateEdi204({
+        loadId: edi204LoadId,
+        billOfLading: edi204Bol,
+        shipperName: edi204Shipper,
+        shipperCity: edi204ShipperCity,
+        shipperState: edi204ShipperState,
+        shipperZip: edi204ShipperZip,
+        consigneeName: edi204Consignee,
+        consigneeCity: edi204ConsigneeCity,
+        consigneeState: edi204ConsigneeState,
+        consigneeZip: edi204ConsigneeZip,
+        commodityDescription: edi204Commodity,
+        grossWeightLbs: edi204Weight,
+        contractRateUsd: edi204Rate,
+        carrierScac: 'TWES',
+      });
+      await loadEdiData();
+      setSelectedEdiTransaction(res.transaction);
+      setActiveEdiSubtab('TRANSACTIONS');
+      onShowToast(`EDI 204 LOAD TENDER GENERATED: ${res.transaction.controlNumber} ($${edi204Rate.toFixed(2)})`, 'verified');
+    } catch (err: any) {
+      onShowToast(err.message || 'Failed generating EDI 204', 'error');
+    }
+    setIsGeneratingEdi(false);
+  };
+
+  const handleGenerateEdi214 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsGeneratingEdi(true);
+    try {
+      const res = await subscriptionEdiService.generateEdi214({
+        loadId: edi214LoadId,
+        statusCode: edi214StatusCode,
+        statusDescription: edi214StatusDesc,
+        cityName: edi214City,
+        stateCode: edi214State,
+        latitude: edi214Lat,
+        longitude: edi214Lon,
+        unitNumber: edi214Unit,
+      });
+      await loadEdiData();
+      setSelectedEdiTransaction(res.transaction);
+      setActiveEdiSubtab('TRANSACTIONS');
+      onShowToast(`EDI 214 SHIPMENT STATUS GENERATED: [${edi214StatusCode}] ${edi214City}, ${edi214State}`, 'verified');
+    } catch (err: any) {
+      onShowToast(err.message || 'Failed generating EDI 214', 'error');
+    }
+    setIsGeneratingEdi(false);
+  };
+
+  const handleGenerateEdi210 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsGeneratingEdi(true);
+    try {
+      const res = await subscriptionEdiService.generateEdi210({
+        invoiceNumber: edi210InvoiceNum,
+        loadId: edi210LoadId,
+        billToName: edi210BillTo,
+        billToCity: edi210BillCity,
+        billToState: edi210BillState,
+        billToZip: edi210BillZip,
+        totalAmountUsd: edi210Total,
+        mileage: edi210Miles,
+      });
+      await loadEdiData();
+      setSelectedEdiTransaction(res.transaction);
+      setActiveEdiSubtab('TRANSACTIONS');
+      onShowToast(`EDI 210 FREIGHT INVOICE GENERATED: #${edi210InvoiceNum} ($${edi210Total.toFixed(2)})`, 'verified');
+    } catch (err: any) {
+      onShowToast(err.message || 'Failed generating EDI 210', 'error');
+    }
+    setIsGeneratingEdi(false);
+  };
+
+  const downloadEdiFile = (tx: EdiTransactionRecord) => {
+    const blob = new Blob([tx.rawEdiContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `X12_${tx.transactionType}_${tx.controlNumber}.edi`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    onShowToast(`DOWNLOADED ANSI X12 ${tx.transactionType} FILE`, 'download');
+  };
+
   return (
     <div className="flex flex-col w-full max-w-5xl mx-auto px-gutter-mobile pb-space-2xl space-y-space-md">
       {/* ==================================================================== */}
-      {/* 1. TOP VIEW MODE SELECTOR: 4 INTEGRATED COCKPIT MODES                */}
+      {/* 1. TOP VIEW MODE SELECTOR: 5 INTEGRATED COCKPIT MODES                */}
       {/* ==================================================================== */}
       <div className="bg-[#0A0F14] p-1.5 rounded-2xl border border-[#1E2532] shadow-2xl max-w-4xl mx-auto w-full">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
           {/* Button 1: DISPATCH ZERO */}
           <button
             onClick={() => setDispatchViewMode('DISPATCH_ZERO')}
@@ -438,6 +596,19 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
           >
             <span className="material-symbols-outlined text-[16px]">view_timeline</span>
             <span>Dock Timeline</span>
+          </button>
+
+          {/* Button 5: ANSI ASC X12 EDI CENTER */}
+          <button
+            onClick={() => setDispatchViewMode('EDI_X12_CENTER')}
+            className={`py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+              dispatchViewMode === 'EDI_X12_CENTER'
+                ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.45)]'
+                : 'text-slate-400 hover:text-white bg-slate-900/40'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">receipt_long</span>
+            <span>EDI X12 Center</span>
           </button>
         </div>
       </div>
@@ -1393,6 +1564,616 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
             </div>
           </div>
         </>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODE 5: ANSI ASC X12 EDI INTEGRATION & COST MINIMIZATION CENTER     */}
+      {/* ==================================================================== */}
+      {dispatchViewMode === 'EDI_X12_CENTER' && (
+        <div className="space-y-4 w-full animate-fade-in font-mono">
+          {/* Header Banner */}
+          <div className="p-4 bg-[#0A0F14] border border-[#FFE500]/40 rounded-2xl shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-[#FFE500] text-black flex items-center justify-center font-black shadow-[0_0_20px_rgba(255,229,0,0.4)]">
+                <span className="material-symbols-outlined text-[28px]">receipt_long</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] font-black text-[#FFE500] uppercase tracking-wider">
+                    ANSI ASC X12 EDI MOTOR CARRIER SUITE
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                    ZERO SAAS API COSTS
+                  </span>
+                </div>
+                <h2 className="text-[16px] font-black text-white uppercase tracking-tight">
+                  Flat-File AS2 / SFTP Transportation Mailbox (SCAC: TWES)
+                </h2>
+                <p className="text-[10px] text-slate-400 font-sans">
+                  Direct B2B electronic data interchange eliminating per-hit SaaS API charges ($0.05–$0.35/call).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-lg bg-[#05080E] border border-white/10 text-[10px] text-slate-300">
+                SCAC: <strong className="text-[#FFE500]">TWES</strong> &bull; Version: <strong>004010</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* EDI Subtab Navigation */}
+          <div className="flex flex-wrap items-center gap-1.5 bg-[#05080E] p-1.5 rounded-xl border border-white/10 text-[11px] font-bold uppercase">
+            <button
+              onClick={() => setActiveEdiSubtab('TRANSACTIONS')}
+              className={`py-2 px-3 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                activeEdiSubtab === 'TRANSACTIONS'
+                  ? 'bg-[#FFE500] text-black font-black'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">folder_zip</span>
+              <span>EDI Mailbox ({ediTransactions.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveEdiSubtab('NEW_TENDER_204')}
+              className={`py-2 px-3 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                activeEdiSubtab === 'NEW_TENDER_204'
+                  ? 'bg-[#FFE500] text-black font-black'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">add_box</span>
+              <span>Generate 204 Tender</span>
+            </button>
+
+            <button
+              onClick={() => setActiveEdiSubtab('STATUS_214')}
+              className={`py-2 px-3 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                activeEdiSubtab === 'STATUS_214'
+                  ? 'bg-[#FFE500] text-black font-black'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">pin_drop</span>
+              <span>Generate 214 Milestone</span>
+            </button>
+
+            <button
+              onClick={() => setActiveEdiSubtab('INVOICE_210')}
+              className={`py-2 px-3 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                activeEdiSubtab === 'INVOICE_210'
+                  ? 'bg-[#FFE500] text-black font-black'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">payments</span>
+              <span>Generate 210 Invoice</span>
+            </button>
+
+            <button
+              onClick={() => setActiveEdiSubtab('ALTERNATIVES')}
+              className={`py-2 px-3 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                activeEdiSubtab === 'ALTERNATIVES'
+                  ? 'bg-[#FFE500] text-black font-black'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">savings</span>
+              <span>4 Cost Alternatives</span>
+            </button>
+          </div>
+
+          {/* SUBTAB 1: TRANSACTIONS MAILBOX */}
+          {activeEdiSubtab === 'TRANSACTIONS' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Transactions List */}
+              <div className="p-4 rounded-xl bg-[#0A0F14] border border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[12px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[#FFE500] text-[16px]">swap_horiz</span>
+                    <span>Transmitted X12 Segments ({ediTransactions.length})</span>
+                  </h3>
+                  <button
+                    onClick={loadEdiData}
+                    className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">refresh</span>
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {ediTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      onClick={() => setSelectedEdiTransaction(tx)}
+                      className={`p-3 rounded-lg border cursor-pointer transition space-y-1 ${
+                        selectedEdiTransaction?.id === tx.id
+                          ? 'border-[#FFE500] bg-[#FFE500]/10 shadow-[0_0_12px_rgba(255,229,0,0.2)]'
+                          : 'border-white/5 bg-[#05080E] hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="px-1.5 py-0.5 rounded bg-white/10 text-white font-bold">
+                          EDI {tx.transactionType}
+                        </span>
+                        <span className="text-slate-400">Ctrl #{tx.controlNumber}</span>
+                        <span className="text-emerald-400 font-bold">{tx.status}</span>
+                      </div>
+                      <div className="text-[11px] font-bold text-white truncate">{tx.title}</div>
+                      <div className="flex items-center justify-between text-[9px] text-slate-400">
+                        <span>Partner: {tx.tradingPartner}</span>
+                        <span>{tx.transportMethod}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Raw X12 Segment Viewer */}
+              <div className="p-4 rounded-xl bg-[#0A0F14] border border-white/10 space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-[12px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[#FFE500] text-[16px]">terminal</span>
+                      <span>Raw ANSI ASC X12 Segment Stream</span>
+                    </h3>
+                    {selectedEdiTransaction && (
+                      <button
+                        onClick={() => downloadEdiFile(selectedEdiTransaction)}
+                        className="py-1 px-2.5 rounded-lg bg-[#FFE500] hover:bg-[#FFDF00] text-black text-[10px] font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1 shadow-[0_0_10px_rgba(255,229,0,0.3)]"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">download</span>
+                        <span>Download .edi</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {selectedEdiTransaction ? (
+                    <div className="p-3 rounded-lg bg-black border border-white/15 overflow-x-auto text-[11px] leading-relaxed text-emerald-400 max-h-[440px] overflow-y-auto">
+                      <pre className="whitespace-pre font-mono">
+                        {selectedEdiTransaction.rawEdiContent}
+                      </pre>
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-slate-500 text-[11px]">
+                      Select an EDI transaction from the mailbox to inspect raw segments.
+                    </div>
+                  )}
+                </div>
+
+                {selectedEdiTransaction && (
+                  <div className="p-2.5 rounded-lg bg-[#05080E] border border-white/10 text-[10px] text-slate-300 flex items-center justify-between">
+                    <div>
+                      <span>Delimiter: <strong>Asterisk (*)</strong></span> &bull; <span>Segment Terminator: <strong>Tilde (~)</strong></span>
+                    </div>
+                    <span className="text-emerald-400 font-bold">✔ X12 Syntactically Valid</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* SUBTAB 2: GENERATE EDI 204 LOAD TENDER */}
+          {activeEdiSubtab === 'NEW_TENDER_204' && (
+            <form onSubmit={handleGenerateEdi204} className="p-5 rounded-xl bg-[#0A0F14] border border-white/10 space-y-4">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                  <h3 className="text-[14px] font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#FFE500]">local_shipping</span>
+                    <span>Generate EDI 204 Motor Carrier Load Tender</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-sans">
+                    Replaces paid DAT / Truckstop load board REST calls with standard B2B tender flat files.
+                  </p>
+                </div>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+                  Transaction Set 204
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-[11px]">
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Load ID (B2 Segment)</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi204LoadId}
+                    onChange={(e) => setEdi204LoadId(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Bill of Lading (L11 BM)</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi204Bol}
+                    onChange={(e) => setEdi204Bol(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Contract Rate USD (L1 FR)</label>
+                  <input
+                    type="number"
+                    required
+                    value={edi204Rate}
+                    onChange={(e) => setEdi204Rate(Number(e.target.value))}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-[#FFE500] font-black focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Shipper Facility (N1 SH)</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi204Shipper}
+                    onChange={(e) => setEdi204Shipper(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Shipper City &amp; State</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={edi204ShipperCity}
+                      onChange={(e) => setEdi204ShipperCity(e.target.value)}
+                      className="w-2/3 p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                    />
+                    <input
+                      type="text"
+                      required
+                      maxLength={2}
+                      value={edi204ShipperState}
+                      onChange={(e) => setEdi204ShipperState(e.target.value.toUpperCase())}
+                      className="w-1/3 p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none text-center"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Consignee Terminal (N1 CN)</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi204Consignee}
+                    onChange={(e) => setEdi204Consignee(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Consignee City &amp; State</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={edi204ConsigneeCity}
+                      onChange={(e) => setEdi204ConsigneeCity(e.target.value)}
+                      className="w-2/3 p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                    />
+                    <input
+                      type="text"
+                      required
+                      maxLength={2}
+                      value={edi204ConsigneeState}
+                      onChange={(e) => setEdi204ConsigneeState(e.target.value.toUpperCase())}
+                      className="w-1/3 p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none text-center"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Commodity (L5 Segment)</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi204Commodity}
+                    onChange={(e) => setEdi204Commodity(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Gross Weight Lbs (S5 Segment)</label>
+                  <input
+                    type="number"
+                    required
+                    value={edi204Weight}
+                    onChange={(e) => setEdi204Weight(Number(e.target.value))}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isGeneratingEdi}
+                className="w-full py-3 rounded-xl bg-[#FFE500] hover:bg-[#FFDF00] text-black font-black text-[12px] uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_20px_rgba(255,229,0,0.45)] hover:brightness-110 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">bolt</span>
+                <span>{isGeneratingEdi ? 'Generating X12 Tender...' : 'Generate & Transmit EDI 204 Tender'}</span>
+              </button>
+            </form>
+          )}
+
+          {/* SUBTAB 3: GENERATE EDI 214 SHIPMENT STATUS */}
+          {activeEdiSubtab === 'STATUS_214' && (
+            <form onSubmit={handleGenerateEdi214} className="p-5 rounded-xl bg-[#0A0F14] border border-white/10 space-y-4">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                  <h3 className="text-[14px] font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#FFE500]">pin_drop</span>
+                    <span>Generate EDI 214 Shipment Status Message</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-sans">
+                    Replaces high-frequency SaaS GPS polling with event-driven milestone updates.
+                  </p>
+                </div>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+                  Transaction Set 214
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-[11px]">
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Load ID (B10 Segment)</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi214LoadId}
+                    onChange={(e) => setEdi214LoadId(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Status Code (AT7 Segment)</label>
+                  <select
+                    value={edi214StatusCode}
+                    onChange={(e) => setEdi214StatusCode(e.target.value as any)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-[#FFE500] font-bold focus:border-[#FFE500] outline-none"
+                  >
+                    <option value="X6">X6 - En Route on Corridor</option>
+                    <option value="AF">AF - Arrived at Facility</option>
+                    <option value="D1">D1 - Delivered Complete</option>
+                    <option value="X1">X1 - Arrived at Pickup Dock</option>
+                    <option value="X4">X4 - Departed Terminal</option>
+                    <option value="CD">CD - Clearance Diverter Triggered</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Tractor Unit (MS2 Segment)</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi214Unit}
+                    onChange={(e) => setEdi214Unit(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Milestone City &amp; State</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={edi214City}
+                      onChange={(e) => setEdi214City(e.target.value)}
+                      className="w-2/3 p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                    />
+                    <input
+                      type="text"
+                      required
+                      maxLength={2}
+                      value={edi214State}
+                      onChange={(e) => setEdi214State(e.target.value.toUpperCase())}
+                      className="w-1/3 p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none text-center"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">GPS Latitude (K1 Segment)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={edi214Lat}
+                    onChange={(e) => setEdi214Lat(Number(e.target.value))}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">GPS Longitude (K1 Segment)</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={edi214Lon}
+                    onChange={(e) => setEdi214Lon(Number(e.target.value))}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Milestone Description</label>
+                <input
+                  type="text"
+                  required
+                  value={edi214StatusDesc}
+                  onChange={(e) => setEdi214StatusDesc(e.target.value)}
+                  className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isGeneratingEdi}
+                className="w-full py-3 rounded-xl bg-[#FFE500] hover:bg-[#FFDF00] text-black font-black text-[12px] uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_20px_rgba(255,229,0,0.45)] hover:brightness-110 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">satellite_alt</span>
+                <span>{isGeneratingEdi ? 'Generating Status...' : 'Generate & Transmit EDI 214 Status'}</span>
+              </button>
+            </form>
+          )}
+
+          {/* SUBTAB 4: GENERATE EDI 210 FREIGHT INVOICE */}
+          {activeEdiSubtab === 'INVOICE_210' && (
+            <form onSubmit={handleGenerateEdi210} className="p-5 rounded-xl bg-[#0A0F14] border border-white/10 space-y-4">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                  <h3 className="text-[14px] font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#FFE500]">payments</span>
+                    <span>Generate EDI 210 Motor Carrier Freight Invoice</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-sans">
+                    Direct carrier settlement eliminating 2.9% factoring and Stripe merchant billing fees.
+                  </p>
+                </div>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+                  Transaction Set 210
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-[11px]">
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Invoice # (B3 Segment)</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi210InvoiceNum}
+                    onChange={(e) => setEdi210InvoiceNum(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Load ID Reference</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi210LoadId}
+                    onChange={(e) => setEdi210LoadId(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Total Settlement USD (L3 Segment)</label>
+                  <input
+                    type="number"
+                    required
+                    value={edi210Total}
+                    onChange={(e) => setEdi210Total(Number(e.target.value))}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-[#FFE500] font-black focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Bill-To Broker / Shipper (N1 BT)</label>
+                  <input
+                    type="text"
+                    required
+                    value={edi210BillTo}
+                    onChange={(e) => setEdi210BillTo(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Bill-To City &amp; State</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={edi210BillCity}
+                      onChange={(e) => setEdi210BillCity(e.target.value)}
+                      className="w-2/3 p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                    />
+                    <input
+                      type="text"
+                      required
+                      maxLength={2}
+                      value={edi210BillState}
+                      onChange={(e) => setEdi210BillState(e.target.value.toUpperCase())}
+                      className="w-1/3 p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none text-center"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Billed Mileage (L1 Segment)</label>
+                  <input
+                    type="number"
+                    required
+                    value={edi210Miles}
+                    onChange={(e) => setEdi210Miles(Number(e.target.value))}
+                    className="w-full p-2 rounded-lg bg-[#05080E] border border-white/15 text-white focus:border-[#FFE500] outline-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isGeneratingEdi}
+                className="w-full py-3 rounded-xl bg-[#FFE500] hover:bg-[#FFDF00] text-black font-black text-[12px] uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_20px_rgba(255,229,0,0.45)] hover:brightness-110 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">receipt</span>
+                <span>{isGeneratingEdi ? 'Generating Invoice...' : 'Generate & Transmit EDI 210 Invoice'}</span>
+              </button>
+            </form>
+          )}
+
+          {/* SUBTAB 5: 4 COST MINIMIZATION ALTERNATIVES */}
+          {activeEdiSubtab === 'ALTERNATIVES' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-[#0A0F14] border border-[#FFE500]/40">
+                <h3 className="text-[14px] font-black text-white uppercase tracking-wider flex items-center gap-2 mb-1">
+                  <span className="material-symbols-outlined text-[#FFE500]">savings</span>
+                  <span>4 Alternatives to High-Cost Paid REST APIs</span>
+                </h3>
+                <p className="text-[11px] text-slate-300 font-sans">
+                  Commercial trucking apps can incur catastrophic cloud bills when relying on continuous REST API calls. Here is TruckWithEase's low-overhead architecture:
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {ediAlternatives.map((alt) => (
+                  <div key={alt.optionNumber} className="p-4 rounded-xl bg-[#0A0F14] border border-white/10 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-[#FFE500] text-black font-black">
+                        OPTION {alt.optionNumber}
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-bold">{alt.industryStandard}</span>
+                    </div>
+                    <h4 className="font-black text-white text-[13px]">{alt.title}</h4>
+                    <p className="text-slate-300 text-[11px] font-sans leading-relaxed">{alt.mechanism}</p>
+                    <div className="p-2.5 rounded-lg bg-[#05080E] border border-emerald-500/20 text-[11px] text-emerald-400 font-bold">
+                      ✔ Cost Savings: {alt.costComparison}
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      Covers: {alt.transactionSets.join(' • ')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
