@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InspectionLogEntry } from '../../types';
+import { InspectionLogEntry, TabId } from '../../types';
 import { FleetExpensesInvoiceScreen } from './FleetExpensesInvoiceScreen';
 import { SecurityVaultScreen } from './SecurityVaultScreen';
 import { EcosystemTrustHubScreen } from './EcosystemTrustHubScreen';
@@ -14,6 +14,7 @@ interface FleetOperationsHubProps {
   inspectionLogs: InspectionLogEntry[];
   onGenerateNewPdf: (triggerSource?: string, notes?: string) => void;
   onClearLogs?: () => void;
+  onNavigateToTab?: (tabId: TabId) => void;
 }
 
 export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
@@ -23,6 +24,7 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
   inspectionLogs,
   onGenerateNewPdf,
   onClearLogs,
+  onNavigateToTab,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'vault' | 'trust' | 'sync' | 'quantum' | 'hardware'>(
     initialSubTab
@@ -137,7 +139,7 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
           <QuantumIndexScreen onShowToast={onShowToast} speed={65} />
         )}
         {activeSubTab === 'hardware' && (
-          <HardwarePricingScreen onShowToast={onShowToast} />
+          <HardwarePricingScreen onShowToast={onShowToast} onNavigateToTab={onNavigateToTab} />
         )}
       </div>
     </div>

@@ -207,6 +207,26 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
               />
             )}
 
+            {/* TACTICAL HARDWARE UPGRADE & DISPATCH CALLOUT */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-[#0A0F14] border border-[#FFE500]/50 shadow-[0_0_15px_rgba(255,229,0,0.15)]">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded bg-[#FFE500] text-black font-black flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
+                </span>
+                <span className="text-[11px] font-bold text-white">
+                  NEED HARDWARE? <span className="text-[#FFE500]">GPSTab (#1 Best Bet)</span>, Geotab or Azuga &bull; Pre-Flushed 2-Day Cab Ship or White Glove VIP
+                </span>
+              </div>
+              {onNavigateToTab && (
+                <button
+                  onClick={() => onNavigateToTab('hardware-pricing')}
+                  className="btn-tactical-yellow px-3 py-1 text-[10px] font-black uppercase tracking-wider cursor-pointer ml-auto"
+                >
+                  VIEW PRICING &amp; DISPATCH &rarr;
+                </button>
+              )}
+            </div>
+
             {/* EXECUTIVE TELEMETRY QUICK RIBBON */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div

@@ -344,6 +344,7 @@ export default function App() {
               } catch (e) {}
               showToast('INSPECTION AUDIT LOG ARCHIVE RESET TO BASELINE', 'restart_alt');
             }}
+            onNavigateToTab={setActiveTab}
           />
         );
       case 'haptics':
