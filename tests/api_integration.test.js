@@ -798,4 +798,79 @@ test('Integration Test Suite: TruckWithEase API Endpoints', async (t) => {
     assert.equal(body.scannedInspection.cleanInspection, true);
     assert.ok(body.scannedInspection.ocrConfidenceScore >= 95);
   });
+
+  // ==========================================================================
+  // HARDWARE TELEMATICS & STORE API (GPSTab, Geotab, Azuga)
+  // ==========================================================================
+  await t.test('GET /api/hardware/catalog -> Happy Path returns 3 vendors with GPSTab recommended', async () => {
+    const res = await fetch(`${env.baseUrl}/api/hardware/catalog`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.recommendedBestBet, 'gpstab');
+    assert.ok(Array.isArray(body.catalog));
+    assert.equal(body.catalog.length, 3);
+    assert.ok(Array.isArray(body.addons));
+  });
+
+  await t.test('POST /api/hardware/calculate -> Happy Path calculates hardware pricing with markup', async () => {
+    const res = await fetch(`${env.baseUrl}/api/hardware/calculate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vendorId: 'gpstab',
+        quantity: 5,
+        deliveryMode: 'WHITE_GLOVE',
+        addonIds: ['addon-ycable'],
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.equal(body.calculation.quantity, 5);
+    assert.equal(body.calculation.discountPercent, 10);
+    assert.ok(body.calculation.grandTotalUsd > 0);
+  });
+
+  await t.test('POST /api/hardware/orders -> Happy Path places pre-provisioned hardware order', async () => {
+    const res = await fetch(`${env.baseUrl}/api/hardware/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vendorId: 'gpstab',
+        quantity: 1,
+        deliveryMode: 'DIRECT_SHIP',
+        recipientName: 'Jeremiah J. Morris',
+        shippingAddress: "Love's Travel Stop #412",
+        city: 'Weatherford',
+        state: 'TX',
+        zip: '76087',
+        phone: '+1 (312) 555-8821',
+      }),
+    });
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.ok(body.order.orderNumber.startsWith('TWE-HW-'));
+    assert.ok(body.order.shipping.trackingNumber.startsWith('79'));
+  });
+
+  await t.test('POST /api/hardware/quote -> Happy Path generates 30-day formal sales quote', async () => {
+    const res = await fetch(`${env.baseUrl}/api/hardware/quote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        companyName: 'Morris Hive Freight Logistics LLC',
+        contactName: 'Jeremiah J. Morris',
+        email: 'jeremiah.morris@morrishive.com',
+        fleetSize: 10,
+        preferredVendor: 'gpstab',
+        deliveryMode: 'WHITE_GLOVE',
+      }),
+    });
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.ok(body.quote.quoteId.startsWith('QTE-'));
+    assert.equal(body.quote.pricingSummary.discountPercent, 20);
+  });
 });

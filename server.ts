@@ -24,6 +24,7 @@ import {
 } from './server/gpstabService.ts';
 import { salesforceSubscriptionService } from './server/salesforceService.ts';
 import { ediIntegrationService } from './server/ediService.ts';
+import { hardwareOrderService } from './server/hardwareOrderService.ts';
 import { fleetCore, FleetCoreEngine } from './server/fleetCore.ts';
 import { logger } from './src/utils/logger.ts';
 import { generateCorrelationId, sanitizeMetadata } from './src/utils/errors.ts';
@@ -130,6 +131,11 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
       '/api/edi/generate-214',
       '/api/edi/generate-210',
       '/api/edi/generate-990',
+      '/api/hardware/catalog',
+      '/api/hardware/addons',
+      '/api/hardware/calculate',
+      '/api/hardware/orders',
+      '/api/hardware/quote',
     ];
     if (
       publicPaths.includes(req.path) ||
@@ -137,7 +143,8 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
       req.path.startsWith('/api/telecom/') ||
       req.path.startsWith('/api/subscriptions') ||
       req.path.startsWith('/api/salesforce/') ||
-      req.path.startsWith('/api/edi/')
+      req.path.startsWith('/api/edi/') ||
+      req.path.startsWith('/api/hardware/')
     ) {
       return next();
     }
@@ -1522,6 +1529,146 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
       res.status(201).json({ success: true, transaction: ediRecord });
     } catch (err: any) {
       res.status(500).json({ error: 'Failed to generate EDI 990', details: err.message });
+    }
+  });
+
+  // ==========================================
+  // COMMERCIAL FLEET HARDWARE & TELEMATICS STORE API
+  // Azuga, Geotab, and GPSTab (Best Bet) with White Glove & Direct Markup Fulfilment
+  // ==========================================
+  app.get('/api/hardware/catalog', (req, res) => {
+    try {
+      const catalog = hardwareOrderService.getCatalog();
+      const addons = hardwareOrderService.getAddons();
+      res.json({
+        catalog,
+        addons,
+        recommendedBestBet: 'gpstab',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to retrieve hardware catalog', details: err.message });
+    }
+  });
+
+  app.get('/api/hardware/addons', (req, res) => {
+    try {
+      const addons = hardwareOrderService.getAddons();
+      res.json({ addons, count: addons.length });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to retrieve hardware addons', details: err.message });
+    }
+  });
+
+  app.post('/api/hardware/calculate', (req, res) => {
+    try {
+      const { vendorId, quantity, deliveryMode, addonIds } = req.body;
+      if (!vendorId) {
+        return res.status(400).json({ error: 'Missing vendorId (gpstab, geotab, or azuga)' });
+      }
+
+      const calculation = hardwareOrderService.calculatePricing({
+        vendorId,
+        quantity: Number(quantity) || 1,
+        deliveryMode: deliveryMode === 'WHITE_GLOVE' ? 'WHITE_GLOVE' : 'DIRECT_SHIP',
+        addonIds: Array.isArray(addonIds) ? addonIds : [],
+      });
+
+      res.json({ success: true, calculation });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to calculate hardware pricing', details: err.message });
+    }
+  });
+
+  app.get('/api/hardware/orders', (req, res) => {
+    try {
+      const orders = hardwareOrderService.getAllOrders();
+      res.json({ orders, count: orders.length });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to retrieve hardware orders', details: err.message });
+    }
+  });
+
+  app.post('/api/hardware/orders', (req, res) => {
+    try {
+      const {
+        vendorId,
+        quantity,
+        deliveryMode,
+        selectedAddonIds,
+        recipientName,
+        shippingAddress,
+        city,
+        state,
+        zip,
+        phone,
+        destinationType,
+        truckStopBrand,
+        vin,
+        usdot,
+        connectorType,
+        makeModelYear,
+        paymentMethod,
+      } = req.body;
+
+      if (!vendorId) {
+        return res.status(400).json({ error: 'Missing vendorId (gpstab, geotab, or azuga)' });
+      }
+
+      const order = hardwareOrderService.createOrder({
+        vendorId,
+        quantity: Number(quantity) || 1,
+        deliveryMode: deliveryMode === 'WHITE_GLOVE' ? 'WHITE_GLOVE' : 'DIRECT_SHIP',
+        selectedAddonIds: Array.isArray(selectedAddonIds) ? selectedAddonIds : [],
+        recipientName: recipientName || 'Commercial Fleet Lead',
+        shippingAddress: shippingAddress || '10200 I-20 Freightway Delivery Hub',
+        city: city || 'Fort Worth',
+        state: state || 'TX',
+        zip: zip || '76102',
+        phone: phone || '+1 (312) 555-8821',
+        destinationType,
+        truckStopBrand,
+        vin,
+        usdot,
+        connectorType,
+        makeModelYear,
+        paymentMethod,
+      });
+
+      res.status(201).json({
+        success: true,
+        order,
+        message:
+          order.deliveryMode === 'WHITE_GLOVE'
+            ? 'White Glove Concierge Order Confirmed // Dedicated Field Engineer Assigned'
+            : 'Hardware Marked Up & Pre-Provisioned // Express Dispatch Scheduled',
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to place hardware order', details: err.message });
+    }
+  });
+
+  app.post('/api/hardware/quote', (req, res) => {
+    try {
+      const { companyName, contactName, email, phone, fleetSize, preferredVendor, deliveryMode, notes } = req.body;
+      if (!companyName || !contactName || !email) {
+        return res.status(400).json({ error: 'Missing companyName, contactName, or email' });
+      }
+
+      const quote = hardwareOrderService.generateQuote({
+        companyName,
+        contactName,
+        email,
+        phone: phone || '+1 (555) 000-0000',
+        fleetSize: Number(fleetSize) || 1,
+        preferredVendor: preferredVendor || 'gpstab',
+        deliveryMode: deliveryMode === 'WHITE_GLOVE' ? 'WHITE_GLOVE' : 'DIRECT_SHIP',
+        notes,
+      });
+
+      res.status(201).json({ success: true, quote });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to generate hardware sales quote', details: err.message });
     }
   });
 

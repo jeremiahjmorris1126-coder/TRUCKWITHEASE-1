@@ -57,6 +57,8 @@ export const Header: React.FC<HeaderProps> = ({
         return 'Safety Haptics';
       case 'telemetry':
         return 'Fleet Telemetry';
+      case 'hardware-pricing':
+        return 'Hardware Store & Pricing';
       default:
         return 'Driver In-Cab HUD';
     }

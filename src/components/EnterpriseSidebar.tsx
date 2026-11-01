@@ -65,6 +65,14 @@ const COMMAND_MENU_ITEMS: CommandMenuItem[] = [
     badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
   },
   {
+    id: 'hardware-pricing',
+    label: 'HARDWARE & TELEMATICS',
+    sublabel: 'Turnkey GPSTab, Geotab & Azuga',
+    icon: 'shopping_cart',
+    badge: 'TOP ROI',
+    badgeColor: 'bg-[#FFE500]/20 text-[#FFE500] border-[#FFE500]/40',
+  },
+  {
     id: 'telemetry',
     label: 'VEHICLE TELEMETRY',
     sublabel: '10Hz ECM CAN-Bus & Heat',

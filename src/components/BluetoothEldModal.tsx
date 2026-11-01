@@ -14,6 +14,7 @@ interface BluetoothEldModalProps {
   onClose: () => void;
   onShowToast: (msg: string, icon?: string) => void;
   onUpdateVehicleSpeed?: (speed: number) => void;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 export const BluetoothEldModal: React.FC<BluetoothEldModalProps> = ({
@@ -21,6 +22,7 @@ export const BluetoothEldModal: React.FC<BluetoothEldModalProps> = ({
   onClose,
   onShowToast,
   onUpdateVehicleSpeed,
+  onNavigateToTab,
 }) => {
   const [activeTab, setActiveTab] = useState<'LIVE_CLUSTER' | 'RADAR_SCAN' | 'DIAGNOSTIC_LOG' | 'CAN_BUS_PACKETS' | 'SIMULATION' | 'GPSTAB_CLOUD'>('LIVE_CLUSTER');
   const [status, setStatus] = useState<BluetoothConnectionStatus>(() => bluetoothEldService.getStatus());
@@ -225,6 +227,27 @@ export const BluetoothEldModal: React.FC<BluetoothEldModalProps> = ({
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
           </div>
+        </div>
+
+        {/* PROMOTIONAL HARDWARE PRICING BANNER */}
+        <div className="mx-4 sm:mx-6 mt-3 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-[#FFE500]/20 to-amber-500/15 border border-[#FFE500]/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[#FFE500] text-[18px]">shopping_cart</span>
+            <span className="text-white font-bold">
+              Need Turnkey Hardware? <span className="text-[#FFE500]">GPSTab (#1 Best Bet)</span>, Geotab GO9+, or Azuga with 2-Day Cab Shipping or White Glove Concierge.
+            </span>
+          </div>
+          {onNavigateToTab && (
+            <button
+              onClick={() => {
+                onClose();
+                onNavigateToTab('hardware-pricing');
+              }}
+              className="btn-tactical-yellow px-3 py-1 text-[10px] font-black uppercase tracking-wider cursor-pointer"
+            >
+              VISIT HARDWARE STORE &amp; PRICING
+            </button>
+          )}
         </div>
 
         {/* ================================================================== */}

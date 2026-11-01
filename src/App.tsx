@@ -35,6 +35,7 @@ import { FleetExpensesInvoiceScreen } from './components/screens/FleetExpensesIn
 import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
+import { HardwarePricingScreen } from './components/screens/HardwarePricingScreen';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 import { FirebaseDeploymentModal } from './components/FirebaseDeploymentModal';
 import { BluetoothEldModal } from './components/BluetoothEldModal';
@@ -68,6 +69,7 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
     'ecosystem': true,
     'telemetry': true,
     'quantum-index': true,
+    'hardware-pricing': true,
   },
 };
 
@@ -357,6 +359,13 @@ export default function App() {
             onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
           />
         );
+      case 'hardware-pricing':
+        return (
+          <HardwarePricingScreen
+            onShowToast={showToast}
+            onNavigateToTab={setActiveTab}
+          />
+        );
       default:
         return null;
     }
@@ -512,6 +521,10 @@ export default function App() {
         onClose={() => setIsBluetoothModalOpen(false)}
         onShowToast={showToast}
         onUpdateVehicleSpeed={(newSpeed) => setSpeed(newSpeed)}
+        onNavigateToTab={(tab) => {
+          setIsBluetoothModalOpen(false);
+          setActiveTab(tab as TabId);
+        }}
       />
 
       {/* FMCSA ERoDS Tag-a-Long & Roadside Document Scanner Suite */}

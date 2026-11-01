@@ -23,6 +23,7 @@ const ALL_MODULES: { id: TabId; name: string; desc: string; category: string; ic
   { id: 'ecosystem', name: 'Trust Hub', desc: 'Broker & carrier vetting system', category: 'COMPLIANCE', icon: 'hub' },
   { id: 'telemetry', name: 'Telemetry', desc: '10Hz CAN-Bus diagnostics & memory tracker', category: 'ANALYTICS', icon: 'memory' },
   { id: 'quantum-index', name: 'Predictive Index', desc: 'Adaptive state mechanics & fleet physics', category: 'ANALYTICS', icon: 'auto_awesome' },
+  { id: 'hardware-pricing', name: 'Hardware & Telematics', desc: 'Turnkey GPSTab, Geotab & Azuga sales store', category: 'OPERATIONS', icon: 'shopping_cart' },
 ];
 
 export const FleetModuleCustomizer: React.FC<FleetModuleCustomizerProps> = ({

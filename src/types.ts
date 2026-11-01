@@ -1,4 +1,4 @@
-export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'the-g-o-a-t-' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner';
+export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'the-g-o-a-t-' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner' | 'hardware-pricing';
 
 export type DutyStatus = 'OFF' | 'SB' | 'D' | 'ON' | 'YM' | 'PC';
 
@@ -858,4 +858,103 @@ export interface EdiTransactionRecord {
   transportMethod: 'AS2' | 'SFTP_MAILBOX' | 'DIRECT_EXPORT';
   status: 'GENERATED' | 'TRANSMITTED' | 'ACKNOWLEDGED';
 }
+
+// ==========================================
+// HARDWARE PRICING & TURNKEY STORE TYPES
+// ==========================================
+export type HardwareVendorId = 'gpstab' | 'geotab' | 'azuga';
+export type HardwareDeliveryMode = 'DIRECT_SHIP' | 'WHITE_GLOVE';
+
+export interface HardwareProduct {
+  id: HardwareVendorId;
+  name: string;
+  vendorName: string;
+  tagline: string;
+  salesPitch: string;
+  badge: string;
+  isBestBet: boolean;
+  wholesaleCostUsd: number;
+  markupUsd: number;
+  retailPriceUsd: number;
+  monthlySaasUsd: number;
+  leaseToOwnMonthlyUsd: number;
+  fmcsaCertificationId: string;
+  connectorCompatibility: string[];
+  keyHighlights: string[];
+  specs: {
+    canBus: string;
+    bluetooth: string;
+    cellular: string;
+    gpsEngine: string;
+    dimensions: string;
+    warranty: string;
+  };
+  commissionNote: string;
+}
+
+export interface HardwareAddon {
+  id: string;
+  name: string;
+  category: 'CABLE' | 'SECURITY' | 'DASHCAM' | 'MOUNT' | 'PRINTER';
+  description: string;
+  wholesaleCostUsd: number;
+  retailPriceUsd: number;
+  markupMarginPercent: number;
+  salesHook: string;
+  recommended: boolean;
+}
+
+export interface HardwareOrder {
+  id: string;
+  orderNumber: string;
+  createdAt: string;
+  vendorId: HardwareVendorId;
+  vendorName: string;
+  quantity: number;
+  deliveryMode: HardwareDeliveryMode;
+  whiteGloveFeeUsd: number;
+  hardwareUnitRetailUsd: number;
+  hardwareTotalUsd: number;
+  selectedAddonIds: string[];
+  addonsTotalUsd: number;
+  monthlySaasTotalUsd: number;
+  discountUsd: number;
+  grandTotalUsd: number;
+  profitMarkupUsd: number;
+  shipping: {
+    destinationType: 'TRUCK_STOP' | 'CARRIER_TERMINAL' | 'RESIDENTIAL';
+    truckStopBrand?: string;
+    recipientName: string;
+    shippingAddress: string;
+    city: string;
+    state: string;
+    zip: string;
+    phone: string;
+    carrier: 'FedEx Express 2-Day' | 'UPS Priority Air';
+    trackingNumber: string;
+    estimatedDelivery: string;
+  };
+  truckDetails: {
+    vin: string;
+    usdot: string;
+    connectorType: string;
+    makeModelYear: string;
+  };
+  paymentMethod: 'CORPORATE_ACH' | 'CREDIT_CARD' | 'FINANCE_ZERO_DOWN' | 'COMMDATA_EFS';
+  status: 'PENDING_PROVISION' | 'FIRMWARE_FLASHED' | 'DISPATCHED' | 'DELIVERED';
+  salesforceOpportunityId?: string;
+  merkleSeal: string;
+}
+
+export interface HardwareQuoteRequest {
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  fleetSize: number;
+  preferredVendor: HardwareVendorId;
+  deliveryMode: HardwareDeliveryMode;
+  notes?: string;
+}
+
 
