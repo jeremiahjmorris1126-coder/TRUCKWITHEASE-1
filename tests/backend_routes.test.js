@@ -155,6 +155,12 @@ test('Uncovered Express backend routes use isolated local fallbacks', async (t) 
   });
 
   await t.test('external integration fallbacks and input validation remain safe', async () => {
+    const twimlResponse = await fetch(`${api.baseUrl}/api/telecom/voice-twiml?message=Bridge%20ahead&unit=TRK-904`);
+    const twiml = await twimlResponse.text();
+    assert.equal(twimlResponse.status, 200);
+    assert.match(twimlResponse.headers.get('content-type'), /text\/xml/);
+    assert.match(twiml, /Bridge ahead/);
+
     const telecom = await requestJson(api.baseUrl, '/api/telecom/messages', 'POST', {
       to: '+13125558821',
       text: 'test only',
