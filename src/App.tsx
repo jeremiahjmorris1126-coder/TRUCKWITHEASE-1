@@ -36,6 +36,7 @@ import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { HardwarePricingScreen } from './components/screens/HardwarePricingScreen';
+import { LandingPage } from './components/LandingPage';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 import { FirebaseDeploymentModal } from './components/FirebaseDeploymentModal';
 import { BluetoothEldModal } from './components/BluetoothEldModal';
@@ -86,8 +87,30 @@ export default function App() {
       const hashTab = window.location.hash.replace('#', '') as TabId;
       if (hashTab) return hashTab;
     }
-    return 'night-hud';
+    return 'landing';
   });
+
+  const handleSelectTab = (tab: TabId) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      if (tab === 'landing') {
+        window.history.replaceState(null, '', window.location.pathname);
+      } else {
+        window.location.hash = tab;
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hashTab = window.location.hash.replace('#', '') as TabId;
+      if (hashTab) {
+        setActiveTab(hashTab);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
   const [speed, setSpeed] = useState<number>(65);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastIcon, setToastIcon] = useState<string>('verified_user');
@@ -371,7 +394,20 @@ export default function App() {
         return (
           <HardwarePricingScreen
             onShowToast={showToast}
-            onNavigateToTab={setActiveTab}
+            onNavigateToTab={handleSelectTab}
+          />
+        );
+      case 'landing':
+        return (
+          <LandingPage
+            onNavigateToTab={handleSelectTab}
+            onOpenDriverPortal={(tab) => {
+              setAuthPortalTab(tab || 'roster');
+              setIsAuthPortalOpen(true);
+            }}
+            onShowToast={showToast}
+            speed={speed}
+            activeDriverName={activeDriver.name}
           />
         );
       default:
@@ -389,80 +425,105 @@ export default function App() {
         onClose={() => setToastMessage(null)}
       />
 
-      {/* Enterprise Side Navigation & Commands Console */}
-      <EnterpriseSidebar
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        speed={speed}
-        alertnessScore={alertness.alertnessData.score}
-        isListening={voice.isListening}
-        onToggleVoice={voice.toggleListening}
-        onOpenEmergency={() => setIsEmergencyOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
-        onOpenDriverPortal={(tab) => {
-          setAuthPortalTab(tab || 'roster');
-          setIsAuthPortalOpen(true);
-        }}
-        activeDriver={activeDriver}
-        onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
-        onOpenPrivacyLock={() => setIsPrivacyLocked(true)}
-        onOpenPdfModal={() => setIsPdfModalOpen(true)}
-        isOpenMobile={isMobileSidebarOpen}
-        onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        enabledModules={fleetSettings.enabledModules}
-        onOpenCustomizer={() => {
-          setAuthPortalTab('functions');
-          setIsAuthPortalOpen(true);
-        }}
-      />
-
-      {/* Cockpit Header */}
-      <Header
-        activeTab={activeTab}
-        speed={speed}
-        onOpenEmergency={() => setIsEmergencyOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
-        onOpenDriverPortal={(tab) => {
-          setAuthPortalTab(tab || 'roster');
-          setIsAuthPortalOpen(true);
-        }}
-        activeDriverName={activeDriver.name}
-        onToggleVoice={voice.toggleListening}
-        isListening={voice.isListening}
-        alertnessScore={alertness.alertnessData.score}
-        onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
-        onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
-        onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
-        isBluetoothConnected={isBluetoothConnected}
-        onOpenErodsModal={() => setIsErodsTagAlongOpen(true)}
-        onOpenOfficerShield={() => setIsOfficerShieldOpen(true)}
-        onOpenPullRods={() => setIsPullRodsOpen(true)}
-        onOpenDvir={() => setIsDvirModalOpen(true)}
-      />
-
-      {/* Main Content Area (Adjusted for Side Commands Console) */}
-      <main className="lg:pl-72 pt-20 pb-20 min-h-screen w-full transition-all">
-        <div
-          role="status"
-          className="mx-4 mb-4 rounded-lg border border-amber-500/60 bg-[#0A0F14] px-4 py-3 text-sm font-semibold text-amber-300"
-        >
-          Demo data may be shown. FMCSA/DOT certification, Drivewyze, NASA telemetry, and vehicle hardware connections are not verified. Do not use this app as a regulatory or safety authority.
-        </div>
+      {/* Main View Router: Landing Page vs. Live In-Cab Cockpit */}
+      {activeTab === 'landing' ? (
         <Suspense
           fallback={
-            <div className="flex min-h-[50vh] items-center justify-center bg-[#05080E] font-mono text-sm font-bold uppercase tracking-widest text-[#FFE500]">
-              Loading cockpit module…
+            <div className="flex min-h-screen items-center justify-center bg-[#05080E] font-mono text-sm font-bold uppercase tracking-widest text-[#FFE500]">
+              Loading TruckWithEase Enterprise...
             </div>
           }
         >
-          <CockpitErrorBoundary fallbackScreen={activeTab} onReset={() => setActiveTab('night-hud')}>
-            {renderActiveScreen()}
-          </CockpitErrorBoundary>
+          <LandingPage
+            onNavigateToTab={handleSelectTab}
+            onOpenDriverPortal={(tab) => {
+              setAuthPortalTab(tab || 'roster');
+              setIsAuthPortalOpen(true);
+            }}
+            onShowToast={showToast}
+            speed={speed}
+            activeDriverName={activeDriver.name}
+          />
         </Suspense>
-      </main>
+      ) : (
+        <>
+          {/* Enterprise Side Navigation & Commands Console */}
+          <EnterpriseSidebar
+            activeTab={activeTab}
+            onSelectTab={handleSelectTab}
+            speed={speed}
+            alertnessScore={alertness.alertnessData.score}
+            isListening={voice.isListening}
+            onToggleVoice={voice.toggleListening}
+            onOpenEmergency={() => setIsEmergencyOpen(true)}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenDriverPortal={(tab) => {
+              setAuthPortalTab(tab || 'roster');
+              setIsAuthPortalOpen(true);
+            }}
+            activeDriver={activeDriver}
+            onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
+            onOpenPrivacyLock={() => setIsPrivacyLocked(true)}
+            onOpenPdfModal={() => setIsPdfModalOpen(true)}
+            isOpenMobile={isMobileSidebarOpen}
+            onCloseMobile={() => setIsMobileSidebarOpen(false)}
+            enabledModules={fleetSettings.enabledModules}
+            onOpenCustomizer={() => {
+              setAuthPortalTab('functions');
+              setIsAuthPortalOpen(true);
+            }}
+          />
 
-      {/* Voice Control HUD Overlay & Trigger */}
-      <VoiceCommandOverlay voice={voice} />
+          {/* Cockpit Header */}
+          <Header
+            activeTab={activeTab}
+            speed={speed}
+            onOpenEmergency={() => setIsEmergencyOpen(true)}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenDriverPortal={(tab) => {
+              setAuthPortalTab(tab || 'roster');
+              setIsAuthPortalOpen(true);
+            }}
+            activeDriverName={activeDriver.name}
+            onToggleVoice={voice.toggleListening}
+            isListening={voice.isListening}
+            alertnessScore={alertness.alertnessData.score}
+            onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
+            onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
+            onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
+            isBluetoothConnected={isBluetoothConnected}
+            onOpenErodsModal={() => setIsErodsTagAlongOpen(true)}
+            onOpenOfficerShield={() => setIsOfficerShieldOpen(true)}
+            onOpenPullRods={() => setIsPullRodsOpen(true)}
+            onOpenDvir={() => setIsDvirModalOpen(true)}
+            onNavigateToTab={handleSelectTab}
+          />
+
+          {/* Main Content Area (Adjusted for Side Commands Console) */}
+          <main className="lg:pl-72 pt-20 pb-20 min-h-screen w-full transition-all">
+            <div
+              role="status"
+              className="mx-4 mb-4 rounded-lg border border-amber-500/60 bg-[#0A0F14] px-4 py-3 text-sm font-semibold text-amber-300"
+            >
+              Demo data may be shown. FMCSA/DOT certification, Drivewyze, NASA telemetry, and vehicle hardware connections are not verified. Do not use this app as a regulatory or safety authority.
+            </div>
+            <Suspense
+              fallback={
+                <div className="flex min-h-[50vh] items-center justify-center bg-[#05080E] font-mono text-sm font-bold uppercase tracking-widest text-[#FFE500]">
+                  Loading cockpit module…
+                </div>
+              }
+            >
+              <CockpitErrorBoundary fallbackScreen={activeTab} onReset={() => handleSelectTab('night-hud')}>
+                {renderActiveScreen()}
+              </CockpitErrorBoundary>
+            </Suspense>
+          </main>
+
+          {/* Voice Control HUD Overlay & Trigger */}
+          <VoiceCommandOverlay voice={voice} />
+        </>
+      )}
 
       {/* Officer Privacy Shield Mode Modal */}
       <PrivacyLockModal

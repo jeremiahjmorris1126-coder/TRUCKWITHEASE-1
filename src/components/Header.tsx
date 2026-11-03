@@ -20,6 +20,7 @@ interface HeaderProps {
   onOpenOfficerShield?: () => void;
   onOpenPullRods?: () => void;
   onOpenDvir?: () => void;
+  onNavigateToTab?: (tab: TabId) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOfficerShield,
   onOpenPullRods,
   onOpenDvir,
+  onNavigateToTab,
 }) => {
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
@@ -65,6 +67,8 @@ export const Header: React.FC<HeaderProps> = ({
         return 'Fleet Telemetry';
       case 'hardware-pricing':
         return 'Hardware Store & Pricing';
+      case 'landing':
+        return 'Business Landing Page';
       default:
         return 'Driver In-Cab HUD';
     }
@@ -241,6 +245,18 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="material-symbols-outlined text-[15px]">badge</span>
               <span className="hidden sm:inline truncate max-w-[110px]">{activeDriverName.split(' ')[0]}</span>
               <span className="text-[9px] bg-black text-[#FFE500] px-1 py-0.2 rounded font-mono">PORTAL</span>
+            </button>
+          )}
+
+          {/* Landing Page Showcase Button */}
+          {onNavigateToTab && (
+            <button
+              onClick={() => onNavigateToTab('landing')}
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container border border-surface-container-high text-slate-300 hover:text-[#FFE500] hover:border-[#FFE500]/50 font-mono text-[11px] font-bold uppercase tracking-wider cursor-pointer transition-all"
+              title="Return to Business Landing Page"
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#FFE500]">storefront</span>
+              <span>LANDING</span>
             </button>
           )}
 

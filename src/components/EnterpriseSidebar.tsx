@@ -33,6 +33,14 @@ interface CommandMenuItem {
 
 const COMMAND_MENU_ITEMS: CommandMenuItem[] = [
   {
+    id: 'landing',
+    label: 'LANDING PAGE',
+    sublabel: 'Product Showcase & ROI',
+    icon: 'storefront',
+    badge: 'PUBLIC',
+    badgeColor: 'bg-[#FFE500]/20 text-[#FFE500] border-[#FFE500]/40',
+  },
+  {
     id: 'night-hud',
     label: 'DRIVER IN-CAB HUD',
     sublabel: 'Night HUD, Weather & Radar',
