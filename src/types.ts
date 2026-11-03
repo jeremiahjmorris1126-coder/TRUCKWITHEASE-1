@@ -989,5 +989,174 @@ export interface HardwareQuote {
   guarantee: string;
 }
 
+// ============================================================================
+// CROSS-FUNCTION COMPLIANCE, HOS, PULLABLE RODS & DVIR TYPES
+// (49 CFR Part 395 Subpart B & Part 396 § 396.11 / § 396.13)
+// ============================================================================
+
+export interface RodsDutyEvent {
+  id: string;
+  timestamp: string; // ISO string
+  timeDisplay: string; // e.g. "06:15 CDT"
+  hourOfDay: number; // 0.0 - 24.0 decimal hour for grid plotting
+  dutyStatus: DutyStatus; // 'OFF' | 'SB' | 'D' | 'ON' | 'YM' | 'PC'
+  locationCityState: string; // e.g. "Dallas, TX"
+  highwayMileMarker: string; // e.g. "I-20 MM 482"
+  totalEngineHours: number;
+  odometerMiles: number;
+  notes: string;
+  originatingSystem: 'ELD_AUTOMATIC' | 'DRIVER_MANUAL' | 'ROADSIDE_OFFICER';
+  merkleSignature: string;
+}
+
+export interface RodsDailyRecord {
+  id: string;
+  dayIndex: number; // 0 = today, 1 = yesterday, ... 7 = 8 days ago
+  dateStr: string; // YYYY-MM-DD
+  dayLabel: string; // e.g. "Day 1 (Today)", "Day 2", etc.
+  formattedDate: string; // e.g. "Tue, Nov 3, 2026"
+  carrierName: string;
+  usdotNumber: string;
+  driverName: string;
+  cdlNumber: string;
+  powerUnitNumber: string;
+  trailerNumber: string;
+  totalDriveHours: number; // decimal hours, e.g. 6.75
+  totalOnDutyHours: number;
+  totalSleeperHours: number;
+  totalOffDutyHours: number;
+  totalMilesDriven: number;
+  events: RodsDutyEvent[];
+  violations: string[];
+  certifiedSignature: string;
+  certifiedTimestamp: string;
+  merkleProofHash: string;
+  isCertified: boolean;
+  status: 'COMPLIANT' | 'WARNING' | 'VIOLATION';
+}
+
+export interface HosCalculatedClocks {
+  currentStatus: DutyStatus;
+  drivingSecondsRemaining: number; // 11-Hour Drive Limit (max 39,600s)
+  dutyWindowSecondsRemaining: number; // 14-Hour Shift Window (max 50,400s)
+  restBreakSecondsRemaining: number; // 8-Hour clock until 30-min break required (max 28,800s)
+  cycleSecondsRemaining: number; // 70-Hour / 8-Day rolling cycle (max 252,000s)
+  cycleUsedSeconds: number;
+  isRestBreakRequired: boolean;
+  isDriveViolated: boolean;
+  isShiftViolated: boolean;
+  isCycleViolated: boolean;
+  isAdverseDrivingActive: boolean; // +2 hr drive & +2 hr shift window
+  restart34Eligible: boolean; // Full 34hr consecutive off-duty/sleeper detected
+  splitSleeperStatus: {
+    eligible: boolean;
+    period1Hours: number; // e.g. 7.5
+    period2Hours: number; // e.g. 2.5
+    pairMatched: boolean;
+    message: string;
+  };
+  lastStatusChangeTimestamp: string;
+}
+
+export type DvirInspectionType = 'PRE_TRIP' | 'EN_ROUTE' | 'POST_TRIP';
+
+export type DvirDefectCategory =
+  | 'SERVICE_BRAKES'
+  | 'PARKING_BRAKE'
+  | 'STEERING'
+  | 'LIGHTING_REFLECTORS'
+  | 'TIRES_WHEELS'
+  | 'HORN'
+  | 'WIPERS'
+  | 'MIRRORS'
+  | 'COUPLING_KINGPIN'
+  | 'EMERGENCY_EQUIPMENT'
+  | 'J1939_ENGINE_POWERTRAIN';
+
+export interface DvirDefectItem {
+  id: string;
+  category: DvirDefectCategory;
+  componentName: string;
+  hasDefect: boolean;
+  severity: 'NOMINAL' | 'ADVISORY' | 'CRITICAL_OOS';
+  notes: string;
+  j1939DtcCode?: string; // Auto-populated from Master Mechanic if available
+}
+
+export interface ElectronicDvirRecord {
+  id: string;
+  dvirNumber: string; // e.g. "DVIR-2026-1103-904"
+  inspectionType: DvirInspectionType;
+  timestampIso: string;
+  formattedDate: string;
+  carrierName: string;
+  usdotNumber: string;
+  driverName: string;
+  cdlNumber: string;
+  truckUnit: string;
+  trailerUnit: string;
+  odometerMiles: number;
+  defects: DvirDefectItem[];
+  defectsDetectedCount: number;
+  conditionSatisfactory: boolean; // true = No defects found
+  defectsCorrected: boolean;
+  certifiedSafeToOperate: boolean;
+  driverSignature: string;
+  mechanicSignature?: string;
+  mechanicNotes?: string;
+  mechanicFacilityName?: string;
+  merkleProofHash: string;
+  scannedDocumentUrl?: string; // For scanned paper DVIRs
+  isScannedPaperUpload?: boolean;
+  ocrExtractedText?: string;
+  status: 'SAFE_PASS' | 'DEFECTS_CORRECTED' | 'OUT_OF_SERVICE_PENDING';
+}
+
+export interface RoadsideAuditDossier {
+  generatedAt: string;
+  carrierName: string;
+  usdotNumber: string;
+  mcNumber: string;
+  driverName: string;
+  cdlNumber: string;
+  powerUnit: string;
+  trailerUnit: string;
+  merkleRootHash: string;
+  statutoryAuthority: string;
+  documents: {
+    rods8DayPackage: RodsDailyRecord[];
+    activeDvir: ElectronicDvirRecord | null;
+    medicalCardExp: string;
+    cdlCardExp: string;
+    annualInspectionExp: string;
+    iftaCabCardExp: string;
+    insurancePolicy: string;
+  };
+  custodianAttestation: {
+    custodianName: string;
+    custodianTitle: string;
+    signedTimestamp: string;
+    sealVerified: boolean;
+  };
+}
+
+export type CrossFunctionMemoryEventType =
+  | 'HOS_STATUS_CHANGED'
+  | 'HOS_CLOCKS_TICK'
+  | 'RODS_PULLED'
+  | 'ERODS_TRANSMITTED'
+  | 'DVIR_CREATED'
+  | 'DVIR_SCANNED'
+  | 'J1939_DTC_SYNCED'
+  | 'DOCUMENT_VAULT_UPDATED'
+  | 'DISPATCH_YIELD_RECALCULATED';
+
+export interface CrossFunctionMemoryEvent {
+  type: CrossFunctionMemoryEventType;
+  timestamp: string;
+  payload: any;
+}
+
+
 
 

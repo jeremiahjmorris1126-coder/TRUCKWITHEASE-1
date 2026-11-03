@@ -42,9 +42,13 @@ import { BluetoothEldModal } from './components/BluetoothEldModal';
 import { ErodsTagAlongModal } from './components/ErodsTagAlongModal';
 import { AuthDriverPortalModal } from './components/AuthDriverPortalModal';
 import { TelecommunicationsModal } from './components/TelecommunicationsModal';
+import { RodsPullModal } from './components/RodsPullModal';
+import { DvirManagementModal } from './components/DvirManagementModal';
+import { RoadsideOfficerShieldModal } from './components/RoadsideOfficerShieldModal';
 import { bluetoothEldService } from './services/bluetoothEldService';
 import { authDriverService } from './services/authDriverService';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
+import { crossFunctionMemoryService } from './services/crossFunctionMemoryService';
 import { FleetCustomizationSettings, DriverAuthRecord } from './types';
 
 const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
@@ -93,6 +97,9 @@ export default function App() {
   const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState<boolean>(false);
   const [isErodsTagAlongOpen, setIsErodsTagAlongOpen] = useState<boolean>(false);
   const [isBluetoothConnected, setIsBluetoothConnected] = useState<boolean>(() => bluetoothEldService.getStatus() === 'CONNECTED');
+  const [isPullRodsOpen, setIsPullRodsOpen] = useState<boolean>(false);
+  const [isDvirModalOpen, setIsDvirModalOpen] = useState<boolean>(false);
+  const [isOfficerShieldOpen, setIsOfficerShieldOpen] = useState<boolean>(false);
 
   // Active Commercial Driver & Authentication State
   const [activeDriver, setActiveDriver] = useState<DriverAuthRecord>(() => authDriverService.getCurrentDriver());
@@ -428,6 +435,9 @@ export default function App() {
         onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
         isBluetoothConnected={isBluetoothConnected}
         onOpenErodsModal={() => setIsErodsTagAlongOpen(true)}
+        onOpenOfficerShield={() => setIsOfficerShieldOpen(true)}
+        onOpenPullRods={() => setIsPullRodsOpen(true)}
+        onOpenDvir={() => setIsDvirModalOpen(true)}
       />
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
@@ -555,6 +565,35 @@ export default function App() {
         isOpen={false}
         onClose={() => {}}
         onShowToast={showToast}
+      />
+
+      {/* FMCSA Pull RODS (8-Day Record of Duty Status) Modal */}
+      <RodsPullModal
+        isOpen={isPullRodsOpen}
+        onClose={() => setIsPullRodsOpen(false)}
+        onShowToast={showToast}
+      />
+
+      {/* Electronic & Paper Scanned DVIR (49 CFR § 396.11) Modal */}
+      <DvirManagementModal
+        isOpen={isDvirModalOpen}
+        onClose={() => setIsDvirModalOpen(false)}
+        onShowToast={showToast}
+      />
+
+      {/* 1-Tap Roadside Inspection Officer Shield Modal */}
+      <RoadsideOfficerShieldModal
+        isOpen={isOfficerShieldOpen}
+        onClose={() => setIsOfficerShieldOpen(false)}
+        onShowToast={showToast}
+        onOpenPullRods={() => {
+          setIsOfficerShieldOpen(false);
+          setIsPullRodsOpen(true);
+        }}
+        onOpenDvirModal={() => {
+          setIsOfficerShieldOpen(false);
+          setIsDvirModalOpen(true);
+        }}
       />
     </div>
   );

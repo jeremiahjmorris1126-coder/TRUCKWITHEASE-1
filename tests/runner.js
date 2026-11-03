@@ -2,7 +2,7 @@ import { spawnSync } from 'child_process';
 
 const isBun = Boolean(process.versions && process.versions.bun);
 const cmd = isBun ? 'bun' : 'node';
-const args = isBun ? ['test'] : ['--experimental-strip-types', '--test', 'tests/cockpit.test.js', 'tests/error_logging.test.js', 'tests/telecom.test.js', 'tests/api_integration.test.js', 'tests/gpstab.test.js', 'tests/hardware_pricing.test.js'];
+const args = isBun ? ['test'] : ['--experimental-strip-types', '--test', 'tests/cockpit.test.js', 'tests/error_logging.test.js', 'tests/telecom.test.js', 'tests/api_integration.test.js', 'tests/gpstab.test.js', 'tests/hardware_pricing.test.js', 'tests/cross_function_compliance.test.js'];
 
 const result = spawnSync(cmd, args, {
   stdio: 'inherit',

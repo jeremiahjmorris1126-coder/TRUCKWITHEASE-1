@@ -1,5 +1,8 @@
-import { DotDocumentRecord, DotDocCategory, DotDocStatus } from '../types';
-import { INITIAL_DOT_DOCUMENTS } from '../data/dotDocumentTemplatesData';
+import type { DotDocumentRecord, DotDocCategory, DotDocStatus } from '../types.ts';
+import { INITIAL_DOT_DOCUMENTS } from '../data/dotDocumentTemplatesData.ts';
+import { safeStorage } from '../utils/safeStorage.ts';
+
+const STORAGE_KEY = 'twe_dot_compliance_documents_v2';
 
 type Listener = (docs: DotDocumentRecord[]) => void;
 
@@ -8,7 +11,19 @@ class DotDocumentsService {
   private listeners: Set<Listener> = new Set();
 
   constructor() {
-    this.documents = [...INITIAL_DOT_DOCUMENTS];
+    this.documents = this.loadFromStorage();
+  }
+
+  private loadFromStorage(): DotDocumentRecord[] {
+    const res = safeStorage.getItem<DotDocumentRecord[]>(STORAGE_KEY, INITIAL_DOT_DOCUMENTS);
+    if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+      return res.data;
+    }
+    return [...INITIAL_DOT_DOCUMENTS];
+  }
+
+  private saveToStorage(): void {
+    safeStorage.setItem<DotDocumentRecord[]>(STORAGE_KEY, this.documents);
   }
 
   public getDocuments(): DotDocumentRecord[] {
@@ -24,6 +39,7 @@ class DotDocumentsService {
   }
 
   private notifyListeners(): void {
+    this.saveToStorage();
     const docs = this.getDocuments();
     this.listeners.forEach((listener) => {
       try {

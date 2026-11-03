@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { DvirManagementModal } from '../DvirManagementModal';
+import { crossFunctionMemoryService } from '../../services/crossFunctionMemoryService';
+import { DRIVER_INFO } from '../../data/mockData';
 
 interface MasterMechanicScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -84,6 +87,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
   const [trailerAngle, setTrailerAngle] = useState<number>(14);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [dvirSigned, setDvirSigned] = useState<boolean>(false);
+  const [isDvirModalOpen, setIsDvirModalOpen] = useState<boolean>(false);
 
   const handleClearCodes = () => {
     setIsScanning(true);
@@ -186,7 +190,16 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-stretch sm:self-auto">
+            <div className="flex items-center gap-2 self-stretch sm:self-auto flex-wrap">
+              <button
+                onClick={() => setIsDvirModalOpen(true)}
+                className="btn-tactical-yellow py-2 px-3.5 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer shadow-[0_0_12px_rgba(255,229,0,0.35)]"
+                title="Create or Scan 49 CFR § 396.11 DVIR"
+              >
+                <span className="material-symbols-outlined text-[16px]">fact_check</span>
+                <span>DVIR &amp; DTC Sync</span>
+              </button>
+
               <button
                 onClick={handleScanNow}
                 disabled={isScanning}
@@ -486,25 +499,52 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
               </span>
             </div>
 
-            <button
-              onClick={() => {
-                setDvirSigned(true);
-                onShowToast('MECHANIC SAFETY DVIR ATTESTED & CRYPTOGRAPHICALLY LOGGED', 'verified');
-              }}
-              className={`py-2 px-4 rounded-xl text-xs font-bold uppercase transition flex items-center gap-1.5 cursor-pointer ${
-                dvirSigned
-                  ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                  : 'btn-tactical-yellow'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {dvirSigned ? 'verified' : 'draw'}
-              </span>
-              <span>{dvirSigned ? 'DVIR ATTESTED (SAFE)' : 'Sign Mechanical DVIR'}</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setIsDvirModalOpen(true)}
+                className="btn-tactical-yellow py-2 px-3.5 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(255,229,0,0.35)]"
+              >
+                <span className="material-symbols-outlined text-[16px]">fact_check</span>
+                <span>Open DVIR Console / Scanner</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setDvirSigned(true);
+                  crossFunctionMemoryService.createDvir({
+                    inspectionType: 'POST_TRIP',
+                    defects: crossFunctionMemoryService.importJ1939FaultsToDvir(faultCodes.filter((f) => !f.cleared)),
+                    conditionSatisfactory: true,
+                    defectsCorrected: true,
+                    driverSignature: `${DRIVER_INFO.name} (Driver Inspector)`,
+                    mechanicSignature: 'Certified Heavy Duty Mobile Mechanic (ASE-T4)',
+                    mechanicNotes: 'Roadside diagnostic scan and brake stroke certification completed.',
+                  });
+                  onShowToast('MECHANIC SAFETY DVIR ATTESTED & CRYPTOGRAPHICALLY DEPOSITED IN VAULT', 'verified');
+                }}
+                className={`py-2 px-4 rounded-xl text-xs font-black uppercase transition flex items-center gap-1.5 cursor-pointer ${
+                  dvirSigned
+                    ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                    : 'btn-tactical-yellow'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {dvirSigned ? 'verified' : 'draw'}
+                </span>
+                <span>{dvirSigned ? 'DVIR ATTESTED (SAFE)' : 'Sign Mechanical DVIR'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* DVIR Management & Paper Scanner Modal */}
+      <DvirManagementModal
+        isOpen={isDvirModalOpen}
+        onClose={() => setIsDvirModalOpen(false)}
+        onShowToast={onShowToast}
+        activeJ1939Faults={faultCodes.filter((f) => !f.cleared)}
+      />
     </div>
   );
 };

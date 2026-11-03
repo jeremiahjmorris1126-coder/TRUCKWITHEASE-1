@@ -14,6 +14,7 @@ import {
 import { brokeredLoadsMemoryService } from '../../services/brokeredLoadsMemoryService';
 import { buildSmsDeepLink, playDispatchLoopChime, speakDispatchNotification } from '../../services/driverDispatchLoopService';
 import { subscriptionEdiService, EdiCostAlternative } from '../../services/subscriptionEdiService';
+import { crossFunctionMemoryService } from '../../services/crossFunctionMemoryService';
 
 interface DispatchEtaProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -92,6 +93,13 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSplitViewActive, setIsSplitViewActive] = useState<boolean>(true);
   const [mapLayer, setMapLayer] = useState<'VECTOR' | 'TRAFFIC' | 'SATELLITE'>('TRAFFIC');
+  const [hosClocks, setHosClocks] = useState(() => crossFunctionMemoryService.getHosClocks());
+
+  useEffect(() => {
+    return crossFunctionMemoryService.subscribe((snapshot) => {
+      setHosClocks(snapshot.hos);
+    });
+  }, []);
 
   // ==========================================================================
   // ANSI ASC X12 EDI STATE & TRANSACTION ENGINE
@@ -626,6 +634,11 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
             <p className="text-sm font-medium text-slate-300 tracking-wide mt-1">
               Loads Ranked by Remaining Legal Hours
             </p>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <span className="px-3 py-1 rounded-full bg-[#FFE500]/15 text-[#FFE500] border border-[#FFE500]/40 text-xs font-bold font-mono shadow-[0_0_10px_rgba(255,229,0,0.25)]">
+                LEGAL DRIVE TIME: {Math.floor(hosClocks.drivingSecondsRemaining / 3600)}h {Math.floor((hosClocks.drivingSecondsRemaining % 3600) / 60)}m REMAINING ({Math.floor(hosClocks.dutyWindowSecondsRemaining / 3600)}h SHIFT WINDOW)
+              </span>
+            </div>
           </div>
 
           {/* Yield Cards */}

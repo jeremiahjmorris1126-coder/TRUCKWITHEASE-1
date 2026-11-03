@@ -1,5 +1,6 @@
-import { BrokeredLoadMemory } from '../types';
-import { INITIAL_BROKERED_LOADS_MEMORY } from '../data/mockBrokeredLoadsMemory';
+import type { BrokeredLoadMemory } from '../types.ts';
+import { INITIAL_BROKERED_LOADS_MEMORY } from '../data/mockBrokeredLoadsMemory.ts';
+import { safeStorage } from '../utils/safeStorage.ts';
 
 const STORAGE_KEY = 'twe_brokered_loads_memory_v1';
 
@@ -11,26 +12,15 @@ class BrokeredLoadsMemoryService {
   }
 
   private loadFromStorage(): BrokeredLoadMemory[] {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to load brokered loads memory from storage:', err);
+    const res = safeStorage.getItem<BrokeredLoadMemory[]>(STORAGE_KEY, INITIAL_BROKERED_LOADS_MEMORY);
+    if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+      return res.data;
     }
     return [...INITIAL_BROKERED_LOADS_MEMORY];
   }
 
   private saveToStorage(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.memories));
-    } catch (err) {
-      console.warn('Failed to save brokered loads memory:', err);
-    }
+    safeStorage.setItem(STORAGE_KEY, this.memories);
   }
 
   public getAll(): BrokeredLoadMemory[] {

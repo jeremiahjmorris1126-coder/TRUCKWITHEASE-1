@@ -1,4 +1,4 @@
-import { DotDocumentRecord } from '../types';
+import type { DotDocumentRecord } from '../types.ts';
 
 export const INITIAL_DOT_DOCUMENTS: DotDocumentRecord[] = [
   // 1. DRIVER QUALIFICATION FILES (DQF) - MEDICAL CARDS & PHYSICALS

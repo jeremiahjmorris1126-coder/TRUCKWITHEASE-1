@@ -17,6 +17,9 @@ interface HeaderProps {
   onOpenBluetoothModal?: () => void;
   isBluetoothConnected?: boolean;
   onOpenErodsModal?: () => void;
+  onOpenOfficerShield?: () => void;
+  onOpenPullRods?: () => void;
+  onOpenDvir?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,6 +37,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenBluetoothModal,
   isBluetoothConnected = false,
   onOpenErodsModal,
+  onOpenOfficerShield,
+  onOpenPullRods,
+  onOpenDvir,
 }) => {
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
@@ -195,6 +201,20 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="font-telemetry-label text-[10px] hidden sm:inline font-bold">
                 {isListening ? 'LISTENING' : 'VOICE [V]'}
               </span>
+            </button>
+          )}
+
+          {/* 1-Tap Roadside Officer Shield */}
+          {onOpenOfficerShield && (
+            <button
+              id="btn-dot-officer-shield"
+              aria-label="DOT Roadside Officer Shield"
+              onClick={onOpenOfficerShield}
+              className="min-h-[40px] px-2.5 flex items-center justify-center gap-1.5 bg-[#FFE500] hover:bg-[#FFDF00] text-black font-black font-['Space_Grotesk'] text-[11px] uppercase tracking-wider rounded cursor-pointer transition-all shadow-[0_0_15px_rgba(255,229,0,0.35)] hover:brightness-110 active:scale-95"
+              title="1-Tap Roadside Inspection Shield: 8-Day RODS, DQF & DVIR (49 CFR § 390.31)"
+            >
+              <span className="material-symbols-outlined text-[18px]">local_police</span>
+              <span className="hidden md:inline">DOT SHIELD</span>
             </button>
           )}
 

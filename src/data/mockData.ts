@@ -1,4 +1,4 @@
-import { DayLog, WeighStation, ParkingSpot, InspectionLogEntry, BridgeGeofence, DispatchLoad } from '../types';
+import type { DayLog, WeighStation, ParkingSpot, InspectionLogEntry, BridgeGeofence, DispatchLoad } from '../types.ts';
 
 export const CARRIER_INFO = {
   name: 'Morrishive Logistics',

@@ -4,6 +4,10 @@ import { dotDocumentsService } from '../../services/dotDocumentsService';
 import { CARRIER_INFO, DRIVER_INFO, EQUIPMENT_INFO } from '../../data/mockData';
 import { fleetFederalVaultService } from '../../services/fleetFederalVaultService';
 import { FleetVehicleRecord } from '../../data/mockFleetDqfData';
+import { RoadsideOfficerShieldModal } from '../RoadsideOfficerShieldModal';
+import { RodsPullModal } from '../RodsPullModal';
+import { DvirManagementModal } from '../DvirManagementModal';
+import { crossFunctionMemoryService } from '../../services/crossFunctionMemoryService';
 
 interface DotComplianceVaultScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -41,6 +45,34 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
   const [selectedDocForRenew, setSelectedDocForRenew] = useState<DotDocumentRecord | null>(null);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showCustodySignModal, setShowCustodySignModal] = useState<boolean>(false);
+  const [showOfficerShield, setShowOfficerShield] = useState<boolean>(false);
+  const [showPullRods, setShowPullRods] = useState<boolean>(false);
+  const [showDvirModal, setShowDvirModal] = useState<boolean>(false);
+
+  const handleEmergencyOfflineBackup = () => {
+    const backupDossier = crossFunctionMemoryService.getRoadsideAuditDossier();
+    const backupPacket = {
+      backupStandard: 'FMCSA 49 CFR Part 390 / Part 395 / Part 396 Zero-Shut-Down Fail-Safe Vault Backup',
+      attestation: 'Certified Tamper-Evident Offline Emergency Compliance Package',
+      createdIso: new Date().toISOString(),
+      carrier: CARRIER_INFO,
+      driver: DRIVER_INFO,
+      equipment: EQUIPMENT_INFO,
+      dossier: backupDossier,
+      allStoredFederalRecords: dotDocumentsService.getDocuments(),
+      totalRecordsPreserved: dotDocumentsService.getDocuments().length,
+      merkleSealSha256: backupDossier.merkleRootHash,
+    };
+
+    const blob = new Blob([JSON.stringify(backupPacket, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `USDOT_${CARRIER_INFO.usdot}_EMERGENCY_FAILSAFE_BACKUP_${new Date().toISOString().substring(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    onShowToast('EMERGENCY FAIL-SAFE COMPLIANCE BACKUP DOWNLOADED // PREVENTS OUT-OF-SERVICE SHUTDOWN', 'verified');
+  };
 
   // Sign custody form
   const [custodianNameInput, setCustodianNameInput] = useState<string>(DRIVER_INFO.name);
@@ -214,6 +246,42 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
 
           {/* Major One-Click Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <button
+              onClick={() => setShowOfficerShield(true)}
+              className="px-3.5 py-2 rounded-xl bg-surface-container-high text-[#FFE500] border border-[#FFE500]/60 font-black text-[11px] uppercase tracking-wider hover:bg-surface-container-highest transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+              title="1-Tap Roadside Inspection Officer Shield"
+            >
+              <span className="material-symbols-outlined text-[16px]">local_police</span>
+              <span>DOT Officer Shield</span>
+            </button>
+
+            <button
+              onClick={() => setShowPullRods(true)}
+              className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,229,0,0.4)] flex items-center gap-1.5 cursor-pointer"
+              title="Pull 8-Day FMCSA Record of Duty Status"
+            >
+              <span className="material-symbols-outlined text-[16px]">view_timeline</span>
+              <span>Pull RODS</span>
+            </button>
+
+            <button
+              onClick={() => setShowDvirModal(true)}
+              className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,229,0,0.4)] flex items-center gap-1.5 cursor-pointer"
+              title="Create or Scan DVIR (49 CFR § 396.11)"
+            >
+              <span className="material-symbols-outlined text-[16px]">fact_check</span>
+              <span>DVIR &amp; Scanner</span>
+            </button>
+
+            <button
+              onClick={handleEmergencyOfflineBackup}
+              className="px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 font-bold text-[11px] uppercase tracking-wider hover:bg-emerald-500/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+              title="Zero-Shutdown Offline Emergency Audit Backup Package"
+            >
+              <span className="material-symbols-outlined text-[16px]">cloud_download</span>
+              <span>Zero-Shutdown Backup</span>
+            </button>
+
             <button
               onClick={() => setShowCustodySignModal(true)}
               className="px-3 py-2 rounded-xl bg-surface-container-high text-primary border border-primary/40 font-bold text-[11px] uppercase tracking-wider hover:bg-surface-container-highest transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
@@ -1157,6 +1225,35 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
           </div>
         </div>
       )}
+
+      {/* Roadside Officer Shield Modal */}
+      <RoadsideOfficerShieldModal
+        isOpen={showOfficerShield}
+        onClose={() => setShowOfficerShield(false)}
+        onShowToast={onShowToast}
+        onOpenPullRods={() => {
+          setShowOfficerShield(false);
+          setShowPullRods(true);
+        }}
+        onOpenDvirModal={() => {
+          setShowOfficerShield(false);
+          setShowDvirModal(true);
+        }}
+      />
+
+      {/* Pull RODS 8-Day Archive & Transfer Modal */}
+      <RodsPullModal
+        isOpen={showPullRods}
+        onClose={() => setShowPullRods(false)}
+        onShowToast={onShowToast}
+      />
+
+      {/* Electronic & Paper Scanned DVIR Modal */}
+      <DvirManagementModal
+        isOpen={showDvirModal}
+        onClose={() => setShowDvirModal(false)}
+        onShowToast={onShowToast}
+      />
     </div>
   );
 };

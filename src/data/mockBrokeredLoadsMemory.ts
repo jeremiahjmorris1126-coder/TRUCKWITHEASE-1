@@ -1,4 +1,4 @@
-import { BrokeredLoadMemory } from '../types';
+import type { BrokeredLoadMemory } from '../types.ts';
 
 export const INITIAL_BROKERED_LOADS_MEMORY: BrokeredLoadMemory[] = [
   {
