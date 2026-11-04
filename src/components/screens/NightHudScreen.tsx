@@ -349,7 +349,10 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
         {/* SECTION 0: HRE & TRAXXAS SUITE */}
         {cockpitSection === 'HRE_TRAXXAS' && (
           <div className="space-y-4 animate-fade-in">
-            <HreTraxxasSentinelWidget onShowToast={onShowToast} />
+            <HreTraxxasSentinelWidget
+              onShowToast={onShowToast}
+              onNavigateToInsurance={onNavigateToTab ? () => onNavigateToTab('insurance') : undefined}
+            />
           </div>
         )}
 

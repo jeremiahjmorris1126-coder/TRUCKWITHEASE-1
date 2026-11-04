@@ -6,9 +6,10 @@ import { EcosystemTrustHubScreen } from './EcosystemTrustHubScreen';
 import { MasterSynchronizerScreen } from './MasterSynchronizerScreen';
 import { QuantumIndexScreen } from './QuantumIndexScreen';
 import { HardwarePricingScreen } from './HardwarePricingScreen';
+import { InsuranceConnectorScreen } from './InsuranceConnectorScreen';
 
 interface FleetOperationsHubProps {
-  initialSubTab?: 'invoices' | 'vault' | 'trust' | 'sync' | 'quantum' | 'hardware';
+  initialSubTab?: 'invoices' | 'vault' | 'trust' | 'sync' | 'quantum' | 'hardware' | 'insurance';
   onShowToast: (msg: string, icon?: string) => void;
   onOpenPdfModal?: () => void;
   inspectionLogs: InspectionLogEntry[];
@@ -26,9 +27,9 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
   onClearLogs,
   onNavigateToTab,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'vault' | 'trust' | 'sync' | 'quantum' | 'hardware'>(
-    initialSubTab
-  );
+  const [activeSubTab, setActiveSubTab] = useState<
+    'invoices' | 'vault' | 'trust' | 'sync' | 'quantum' | 'hardware' | 'insurance'
+  >(initialSubTab);
 
   useEffect(() => {
     setActiveSubTab(initialSubTab);
@@ -111,6 +112,18 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
               <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
               <span>Hardware Store</span>
             </button>
+
+            <button
+              onClick={() => setActiveSubTab('insurance')}
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black tracking-wider uppercase transition-all cursor-pointer whitespace-nowrap flex-1 ${
+                activeSubTab === 'insurance'
+                  ? 'btn-tactical-yellow shadow-[0_0_15px_rgba(255,229,0,0.4)]'
+                  : 'bg-[#FFE500]/10 hover:bg-[#FFE500]/20 text-[#FFE500] border border-[#FFE500]/30'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">security</span>
+              <span>Insurance Discounts</span>
+            </button>
           </div>
         </div>
       </div>
@@ -140,6 +153,9 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
         )}
         {activeSubTab === 'hardware' && (
           <HardwarePricingScreen onShowToast={onShowToast} onNavigateToTab={onNavigateToTab} />
+        )}
+        {activeSubTab === 'insurance' && (
+          <InsuranceConnectorScreen onShowToast={onShowToast} onNavigateToTab={onNavigateToTab} />
         )}
       </div>
     </div>

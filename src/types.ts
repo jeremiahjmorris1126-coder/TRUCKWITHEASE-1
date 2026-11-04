@@ -1,4 +1,4 @@
-export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'the-g-o-a-t-' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner' | 'hardware-pricing' | 'landing';
+export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'the-g-o-a-t-' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner' | 'hardware-pricing' | 'landing' | 'insurance';
 
 export type DutyStatus = 'OFF' | 'SB' | 'D' | 'ON' | 'YM' | 'PC';
 
@@ -1279,6 +1279,169 @@ export interface CommercialRoutingProvidersStatus {
   };
   activeEngine: CommercialNavigationProvider;
 }
+
+// ============================================================================
+// DOT CARRIER RECORDS, FMCSA SMS SCORES & DRIVER VIOLATION TRACKING
+// ============================================================================
+
+export type DotSafetyRating = 'SATISFACTORY' | 'CONDITIONAL' | 'UNSATISFACTORY' | 'NOT_RATED';
+
+export interface DotCarrierOosRates {
+  driverOosPct: number;
+  driverNationalAvgPct: number;
+  vehicleOosPct: number;
+  vehicleNationalAvgPct: number;
+  hazmatOosPct: number;
+  hazmatNationalAvgPct: number;
+}
+
+export type DotSmsCategory =
+  | 'UNSAFE_DRIVING'
+  | 'CRASH_INDICATOR'
+  | 'HOS_COMPLIANCE'
+  | 'VEHICLE_MAINT'
+  | 'CONTROLLED_SUBSTANCES'
+  | 'HAZMAT'
+  | 'DRIVER_FITNESS';
+
+export interface DotSmsBasicScore {
+  category: DotSmsCategory;
+  name: string;
+  measure: number;
+  percentile: number; // 0 - 100
+  threshold: number; // e.g., 65 or 80
+  status: 'CLEAN' | 'EXCELLENT' | 'ALERT' | 'SERIOUS_VIOLATION';
+  totalViolations: number;
+  oosViolations: number;
+  description: string;
+}
+
+export interface DotOfficialLinks {
+  saferSnapshotUrl: string;
+  smsScorecardUrl: string;
+  licensingInsuranceUrl: string;
+  clearinghouseUrl: string;
+  dataQsUrl: string;
+}
+
+export interface DotCompanyRecord {
+  usdot: string;
+  mcNumber: string;
+  legalName: string;
+  dbaName?: string;
+  safetyRating: DotSafetyRating;
+  safetyRatingDate: string;
+  operatingStatus: 'AUTHORIZED_FOR_HIRE' | 'ACTIVE' | 'INACTIVE';
+  entityType: 'CARRIER' | 'BROKER' | 'SHIPPER';
+  carrierOperation: 'INTERSTATE' | 'INTRASTATE';
+  physicalAddress: string;
+  phone: string;
+  powerUnits: number;
+  drivers: number;
+  mcs150Mileage: number;
+  mcs150Date: string;
+  insuranceRequiredBipd: number;
+  insuranceOnFileBipd: number;
+  cargoInsuranceOnFile: number;
+  bondFormBmc91x: boolean;
+  outOfServiceRates: DotCarrierOosRates;
+  smsScores: DotSmsBasicScore[];
+  officialLinks: DotOfficialLinks;
+  lastFetchedIso: string;
+  verified: boolean;
+}
+
+export interface DriverViolationItem {
+  id: string;
+  violationCode: string;
+  cfrSection: string;
+  description: string;
+  basicCategory: DotSmsCategory;
+  severityWeight: number; // 1 to 10
+  timeWeight: number; // 1, 2, or 3
+  totalPoints: number;
+  outOfService: boolean;
+  status: 'ACTIVE' | 'CONTESTED_DATAQS' | 'REMEDIATED' | 'DISMISSED';
+  remediationNotes?: string;
+}
+
+export interface DriverRoadsideInspectionRecord {
+  id: string;
+  reportNumber: string;
+  inspectionDate: string;
+  state: string;
+  locationDescription: string;
+  level: 'LEVEL_I' | 'LEVEL_II' | 'LEVEL_III' | 'LEVEL_V';
+  driverId: string;
+  driverName: string;
+  cdlNumber: string;
+  cdlState: string;
+  unitNumber: string;
+  trailerNumber: string;
+  inspectingAgency: string;
+  officerBadge: string;
+  outOfServiceOrder: boolean;
+  cleanInspectionPass: boolean;
+  violations: DriverViolationItem[];
+  notes: string;
+  tamperEvidentSha256: string;
+}
+
+// ============================================================================
+// TRUCKWITHEASE INSURANCE CONNECTOR & FLEET COMPANY DISCOUNTS
+// ============================================================================
+
+export type InsuranceDiscountCategory =
+  | 'CLEAN_DOT_SMS'
+  | 'TELEMATICS_CANBUS'
+  | 'FHWA_RADAR_54B'
+  | 'ZERO_OOS_DRIVERS'
+  | 'ELECTRONIC_DVIR';
+
+export interface InsuranceDiscountTier {
+  id: string;
+  title: string;
+  discountPercent: number; // e.g. 15 for 15%
+  category: InsuranceDiscountCategory;
+  qualificationRule: string;
+  qualified: boolean;
+  annualSavingsUsd: number;
+}
+
+export interface InsuranceConnectorCompany {
+  id: string;
+  name: string;
+  tagline: string;
+  logoBadge: string;
+  underwritingTier: string;
+  supportedCoverages: string[];
+  baseRatePerPowerUnitAnnual: number;
+  maxDiscountPercent: number;
+  integrationStatus: 'CONNECTED' | 'PARTNER_VERIFIED' | 'INSTANT_BIND_READY';
+  telematicsApproved: boolean;
+  connectorDescription: string;
+  directPortalUrl: string;
+  discountsOffered: InsuranceDiscountTier[];
+}
+
+export interface FleetInsuranceQuote {
+  quoteId: string;
+  carrierUsdot: string;
+  carrierName: string;
+  fleetPowerUnits: number;
+  selectedCompanyId: string;
+  companyName: string;
+  baseAnnualTotal: number;
+  aggregateDiscountPct: number;
+  netAnnualTotal: number;
+  totalAnnualSavings: number;
+  qualifiedDiscounts: InsuranceDiscountTier[];
+  timestamp: string;
+  expirationDate: string;
+  status: 'GENERATED' | 'BIND_REQUESTED' | 'BOUND_ACTIVE';
+  merkleSealSha256: string;
+}
+
 
 
 

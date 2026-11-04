@@ -346,10 +346,13 @@ export default function App() {
       case 'ecosystem':
       case 'master-sync':
       case 'quantum-index':
+      case 'insurance':
         return (
           <FleetOperationsHub
             initialSubTab={
-              activeTab === 'vault'
+              activeTab === 'insurance'
+                ? 'insurance'
+                : activeTab === 'vault'
                 ? 'vault'
                 : activeTab === 'ecosystem'
                 ? 'trust'

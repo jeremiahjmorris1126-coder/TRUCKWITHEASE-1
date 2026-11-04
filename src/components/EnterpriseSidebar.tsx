@@ -81,10 +81,20 @@ const COMMAND_MENU_ITEMS: CommandMenuItem[] = [
     badgeColor: 'bg-[#FFE500]/20 text-[#FFE500] border-[#FFE500]/40',
   },
   {
+    id: 'insurance',
+    label: 'INSURANCE CONNECTOR',
+    sublabel: 'Carrier Discounts & DOT Scores',
+    icon: 'security',
+    badge: 'DISCOUNTS',
+    badgeColor: 'bg-[#FFE500]/20 text-[#FFE500] border-[#FFE500]/40',
+  },
+  {
     id: 'telemetry',
     label: 'VEHICLE TELEMETRY',
     sublabel: '10Hz ECM CAN-Bus & Heat',
     icon: 'memory',
+    badge: '10Hz',
+    badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
   },
   {
     id: 'haptics',
