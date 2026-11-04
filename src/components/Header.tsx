@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TabId } from '../types';
 import {
   ENABLE_BLUETOOTH_ELD,
   ENABLE_TELEMETRY_10HZ,
   ENABLE_QUANTUM_ALERTNESS_CARD,
 } from '../config/featureFlags';
+import { offlineSyncService, SyncState } from '../services/offlineSyncService';
 
 interface HeaderProps {
   activeTab: TabId;
@@ -39,6 +40,14 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser = null,
   driverName,
 }) => {
+  const [syncState, setSyncState] = useState<SyncState>(() => offlineSyncService.getState());
+
+  useEffect(() => {
+    return offlineSyncService.subscribe((state) => {
+      setSyncState(state);
+    });
+  }, []);
+
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
       case 'night-hud':
@@ -97,6 +106,44 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Telemetry & Status Badges */}
         <div className="flex items-center gap-space-xs shrink-0">
+          {/* Offline Sync Status Indicator (Phase 4 Guaranteed Persistence) */}
+          <button
+            onClick={() => offlineSyncService.processQueue()}
+            title={
+              !syncState.isOnline
+                ? 'Offline mode: All duty changes, DVIRs & events saved locally.'
+                : syncState.pendingCount > 0
+                ? `${syncState.pendingCount} records waiting to sync. Click to retry now.`
+                : 'All records synced to server.'
+            }
+            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-mono font-bold transition-all cursor-pointer ${
+              !syncState.isOnline
+                ? 'bg-amber-950/60 text-amber-300 border-amber-500/50'
+                : syncState.pendingCount > 0
+                ? 'bg-sky-950/60 text-sky-300 border-sky-500/50 animate-pulse'
+                : 'bg-surface-container text-emerald-400 border-surface-container-high'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[13px]">
+              {!syncState.isOnline
+                ? 'cloud_off'
+                : syncState.isSyncing
+                ? 'sync'
+                : syncState.pendingCount > 0
+                ? 'cloud_upload'
+                : 'cloud_done'}
+            </span>
+            <span className="font-bold">
+              {!syncState.isOnline
+                ? syncState.pendingCount > 0 ? `Offline (${syncState.pendingCount})` : 'Offline'
+                : syncState.isSyncing
+                ? `Syncing (${syncState.pendingCount})...`
+                : syncState.pendingCount > 0
+                ? `Waiting to sync (${syncState.pendingCount})`
+                : 'Synced'}
+            </span>
+          </button>
+
           {/* Driver Alertness Index Pill */}
           {ENABLE_QUANTUM_ALERTNESS_CARD && onOpenAlertnessModal && (
             <button

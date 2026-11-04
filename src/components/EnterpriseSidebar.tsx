@@ -83,6 +83,14 @@ const COMMAND_MENU_ITEMS: CommandMenuItem[] = [
     sublabel: 'Steering Wheel Tactile Alert',
     icon: 'vibration',
   },
+  {
+    id: 'hardware-store',
+    label: 'ELD HARDWARE & FULFILLMENT',
+    sublabel: 'Azuga, Geotab, GPSTab, Samsara',
+    icon: 'router',
+    badge: 'BYOD',
+    badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+  },
 ];
 
 export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({

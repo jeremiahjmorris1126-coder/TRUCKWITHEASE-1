@@ -23,6 +23,7 @@ import {
   calculateNasaVerification,
   evaluateSplitSleeperBerth,
 } from './eldCalculations';
+import { offlineSyncService } from './offlineSyncService';
 
 const STORAGE_KEY = 'truckwithease_live_eld_state_v1';
 
@@ -299,6 +300,15 @@ class NasaEldTimeClientService {
     this.currentStatus = newStatus;
     this.statusSinceEpochMs = now;
     this.persistState();
+
+    // Guaranteed local-first: queue duty status transition to offline sync
+    offlineSyncService.enqueue('DUTY_STATUS', {
+      status: newStatus,
+      timestamp: now,
+      lat: this.currentLat,
+      lng: this.currentLng,
+      speedMph: this.currentSpeedMph,
+    }).catch(() => {});
 
     this.currentState = this.computeState(now);
     this.notifyListeners();

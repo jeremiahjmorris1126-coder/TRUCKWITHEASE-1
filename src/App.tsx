@@ -34,6 +34,7 @@ import { FleetExpensesInvoiceScreen } from './components/screens/FleetExpensesIn
 import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
+import { HardwareStoreScreen } from './components/screens/HardwareStoreScreen';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 // Deployment modals removed from driver app build
 import { BluetoothEldModal } from './components/BluetoothEldModal';
@@ -366,6 +367,8 @@ export default function App() {
         );
       case 'haptics':
         return <HapticsScreen onShowToast={showToast} />;
+      case 'hardware-store':
+        return <HardwareStoreScreen onShowToast={showToast} />;
       case 'telemetry':
         return (
           <TelemetryScreen

@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { offlineSyncService } from './offlineSyncService';
 
 export interface DetentionStatusSummary {
   stopId: string;
@@ -56,10 +57,15 @@ class DetentionClientService {
         source: 'phone_gps',
       },
     ];
-    const res = await apiClient.post('/api/detention/events', { vehicleId, events }, {
-      skipUnauthorizedRedirect: true,
-    });
-    return Boolean(res?.success);
+    try {
+      const res = await apiClient.post('/api/detention/events', { vehicleId, events }, {
+        skipUnauthorizedRedirect: true,
+      });
+      return Boolean(res?.success);
+    } catch (err: any) {
+      await offlineSyncService.enqueue('DETENTION_EVENT', { vehicleId, events });
+      return true;
+    }
   }
 
   async getStatus(vehicleId: string): Promise<DetentionStatusSummary | null> {

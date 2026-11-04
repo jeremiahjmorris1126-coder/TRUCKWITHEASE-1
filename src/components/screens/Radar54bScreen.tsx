@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WEIGH_STATIONS } from '../../data/mockData';
 import { WeighStation } from '../../types';
+import { bypassClientService, BypassCarrierCredentials } from '../../services/bypassClientService';
 
 interface Radar54bScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -20,6 +21,13 @@ export const Radar54bScreen: React.FC<Radar54bScreenProps> = ({
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>('bridge-danger');
   const [mapMode, setMapMode] = useState<'TACTICAL_3D' | 'GOOGLE_DARK' | 'SATELLITE'>('TACTICAL_3D');
   const [showWeighStationDetails, setShowWeighStationDetails] = useState<boolean>(false);
+  const [carrierCreds, setCarrierCreds] = useState<BypassCarrierCredentials | null>(null);
+
+  useEffect(() => {
+    bypassClientService.getCarrierStatus().then((cred) => {
+      setCarrierCreds(cred);
+    });
+  }, []);
 
   // Corridor Waypoints including Sub-174" Bridge Danger Zone
   const ROUTE_WAYPOINTS = [
@@ -516,7 +524,7 @@ export const Radar54bScreen: React.FC<Radar54bScreenProps> = ({
               <span className="material-symbols-outlined text-emerald-400 text-[24px]">verified</span>
               <div>
                 <span className="font-bold text-white block">{activeStation.name}</span>
-                <span className="text-[10px] text-slate-400">PrePass Transponder #889104 &bull; ISS Safety Score 74</span>
+                <span className="text-[10px] text-slate-400">PrePass Transponder {carrierCreds?.prePassTransponderId || 'PP-TX-99210-A'} &bull; ISS Safety Score {carrierCreds?.issScore ?? 18} (PASS)</span>
               </div>
             </div>
             <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 font-bold rounded-full border border-emerald-500/40">

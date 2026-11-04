@@ -5,6 +5,7 @@ const testFiles = [
   'tests/backend.test.js',
   'tests/crossTenantIsolation.test.js',
   'tests/phase2UnifyCore.test.js',
+  'tests/phase3EndToEnd.test.js',
 ];
 const cmd = 'bun';
 const args = ['test', ...testFiles];

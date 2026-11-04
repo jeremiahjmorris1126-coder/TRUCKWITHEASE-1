@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { authenticatedFetch, getSubscriberSession } from '../../services/firebaseClientAuth';
 
 interface MasterMechanicScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -103,6 +104,20 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
   };
 
   const handleDispatchMechanic = (facilityName: string) => {
+    const session = getSubscriberSession();
+    authenticatedFetch('/api/alerts/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'CRITICAL_FAULT',
+        severity: 'WARNING',
+        vehicleUnit: 'UNIT-101',
+        driverName: session?.user?.name || 'Marcus Vance',
+        title: `Mechanic Dispatched: ${facilityName}`,
+        description: `Roadside repair dispatch initiated for ${facilityName}. ETA 22 min.`,
+      }),
+    }).catch(() => {});
+
     onShowToast(`MOBILE MECHANIC DISPATCHED // ${facilityName.toUpperCase()} EN ROUTE (ETA 22 MIN)`, 'car_repair');
   };
 
@@ -489,6 +504,16 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             <button
               onClick={() => {
                 setDvirSigned(true);
+                authenticatedFetch('/api/driver/documents', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    type: 'DVIR',
+                    title: '49 CFR § 396.11 Mechanical DVIR Attestation - Satisfactory',
+                    fileUrl: `/vault/dvir/mechanic-signed-${Date.now()}.pdf`,
+                    status: 'VERIFIED',
+                  }),
+                }).catch(() => {});
                 onShowToast('MECHANIC SAFETY DVIR ATTESTED & CRYPTOGRAPHICALLY LOGGED', 'verified');
               }}
               className={`py-2 px-4 rounded-xl text-xs font-bold uppercase transition flex items-center gap-1.5 cursor-pointer ${

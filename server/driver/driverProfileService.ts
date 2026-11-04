@@ -1,4 +1,4 @@
-import { fleetStore, CallerIdentity } from '../data/fleetStore';
+import { fleetStore, CallerIdentity, TenantAccessError } from '../data/fleetStore';
 
 export interface DriverProfile {
   id: string;
@@ -130,6 +130,9 @@ export async function updateDriverProfile(
 
   const existing = await fleetStore.getScopedDocument<DriverProfile>(caller, 'driver_profiles', driverId);
   if (!existing) {
+    if (caller.role === 'driver' && caller.uid !== driverId) {
+      throw new TenantAccessError('Driver profile not found.', 404);
+    }
     const newProfile: DriverProfile = {
       id: driverId,
       driverId,
