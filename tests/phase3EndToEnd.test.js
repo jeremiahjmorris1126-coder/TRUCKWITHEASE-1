@@ -109,7 +109,7 @@ describe('Phase 3: End-to-End System Integration & Workflow Verification', () =>
     });
 
     expect(alert.id).toBeDefined();
-    expect(alert.status).toBe('ACTIVE');
+    expect(alert.resolved).toBe(false);
     expect(alert.severity).toBe('CRITICAL');
     expect(alert.fleetId).toBe('FLEET-ALPHA');
 
@@ -128,27 +128,25 @@ describe('Phase 3: End-to-End System Integration & Workflow Verification', () =>
     // 5. Alert status is now RESOLVED
     const all = await getAllAlerts(FLEET_A_DRIVER);
     const target = all.find((a) => a.id === alert.id);
-    expect(target?.status).toBe('RESOLVED');
+    expect(target?.resolved).toBe(true);
   });
 
   // =========================================================================
   // WORKFLOW 3: LOW-BRIDGE RADAR HUD & COMMERCIAL ROUTING DIVERTER
   // =========================================================================
   it('Workflow 3: Vehicle profile storage, bridge clearance validation & routing calculation', async () => {
-    // 1. Save standard commercial 13\' 6" trailer profile (162 inches)
+    // 1. Save standard commercial 13\' 6" trailer profile (13.5 ft)
     const profile = await vehicleProfileService.saveVehicleProfile(FLEET_A_DRIVER, FLEET_A_DRIVER.uid, {
-      heightInches: 162,
-      widthInches: 102,
-      lengthInches: 636,
+      heightFt: 13.5,
+      widthFt: 8.5,
+      lengthFt: 53.0,
       weightLbs: 78000,
-      axlesCount: 5,
+      axles: 5,
       isHazmat: false,
-      trailerType: 'DRY_VAN',
       unitNumber: 'UNIT-101',
-      vin: '1FTFW1ED8NFA9104',
     });
 
-    expect(profile.heightInches).toBe(162);
+    expect(profile.heightFt).toBe(13.5);
     expect(profile.weightLbs).toBe(78000);
 
     // 2. Calculate commercial route via routingManager
@@ -156,9 +154,9 @@ describe('Phase 3: End-to-End System Integration & Workflow Verification', () =>
       origin: 'Dallas, TX',
       destination: 'Fort Worth, TX',
       vehicle: {
-        heightInches: profile.heightInches,
+        heightFt: profile.heightFt,
         weightLbs: profile.weightLbs,
-        axlesCount: profile.axlesCount,
+        axles: profile.axles,
         isHazmat: profile.isHazmat,
       },
     });
@@ -173,9 +171,9 @@ describe('Phase 3: End-to-End System Integration & Workflow Verification', () =>
       origin: 'Dallas, TX',
       destination: 'Fort Worth, TX',
       vehicle: {
-        heightInches: profile.heightInches,
+        heightFt: profile.heightFt,
         weightLbs: profile.weightLbs,
-        axlesCount: profile.axlesCount,
+        axles: profile.axles,
         isHazmat: profile.isHazmat,
       },
     });
@@ -237,9 +235,9 @@ describe('Phase 3: End-to-End System Integration & Workflow Verification', () =>
       carrierName: '99th Express Logistics',
       creditCard: {
         cardNumber: '4242424242424242',
-        expiryMonth: '12',
-        expiryYear: '2028',
-        cvv: '123',
+        expMonth: 12,
+        expYear: 2028,
+        cvc: '123',
         cardholderName: 'Raymond Holt',
         billingZip: '11201',
       },

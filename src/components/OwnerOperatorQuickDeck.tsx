@@ -764,8 +764,6 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
                 <span>{isEvaluatingBypass ? 'Adjudicating PrePass WIM...' : 'Run PrePass WIM Adjudication'}</span>
               </button>
 
-                </div>
-              </div>
 
               <button
                 onClick={() => {
