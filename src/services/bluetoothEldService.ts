@@ -163,6 +163,32 @@ export const COMMERCIAL_ELD_PROFILES: EldHardwareProfile[] = [
     batteryPercent: 100,
     isRegisteredFmcsa: true,
   },
+  {
+    id: 'eld-azuga-fleet',
+    name: 'Azuga Fleet Driver Safety & Asset Sentinel',
+    vendor: 'Azuga / Bridgestone Fleet Solutions',
+    protocol: 'J1939_250K',
+    connectorType: '9-PIN_DEUTSCH_GREEN',
+    firmwareVersion: 'v4.2.1-PROD',
+    serialNumber: 'AZUGA-SFT-49102',
+    fmcsaRegisteredId: 'AZUGA-SAFETY-01',
+    rssi: -46,
+    batteryPercent: 100,
+    isRegisteredFmcsa: true,
+  },
+  {
+    id: 'eld-geotab-go10',
+    name: 'Geotab GO10 Next-Gen Powertrain Gateway',
+    vendor: 'Geotab Inc.',
+    protocol: 'J1939_500K',
+    connectorType: '9-PIN_DEUTSCH_GREEN',
+    firmwareVersion: 'v42.0.12',
+    serialNumber: 'G10-994102-NA',
+    fmcsaRegisteredId: 'GEOTAB-GO10-01',
+    rssi: -39,
+    batteryPercent: 100,
+    isRegisteredFmcsa: true,
+  },
 ];
 
 class BluetoothEldService {

@@ -193,14 +193,20 @@
     box-shadow: 0 0 12px rgba(255, 229, 0, 0.3);
   }
   .btn-secondary-tactical {
-    background-color: #0f141c;
-    color: #ffffff;
-    border: 1px solid #1e2532;
+    background-color: #0a0f14;
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 229, 0, 0.3);
     font-family: "Space Grotesk", sans-serif;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-radius: 8px;
+    letter-spacing: 0.05em;
+    border-radius: 12px;
+    transition: all 0.15s ease-in-out;
+  }
+  .btn-secondary-tactical:hover {
+    border-color: #ffe500;
+    color: #ffe500;
+    background-color: #121822;
   }
   .card-tactical {
     background-color: #0a0f14;

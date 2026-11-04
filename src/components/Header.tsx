@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { TabId } from '../types';
 import { DRIVER_INFO } from '../data/mockData';
 
@@ -43,6 +43,20 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDvir,
   onNavigateToTab,
 }) => {
+  const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsToolsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
       case 'night-hud':
@@ -75,14 +89,14 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="fixed top-0 inset-x-0 lg:left-72 z-40 bg-surface-container-lowest/90 backdrop-blur-xl pt-safe shadow-[0_4px_20px_rgba(0,0,0,0.7)] border-b border-surface-container-low transition-all">
-      <div className="max-w-5xl mx-auto h-16 px-gutter-mobile flex items-center justify-between gap-space-xs">
+    <header className="fixed top-0 inset-x-0 lg:left-72 z-40 bg-[#05080E]/95 backdrop-blur-xl pt-safe shadow-[0_4px_24px_rgba(0,0,0,0.85)] border-b border-[#1E2532] transition-all font-mono">
+      <div className="max-w-6xl mx-auto h-16 px-3 sm:px-4 flex items-center justify-between gap-2 sm:gap-4">
         {/* Left: Mobile Sidebar Trigger & Title */}
-        <div className="flex items-center gap-space-sm shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {onToggleMobileSidebar && (
             <button
               onClick={onToggleMobileSidebar}
-              className="lg:hidden p-2 rounded-lg bg-surface-container border border-surface-container-high text-primary hover:bg-surface-container-high cursor-pointer flex items-center justify-center"
+              className="lg:hidden p-2 rounded-xl bg-[#0A0F14] border border-[#FFE500]/30 hover:border-[#FFE500] text-[#FFE500] cursor-pointer flex items-center justify-center transition-all"
               title="Open Enterprise Side Commands"
             >
               <span className="material-symbols-outlined text-[20px]">menu</span>
@@ -95,183 +109,285 @@ export const Header: React.FC<HeaderProps> = ({
             src="/assets/logo.png"
           />
           <div className="flex flex-col">
-            <span className="font-label-caps text-label-caps text-primary uppercase leading-tight font-bold tracking-wider">
+            <span className="font-['Space_Grotesk'] text-[10px] sm:text-xs text-[#FFE500] uppercase leading-tight font-black tracking-wider">
               TRUCKWITHEASE ENTERPRISE
             </span>
-            <span className="font-headline-sm text-headline-sm text-on-surface uppercase tracking-wide truncate max-w-[180px] sm:max-w-[240px]">
+            <span className="font-['Space_Grotesk'] text-xs sm:text-sm text-white font-bold uppercase tracking-wide truncate max-w-[150px] sm:max-w-[220px]">
               {getTabTitle(activeTab)}
             </span>
           </div>
         </div>
 
-        {/* Right Telemetry & Status Badges */}
-        <div className="flex items-center gap-space-xs shrink-0">
+        {/* Right Telemetry & Streamlined Dropdown Commands */}
+        <div className="flex items-center gap-2 shrink-0">
           {/* Driver Alertness Index Pill */}
           {onOpenAlertnessModal && (
             <button
               onClick={onOpenAlertnessModal}
-              className={`flex items-center gap-space-2xs px-space-xs py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg border cursor-pointer transition-all hover:brightness-110 active:scale-95 font-['Space_Grotesk'] text-xs font-bold uppercase tracking-wider ${
                 alertnessScore < 75
-                  ? 'bg-error/20 text-error border-error/50 animate-pulse'
-                  : 'bg-surface-container text-emerald-400 border-surface-container-high'
+                  ? 'bg-red-950/60 text-red-400 border-red-500/50 animate-pulse'
+                  : 'bg-[#0A0F14] text-emerald-400 border-emerald-500/30'
               }`}
-              title="Driver Alertness Index & Rest Area Advisory"
+              title="Driver Alertness Index"
             >
               <span className="material-symbols-outlined text-[14px]">
                 {alertnessScore < 75 ? 'bed' : 'psychology'}
               </span>
-              <span className="font-telemetry-label text-telemetry-label font-bold">
-                {alertnessScore}%
-              </span>
-            </button>
-          )}
-
-          {/* Bluetooth ELD Telemetry Gateway Pill */}
-          {onOpenBluetoothModal && (
-            <button
-              onClick={onOpenBluetoothModal}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 text-xs font-mono font-bold ${
-                isBluetoothConnected
-                  ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-                  : 'bg-amber-950/40 text-[#FFE500] border-amber-500/50 hover:bg-amber-900/50'
-              }`}
-              title="Commercial Bluetooth ELD & 10Hz J1939 Telemetry Suite"
-            >
-              <span className="material-symbols-outlined text-[15px] animate-pulse">
-                {isBluetoothConnected ? 'bluetooth_connected' : 'bluetooth'}
-              </span>
-              <span className="hidden sm:inline font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
-                {isBluetoothConnected ? 'ELD PAIRED' : 'PAIR ELD'}
-              </span>
-            </button>
-          )}
-
-          {/* FMCSA ERoDS Tag-a-Long & Roadside Inspection Scanner Pill */}
-          {onOpenErodsModal && (
-            <button
-              onClick={onOpenErodsModal}
-              className="flex items-center gap-1 px-2.5 py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 text-xs font-mono font-bold bg-[#FFE500]/15 text-[#FFE500] border-[#FFE500]/40 hover:bg-[#FFE500]/25 shadow-[0_0_10px_rgba(255,229,0,0.25)]"
-              title="FMCSA ERoDS Tag-a-Long & Roadside Inspection Scanner"
-            >
-              <span className="material-symbols-outlined text-[15px]">document_scanner</span>
-              <span className="hidden sm:inline font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
-                ERODS TAG-A-LONG
-              </span>
+              <span>{alertnessScore}%</span>
             </button>
           )}
 
           {/* GPS Rate Pill */}
           <div
-            className="flex items-center gap-space-2xs bg-surface-container px-space-xs py-1 rounded border border-surface-container-high"
+            className="hidden sm:flex items-center gap-1 bg-[#0A0F14] px-2 py-1 rounded-lg border border-[#1E2532] text-xs font-mono"
             title="ECM J1939 CAN-Bus 10Hz High-Fidelity Telemetry"
           >
-            <span className="material-symbols-outlined text-primary text-[14px] animate-pulse">
+            <span className="material-symbols-outlined text-[#FFE500] text-[14px] animate-pulse">
               satellite_alt
             </span>
-            <span className="font-telemetry-label text-telemetry-label text-on-surface">
-              10Hz
-            </span>
+            <span className="text-slate-300 font-bold">10Hz</span>
           </div>
 
           {/* Speed Indicator */}
           <div
-            className="flex items-center gap-space-2xs bg-surface-container px-space-xs py-1 rounded border border-surface-container-high"
+            className="flex items-center gap-1 bg-[#0A0F14] px-2.5 py-1 rounded-lg border border-[#FFE500]/30 text-xs font-mono"
             title="Current J1939 Wheel Speed (MPH)"
           >
-            <span className="material-symbols-outlined text-secondary-fixed-dim text-[14px]">
-              speed
-            </span>
-            <span className="font-telemetry-label text-telemetry-label text-primary-fixed font-bold">
-              {speed}
+            <span className="material-symbols-outlined text-[#FFE500] text-[14px]">speed</span>
+            <span className="font-['Space_Grotesk'] font-black text-[#FFE500] text-sm">
+              {speed} <span className="text-[10px] text-slate-400 font-normal">MPH</span>
             </span>
           </div>
 
-          {/* Voice Control HUD Button */}
-          {onToggleVoice && (
-            <button
-              id="btn-hud-voice-control"
-              aria-label="Voice Control HUD [V]"
-              onClick={onToggleVoice}
-              className={`min-h-[40px] px-2.5 flex items-center justify-center gap-1 active:scale-95 transition-all rounded cursor-pointer shadow-md border ${
-                isListening
-                  ? 'bg-error text-on-error border-white animate-pulse'
-                  : 'bg-surface-container hover:bg-surface-container-high text-primary border-surface-container-high hover:border-primary/50'
-              }`}
-              title="Voice Control [V]: Say 'Show Inspection' or 'Emergency'"
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                {isListening ? 'mic' : 'mic_none'}
-              </span>
-              <span className="font-telemetry-label text-[10px] hidden sm:inline font-bold">
-                {isListening ? 'LISTENING' : 'VOICE [V]'}
-              </span>
-            </button>
-          )}
-
-          {/* 1-Tap Roadside Officer Shield */}
+          {/* Primary Action Button: 1-Tap Roadside Officer Shield (Signature Yellow) */}
           {onOpenOfficerShield && (
             <button
               id="btn-dot-officer-shield"
               aria-label="DOT Roadside Officer Shield"
               onClick={onOpenOfficerShield}
-              className="min-h-[40px] px-2.5 flex items-center justify-center gap-1.5 bg-[#FFE500] hover:bg-[#FFDF00] text-black font-black font-['Space_Grotesk'] text-[11px] uppercase tracking-wider rounded cursor-pointer transition-all shadow-[0_0_15px_rgba(255,229,0,0.35)] hover:brightness-110 active:scale-95"
+              className="btn-tactical-yellow min-h-[38px] px-3 sm:px-4 flex items-center justify-center gap-1.5 rounded-xl cursor-pointer shadow-[0_0_20px_rgba(255,229,0,0.45)] hover:brightness-110 active:scale-95 text-xs font-['Space_Grotesk'] font-black uppercase tracking-wider"
               title="1-Tap Roadside Inspection Shield: 8-Day RODS, DQF & DVIR (49 CFR § 390.31)"
             >
               <span className="material-symbols-outlined text-[18px]">local_police</span>
-              <span className="hidden md:inline">DOT SHIELD</span>
+              <span>DOT SHIELD</span>
             </button>
           )}
 
-          {/* Emergency Hotline Button */}
-          <button
-            id="btn-emergency-hotline"
-            aria-label="Emergency Hotline"
-            onClick={onOpenEmergency}
-            className="min-h-[40px] min-w-[40px] flex items-center justify-center bg-error-container text-on-error-container active:scale-95 transition-transform rounded cursor-pointer shadow-md hover:bg-error-container/90"
-            title="24/7 Roadside Assistance & DOT Hotline"
-          >
-            <span className="material-symbols-outlined text-[20px] animate-bounce text-error">
-              e911_emergency
-            </span>
-          </button>
-
-          {/* Driver Portal & Sign-In/Up Sheet Trigger */}
-          {onOpenDriverPortal && (
+          {/* MINIMIZED BUTTONS: CONSOLIDATED TACTICAL QUICK ACTIONS DROPDOWN */}
+          <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() => onOpenDriverPortal('roster')}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFE500] hover:bg-[#FFDF00] text-black font-black font-['Space_Grotesk'] text-[11px] uppercase tracking-wider cursor-pointer transition-all shadow-[0_0_15px_rgba(255,229,0,0.35)] hover:brightness-110 active:scale-95"
-              title="Driver Sign-Up, Sign-In, Fleet Roster & Function Manager"
+              id="btn-cockpit-quick-actions"
+              onClick={() => setIsToolsDropdownOpen(!isToolsDropdownOpen)}
+              className={`min-h-[38px] px-3 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider ${
+                isToolsDropdownOpen
+                  ? 'bg-[#FFE500] text-black border-[#FFE500] shadow-[0_0_15px_rgba(255,229,0,0.4)]'
+                  : 'bg-[#0A0F14] hover:bg-[#121822] text-slate-200 hover:text-[#FFE500] border-[#FFE500]/30 hover:border-[#FFE500]'
+              }`}
+              title="Quick Cockpit Commands & Functions Dropdown"
             >
-              <span className="material-symbols-outlined text-[15px]">badge</span>
-              <span className="hidden sm:inline truncate max-w-[110px]">{activeDriverName.split(' ')[0]}</span>
-              <span className="text-[9px] bg-black text-[#FFE500] px-1 py-0.2 rounded font-mono">PORTAL</span>
+              <span className="material-symbols-outlined text-[18px]">widgets</span>
+              <span className="hidden md:inline">TOOLS</span>
+              <span className="material-symbols-outlined text-[16px] transition-transform duration-200">
+                {isToolsDropdownOpen ? 'expand_less' : 'expand_more'}
+              </span>
             </button>
-          )}
 
-          {/* Landing Page Showcase Button */}
-          {onNavigateToTab && (
-            <button
-              onClick={() => onNavigateToTab('landing')}
-              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container border border-surface-container-high text-slate-300 hover:text-[#FFE500] hover:border-[#FFE500]/50 font-mono text-[11px] font-bold uppercase tracking-wider cursor-pointer transition-all"
-              title="Return to Business Landing Page"
-            >
-              <span className="material-symbols-outlined text-[16px] text-[#FFE500]">storefront</span>
-              <span>LANDING</span>
-            </button>
-          )}
+            {/* Tactical Dropdown Menu */}
+            {isToolsDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-[#05080E] border-2 border-[#FFE500]/60 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.95)] z-50 p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="px-3 py-2 border-b border-[#1E2532] flex items-center justify-between">
+                  <span className="text-[10px] font-['Space_Grotesk'] font-black uppercase tracking-wider text-[#FFE500]">
+                    COCKPIT QUICK ACTIONS
+                  </span>
+                  <span className="text-[9px] font-mono text-slate-400">
+                    DRIVER: {activeDriverName.split(' ')[0]}
+                  </span>
+                </div>
 
-          {/* Profile Avatar Button */}
-          <button
-            id="btn-driver-profile"
-            aria-label={`Driver: ${activeDriverName}`}
-            onClick={onOpenProfile}
-            className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 ml-space-2xs active:scale-95 transition-transform cursor-pointer shadow-sm hover:brightness-110"
-            title="Driver Profile & CDL Credentials"
-          >
-            <span className="material-symbols-outlined text-on-primary text-[18px]">
-              person
-            </span>
-          </button>
+                {/* 1. Bluetooth ELD Gateway */}
+                {onOpenBluetoothModal && (
+                  <button
+                    onClick={() => {
+                      setIsToolsDropdownOpen(false);
+                      onOpenBluetoothModal();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center justify-between transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="material-symbols-outlined text-[18px] text-[#FFE500] group-hover:scale-110 transition-transform">
+                        bluetooth
+                      </span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider text-white group-hover:text-[#FFE500]">
+                          Bluetooth ELD Gateway
+                        </div>
+                        <div className="text-[10px] text-slate-400">Azuga, Geotab &amp; GPSTab CAN-Bus</div>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                        isBluetoothConnected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+                      }`}
+                    >
+                      {isBluetoothConnected ? 'PAIRED' : 'STANDALONE'}
+                    </span>
+                  </button>
+                )}
+
+                {/* 2. ERoDS Tag-a-Long */}
+                {onOpenErodsModal && (
+                  <button
+                    onClick={() => {
+                      setIsToolsDropdownOpen(false);
+                      onOpenErodsModal();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center justify-between transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="material-symbols-outlined text-[18px] text-[#FFE500] group-hover:scale-110 transition-transform">
+                        document_scanner
+                      </span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider text-white group-hover:text-[#FFE500]">
+                          FMCSA ERoDS Tag-a-Long
+                        </div>
+                        <div className="text-[10px] text-slate-400">Scan &amp; pair roadside paper records</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono text-emerald-400 font-bold">READY</span>
+                  </button>
+                )}
+
+                {/* 3. Voice Control HUD Toggle */}
+                {onToggleVoice && (
+                  <button
+                    id="btn-hud-voice-control"
+                    onClick={() => {
+                      setIsToolsDropdownOpen(false);
+                      onToggleVoice();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center justify-between transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="material-symbols-outlined text-[18px] text-[#FFE500] group-hover:scale-110 transition-transform">
+                        {isListening ? 'mic' : 'mic_none'}
+                      </span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider text-white group-hover:text-[#FFE500]">
+                          Voice Control HUD [V]
+                        </div>
+                        <div className="text-[10px] text-slate-400">Hands-free cab acoustic commands</div>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                        isListening ? 'bg-red-500/20 text-red-300 animate-pulse' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {isListening ? 'LISTENING' : 'OFF'}
+                    </span>
+                  </button>
+                )}
+
+                {/* 4. Driver Portal & Roster Sheet */}
+                {onOpenDriverPortal && (
+                  <button
+                    onClick={() => {
+                      setIsToolsDropdownOpen(false);
+                      onOpenDriverPortal('roster');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center justify-between transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="material-symbols-outlined text-[18px] text-[#FFE500] group-hover:scale-110 transition-transform">
+                        badge
+                      </span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider text-white group-hover:text-[#FFE500]">
+                          Driver Portal &amp; Roster
+                        </div>
+                        <div className="text-[10px] text-slate-400">Credentials, sign-in sheet &amp; modules</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono text-[#FFE500] font-bold">PORTAL</span>
+                  </button>
+                )}
+
+                {/* 5. Return to Business Landing Page */}
+                {onNavigateToTab && (
+                  <button
+                    onClick={() => {
+                      setIsToolsDropdownOpen(false);
+                      onNavigateToTab('landing');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center justify-between transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="material-symbols-outlined text-[18px] text-[#FFE500] group-hover:scale-110 transition-transform">
+                        storefront
+                      </span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider text-white group-hover:text-[#FFE500]">
+                          Business Landing Page
+                        </div>
+                        <div className="text-[10px] text-slate-400">Product overview, ROI &amp; pricing</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono text-slate-400">VIEW</span>
+                  </button>
+                )}
+
+                {/* 6. Driver Profile & CDL Credentials */}
+                <button
+                  id="btn-driver-profile"
+                  onClick={() => {
+                    setIsToolsDropdownOpen(false);
+                    onOpenProfile();
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center justify-between transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="material-symbols-outlined text-[18px] text-[#FFE500] group-hover:scale-110 transition-transform">
+                      person
+                    </span>
+                    <div>
+                      <div className="font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider text-white group-hover:text-[#FFE500]">
+                        Driver Profile &amp; CDL
+                      </div>
+                      <div className="text-[10px] text-slate-400">{DRIVER_INFO.cdlNumber} (Illinois)</div>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-mono text-emerald-400 font-bold">ACTIVE</span>
+                </button>
+
+                {/* 7. Emergency 911 / Roadside Hotline */}
+                <div className="pt-1 border-t border-[#1E2532]">
+                  <button
+                    id="btn-emergency-hotline"
+                    onClick={() => {
+                      setIsToolsDropdownOpen(false);
+                      onOpenEmergency();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/40 flex items-center justify-between transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="material-symbols-outlined text-[18px] text-red-400 animate-bounce">
+                        e911_emergency
+                      </span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider text-red-200">
+                          24/7 Emergency &amp; Roadside
+                        </div>
+                        <div className="text-[10px] text-red-300/70">Immediate police, wrecker &amp; medical</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono text-red-400 font-black">SOS</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

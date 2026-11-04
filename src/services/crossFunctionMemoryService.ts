@@ -25,6 +25,7 @@ import { CARRIER_INFO, DRIVER_INFO, EQUIPMENT_INFO } from '../data/mockData.ts';
 import { safeStorage } from '../utils/safeStorage.ts';
 import { dotDocumentsService } from './dotDocumentsService.ts';
 import { brokeredLoadsMemoryService } from './brokeredLoadsMemoryService.ts';
+import { eldOfflineRecordingService } from './eldOfflineRecordingService.ts';
 
 const HOS_STORAGE_KEY = 'twe_cross_function_hos_state_v2';
 const RODS_STORAGE_KEY = 'twe_cross_function_rods_archive_v2';
@@ -408,6 +409,9 @@ class CrossFunctionMemoryService {
       notes: `Duty status shifted from ${previousStatus} to ${newStatus}.`,
       originatingSystem: 'DRIVER_MANUAL',
     });
+
+    // Record uninterrupted duty tick in online/offline ELD engine (49 CFR § 395.26)
+    eldOfflineRecordingService.recordDutyTick(newStatus, true);
 
     // Notify listeners
     this.emit('HOS_STATUS_CHANGED', { previousStatus, newStatus, clocks: this.getHosClocks() });

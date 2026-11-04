@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { DotDocumentRecord, DotDocCategory, DotDocStatus, InspectionTriggerSource, FleetDriverFileRecord } from '../../types';
 import { dotDocumentsService } from '../../services/dotDocumentsService';
 import { CARRIER_INFO, DRIVER_INFO, EQUIPMENT_INFO } from '../../data/mockData';
@@ -97,6 +97,18 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
   // Sign custody form
   const [custodianNameInput, setCustodianNameInput] = useState<string>(DRIVER_INFO.name);
   const [custodianTitleInput, setCustodianTitleInput] = useState<string>('Director of Fleet Safety & Compliance Custodian');
+  const [isVaultActionsOpen, setIsVaultActionsOpen] = useState<boolean>(false);
+  const vaultActionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (vaultActionsRef.current && !vaultActionsRef.current.contains(e.target as Node)) {
+        setIsVaultActionsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   // Renewal form state
   const [renewDate, setRenewDate] = useState<string>('2028-09-15');
@@ -274,70 +286,147 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
             </div>
           </div>
 
-          {/* Major One-Click Action Buttons */}
+          {/* Streamlined Action Buttons: Primary Yellow CTA + Tactical Dropdown Menu */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {/* Primary Action CTA: DOT Officer Shield */}
             <button
+              id="vault-dot-shield-btn"
               onClick={() => setShowOfficerShield(true)}
-              className="px-3.5 py-2 rounded-xl bg-surface-container-high text-[#FFE500] border border-[#FFE500]/60 font-black text-[11px] uppercase tracking-wider hover:bg-surface-container-highest transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+              className="btn-tactical-yellow px-4 py-2.5 rounded-xl font-['Space_Grotesk'] font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(255,229,0,0.45)] hover:brightness-110 active:scale-95 flex items-center gap-1.5 cursor-pointer"
               title="1-Tap Roadside Inspection Officer Shield"
             >
-              <span className="material-symbols-outlined text-[16px]">local_police</span>
-              <span>DOT Officer Shield</span>
+              <span className="material-symbols-outlined text-[18px]">local_police</span>
+              <span>DOT OFFICER SHIELD</span>
             </button>
 
-            <button
-              onClick={() => setShowPullRods(true)}
-              className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,229,0,0.4)] flex items-center gap-1.5 cursor-pointer"
-              title="Pull 8-Day FMCSA Record of Duty Status"
-            >
-              <span className="material-symbols-outlined text-[16px]">view_timeline</span>
-              <span>Pull RODS</span>
-            </button>
-
-            <button
-              onClick={() => setShowDvirModal(true)}
-              className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,229,0,0.4)] flex items-center gap-1.5 cursor-pointer"
-              title="Create or Scan DVIR (49 CFR § 396.11)"
-            >
-              <span className="material-symbols-outlined text-[16px]">fact_check</span>
-              <span>DVIR &amp; Scanner</span>
-            </button>
-
-            <button
-              onClick={handleEmergencyOfflineBackup}
-              className="px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 font-bold text-[11px] uppercase tracking-wider hover:bg-emerald-500/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
-              title="Zero-Shutdown Offline Emergency Audit Backup Package"
-            >
-              <span className="material-symbols-outlined text-[16px]">cloud_download</span>
-              <span>Zero-Shutdown Backup</span>
-            </button>
-
-            <button
-              onClick={() => setShowCustodySignModal(true)}
-              className="px-3 py-2 rounded-xl bg-surface-container-high text-primary border border-primary/40 font-bold text-[11px] uppercase tracking-wider hover:bg-surface-container-highest transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
-            >
-              <span className="material-symbols-outlined text-[16px]">draw</span>
-              <span>Sign Legal Custody</span>
-            </button>
-
-            {onOpenErodsTagAlong && (
+            {/* Consolidated Secondary Dropdown Menu */}
+            <div className="relative" ref={vaultActionsRef}>
               <button
-                onClick={onOpenErodsTagAlong}
-                className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,229,0,0.4)] flex items-center gap-1.5 cursor-pointer"
-                title="Scan & Upload Roadside Inspections with FMCSA ERoDS Tag-a-Long"
+                onClick={() => setIsVaultActionsOpen(!isVaultActionsOpen)}
+                className={`px-3.5 py-2.5 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider ${
+                  isVaultActionsOpen
+                    ? 'bg-[#FFE500] text-black border-[#FFE500] shadow-[0_0_15px_rgba(255,229,0,0.4)]'
+                    : 'bg-[#0A0F14] hover:bg-[#121822] text-slate-200 hover:text-[#FFE500] border-[#FFE500]/30 hover:border-[#FFE500]'
+                }`}
               >
-                <span className="material-symbols-outlined text-[16px]">document_scanner</span>
-                <span>ERoDS Tag-a-Long</span>
+                <span className="material-symbols-outlined text-[18px]">folder_managed</span>
+                <span>VAULT ACTIONS</span>
+                <span className="material-symbols-outlined text-[16px]">
+                  {isVaultActionsOpen ? 'expand_less' : 'expand_more'}
+                </span>
               </button>
-            )}
 
-            <button
-              onClick={handleExportFullDossier}
-              className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-lg flex items-center gap-1.5 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[16px]">verified</span>
-              <span>Official DOT Officer Dossier</span>
-            </button>
+              {isVaultActionsOpen && (
+                <div className="absolute right-0 mt-2 w-72 bg-[#05080E] border-2 border-[#FFE500]/60 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.95)] z-50 p-2 space-y-1 animate-in fade-in duration-150">
+                  <div className="px-3 py-1.5 border-b border-[#1E2532] text-[10px] font-['Space_Grotesk'] font-black uppercase tracking-wider text-[#FFE500]">
+                    COMPLIANCE VAULT OPERATIONS
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setIsVaultActionsOpen(false);
+                      setShowPullRods(true);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center gap-2.5 transition-all cursor-pointer group"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-[#FFE500]">view_timeline</span>
+                    <div>
+                      <div className="font-['Space_Grotesk'] text-xs font-black uppercase text-white group-hover:text-[#FFE500]">
+                        Pull 8-Day RODS
+                      </div>
+                      <div className="text-[10px] text-slate-400">FMCSA Part 395 Driver Daily Logs</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsVaultActionsOpen(false);
+                      setShowDvirModal(true);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center gap-2.5 transition-all cursor-pointer group"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-[#FFE500]">fact_check</span>
+                    <div>
+                      <div className="font-['Space_Grotesk'] text-xs font-black uppercase text-white group-hover:text-[#FFE500]">
+                        DVIR &amp; Scanner
+                      </div>
+                      <div className="text-[10px] text-slate-400">Pre/Post-Trip Inspections (Part 396)</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsVaultActionsOpen(false);
+                      handleEmergencyOfflineBackup();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center gap-2.5 transition-all cursor-pointer group"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-emerald-400">cloud_download</span>
+                    <div>
+                      <div className="font-['Space_Grotesk'] text-xs font-black uppercase text-white group-hover:text-[#FFE500]">
+                        Zero-Shutdown Backup
+                      </div>
+                      <div className="text-[10px] text-slate-400">Emergency fail-safe offline archive</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsVaultActionsOpen(false);
+                      setShowCustodySignModal(true);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center gap-2.5 transition-all cursor-pointer group"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-[#FFE500]">draw</span>
+                    <div>
+                      <div className="font-['Space_Grotesk'] text-xs font-black uppercase text-white group-hover:text-[#FFE500]">
+                        Sign Legal Custody
+                      </div>
+                      <div className="text-[10px] text-slate-400">Attest federal records responsibility</div>
+                    </div>
+                  </button>
+
+                  {onOpenErodsTagAlong && (
+                    <button
+                      onClick={() => {
+                        setIsVaultActionsOpen(false);
+                        onOpenErodsTagAlong();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center gap-2.5 transition-all cursor-pointer group"
+                    >
+                      <span className="material-symbols-outlined text-[18px] text-[#FFE500]">document_scanner</span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase text-white group-hover:text-[#FFE500]">
+                          ERoDS Tag-a-Long
+                        </div>
+                        <div className="text-[10px] text-slate-400">Scan &amp; pair roadside inspections</div>
+                      </div>
+                    </button>
+                  )}
+
+                  <div className="pt-1 border-t border-[#1E2532]">
+                    <button
+                      onClick={() => {
+                        setIsVaultActionsOpen(false);
+                        handleExportFullDossier();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center justify-between transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="material-symbols-outlined text-[18px] text-[#FFE500]">verified</span>
+                        <div>
+                          <div className="font-['Space_Grotesk'] text-xs font-black uppercase text-white group-hover:text-[#FFE500]">
+                            DOT Officer Dossier
+                          </div>
+                          <div className="text-[10px] text-slate-400">Full 6-part compliance package</div>
+                        </div>
+                      </div>
+                      <span className="text-[9px] font-mono text-[#FFE500] font-bold">EXPORT</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

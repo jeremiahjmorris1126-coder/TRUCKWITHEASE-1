@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { DvirManagementModal } from '../DvirManagementModal';
 import { crossFunctionMemoryService } from '../../services/crossFunctionMemoryService';
 import { DRIVER_INFO } from '../../data/mockData';
@@ -88,6 +88,18 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [dvirSigned, setDvirSigned] = useState<boolean>(false);
   const [isDvirModalOpen, setIsDvirModalOpen] = useState<boolean>(false);
+  const [isEcuActionsOpen, setIsEcuActionsOpen] = useState<boolean>(false);
+  const ecuActionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (ecuActionsRef.current && !ecuActionsRef.current.contains(e.target as Node)) {
+        setIsEcuActionsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   const handleClearCodes = () => {
     setIsScanning(true);
@@ -191,31 +203,89 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             </div>
 
             <div className="flex items-center gap-2 self-stretch sm:self-auto flex-wrap">
-              <button
-                onClick={() => setIsDvirModalOpen(true)}
-                className="btn-tactical-yellow py-2 px-3.5 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer shadow-[0_0_12px_rgba(255,229,0,0.35)]"
-                title="Create or Scan 49 CFR § 396.11 DVIR"
-              >
-                <span className="material-symbols-outlined text-[16px]">fact_check</span>
-                <span>DVIR &amp; DTC Sync</span>
-              </button>
-
+              {/* Primary Direct Action Button: Scan J1939 Bus */}
               <button
                 onClick={handleScanNow}
                 disabled={isScanning}
-                className="btn-tactical-yellow py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
+                className="btn-tactical-yellow py-2.5 px-4 rounded-xl text-xs font-['Space_Grotesk'] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer shadow-[0_0_15px_rgba(255,229,0,0.4)]"
               >
                 <span className={`material-symbols-outlined text-[16px] ${isScanning ? 'animate-spin' : ''}`}>sync</span>
                 <span>{isScanning ? 'Scanning ECU...' : 'Scan J1939 Bus'}</span>
               </button>
 
-              <button
-                onClick={handleClearCodes}
-                className="px-3.5 py-2 rounded-xl bg-[#141C2B] hover:bg-[#1E293F] text-slate-200 border border-slate-700 text-xs font-bold uppercase transition flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
-                <span>Heal DTCs</span>
-              </button>
+              {/* Consolidated Secondary Dropdown Menu */}
+              <div className="relative" ref={ecuActionsRef}>
+                <button
+                  onClick={() => setIsEcuActionsOpen(!isEcuActionsOpen)}
+                  className={`py-2.5 px-3.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer font-['Space_Grotesk'] text-xs font-black uppercase tracking-wider ${
+                    isEcuActionsOpen
+                      ? 'bg-[#FFE500] text-black border-[#FFE500] shadow-[0_0_15px_rgba(255,229,0,0.4)]'
+                      : 'bg-[#0A0F14] hover:bg-[#121822] text-slate-200 hover:text-[#FFE500] border-[#FFE500]/30 hover:border-[#FFE500]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">tune</span>
+                  <span>ACTIONS</span>
+                  <span className="material-symbols-outlined text-[14px]">
+                    {isEcuActionsOpen ? 'expand_less' : 'expand_more'}
+                  </span>
+                </button>
+
+                {isEcuActionsOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-[#05080E] border-2 border-[#FFE500]/60 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.95)] z-50 p-2 space-y-1 animate-in fade-in duration-150">
+                    <div className="px-3 py-1.5 border-b border-[#1E2532] text-[10px] font-['Space_Grotesk'] font-black uppercase tracking-wider text-[#FFE500]">
+                      J1939 POWERTRAIN TOOLS
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setIsEcuActionsOpen(false);
+                        setIsDvirModalOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center gap-2.5 transition-all cursor-pointer group"
+                    >
+                      <span className="material-symbols-outlined text-[18px] text-[#FFE500]">fact_check</span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase text-white group-hover:text-[#FFE500]">
+                          DVIR &amp; DTC Sync
+                        </div>
+                        <div className="text-[10px] text-slate-400">Sync active codes to Part 396</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsEcuActionsOpen(false);
+                        handleClearCodes();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center gap-2.5 transition-all cursor-pointer group"
+                    >
+                      <span className="material-symbols-outlined text-[18px] text-emerald-400">check_circle</span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase text-white group-hover:text-[#FFE500]">
+                          Heal &amp; Clear DTCs
+                        </div>
+                        <div className="text-[10px] text-slate-400">Reset nominal ECU fault codes</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsEcuActionsOpen(false);
+                        setActiveTab('REPAIR_DISPATCH');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#0A0F14] text-slate-200 hover:text-[#FFE500] flex items-center gap-2.5 transition-all cursor-pointer group"
+                    >
+                      <span className="material-symbols-outlined text-[18px] text-[#FFE500]">car_repair</span>
+                      <div>
+                        <div className="font-['Space_Grotesk'] text-xs font-black uppercase text-white group-hover:text-[#FFE500]">
+                          Mobile Tech Dispatch
+                        </div>
+                        <div className="text-[10px] text-slate-400">Locate closest ASE road service</div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
