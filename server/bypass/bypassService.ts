@@ -423,7 +423,7 @@ export class BypassService {
     };
 
     // Store audit event in fleetStore under multi-tenant isolation
-    await fleetStore.createScopedDocument(caller, 'scale_bypass_events', result, result.id);
+    await fleetStore.createScopedDocument(caller, 'scale_bypass_events', result.id, result);
 
     return result;
   }

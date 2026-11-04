@@ -131,7 +131,7 @@ describe('Phase 4 - Offline Sync & Guaranteed Local-First Persistence', () => {
   });
 
   it('5. Error Handling: Network failure keeps item in queue with incremented attempts', () => {
-    const queue = [
+    const queue: Array<{ id: string; type: string; attempts: number; lastError?: string }> = [
       { id: 'fail-01', type: 'DETENTION_EVENT', attempts: 0, lastError: undefined },
     ];
 

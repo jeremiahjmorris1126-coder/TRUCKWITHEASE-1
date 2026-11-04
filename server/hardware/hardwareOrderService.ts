@@ -284,7 +284,7 @@ export class HardwareOrderService {
     };
 
     // Store order in fleetStore under multi-tenant isolation
-    await fleetStore.createScopedDocument(caller, 'hardware_orders', orderRecord, orderRecord.id);
+    await fleetStore.createScopedDocument(caller, 'hardware_orders', orderRecord.id, orderRecord);
 
     return orderRecord;
   }
