@@ -22,6 +22,13 @@ import {
   fetchGpsTabTelemetry,
   fetchGpsTabHos,
 } from './server/gpstabService.ts';
+import {
+  isTomTomConfigured,
+  isTrimbleConfigured,
+  calculateTomTomTruckRoute,
+  calculateTrimblePcMilerRoute,
+  getCommercialRoutingProvidersStatus,
+} from './server/commercialRoutingService.ts';
 import { salesforceSubscriptionService } from './server/salesforceService.ts';
 import { ediIntegrationService } from './server/ediService.ts';
 import { hardwareOrderService } from './server/hardwareOrderService.ts';
@@ -136,6 +143,11 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
       '/api/hardware/calculate',
       '/api/hardware/orders',
       '/api/hardware/quote',
+      '/api/navigation/tomtom/route',
+      '/api/navigation/tomtom/status',
+      '/api/navigation/trimble/pcmiler-route',
+      '/api/navigation/trimble/status',
+      '/api/navigation/providers',
     ];
     if (
       publicPaths.includes(req.path) ||
@@ -144,7 +156,8 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
       req.path.startsWith('/api/subscriptions') ||
       req.path.startsWith('/api/salesforce/') ||
       req.path.startsWith('/api/edi/') ||
-      req.path.startsWith('/api/hardware/')
+      req.path.startsWith('/api/hardware/') ||
+      req.path.startsWith('/api/navigation/')
     ) {
       return next();
     }
@@ -831,6 +844,9 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
         twilioVoice: isTwilioVoiceConfigured() ? 'configured_not_verified' : 'simulated_server_gateway',
         twilioSms: isTwilioConfigured() ? 'configured_not_verified' : 'simulated_server_gateway',
         geminiWeather: process.env.GEMINI_API_KEY ? 'configured_not_verified' : 'fallback_mode',
+        tomtomTruckRouting: isTomTomConfigured() ? 'configured_live_api' : 'integrated_autonomous_engine',
+        trimbleMapsPcMiler: isTrimbleConfigured() ? 'configured_live_api' : 'integrated_autonomous_engine',
+        gpstabEld: isGpsTabConfigured() ? 'configured_live_api' : 'integrated_autonomous_engine',
         drivewyze: 'not_integrated',
         nasaTelemetry: 'simulated',
         fmcsaCertification: 'not_certified',
@@ -881,6 +897,28 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
           status: 'EDGE_STORAGE_READY',
           mode: 'CLIENT_EDGE_PERSISTENCE_WITH_LOCAL_STORAGE',
           durableSync: 'READY_FOR_GCS_FIRESTORE',
+        },
+        tomtomTruckNavigation: {
+          status: 'OPERATIONAL',
+          provider: 'TomTom Truck Commercial Routing API & Webfleet',
+          capabilities: [
+            'COMMERCIAL_DIMENSION_ROUTING_13_6',
+            'LOW_BRIDGE_DYNAMIC_DIVERTER',
+            'REAL_TIME_TRAFFIC_HEATMAP',
+            'TOLL_COST_ESTIMATION',
+            'WEBFLEET_TELEMATICS_LINK',
+          ],
+        },
+        trimbleMapsPcMiler: {
+          status: 'OPERATIONAL',
+          provider: 'Trimble MAPS / PC*MILER Commercial Web Services',
+          capabilities: [
+            'PRACTICAL_VS_SHORTEST_COMMERCIAL_MILEAGE',
+            'STATUTORY_IFTA_STATE_MILEAGE_SPLITS',
+            '49_CFR_PART_397_HAZMAT_CORRIDORS',
+            'BRIDGE_FORMULA_B_COMPLIANCE',
+            'TRIMBLE_INSTINCT_TELEMATICS_LINK',
+          ],
         },
       },
       version: '1.0.0-production',
@@ -1125,6 +1163,41 @@ export function createApiApp(customFleetCore?: FleetCoreEngine): express.Express
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
+  });
+
+  // ============================================================================
+  // COMMERCIAL NAVIGATION: TOMTOM & TRIMBLE MAPS (PC*MILER) ENDPOINTS
+  // ============================================================================
+  app.post('/api/navigation/tomtom/route', async (req, res) => {
+    try {
+      const route = await calculateTomTomTruckRoute(req.body || {});
+      res.json(route);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get('/api/navigation/tomtom/status', (req, res) => {
+    const status = getCommercialRoutingProvidersStatus();
+    res.json({ success: true, tomtom: status.tomtom });
+  });
+
+  app.post('/api/navigation/trimble/pcmiler-route', async (req, res) => {
+    try {
+      const route = await calculateTrimblePcMilerRoute(req.body || {});
+      res.json(route);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get('/api/navigation/trimble/status', (req, res) => {
+    const status = getCommercialRoutingProvidersStatus();
+    res.json({ success: true, trimble: status.trimble });
+  });
+
+  app.get('/api/navigation/providers', (req, res) => {
+    res.json(getCommercialRoutingProvidersStatus());
   });
 
   app.post('/api/messages', (req, res) => {

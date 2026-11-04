@@ -1157,6 +1157,130 @@ export interface CrossFunctionMemoryEvent {
   payload: any;
 }
 
+// ============================================================================
+// COMMERCIAL TRUCK ROUTING: TOMTOM & TRIMBLE MAPS (PC*MILER) INTEGRATIONS
+// ============================================================================
+
+export type CommercialNavigationProvider = 'TOMTOM_TRUCK' | 'TRIMBLE_PCMILER' | 'FHWA_RADAR_54B';
+
+export interface CommercialVehicleProfile {
+  heightFt: number; // e.g. 13.5 (13' 6")
+  widthInches: number; // e.g. 102" (8' 6")
+  lengthFt: number; // e.g. 53, 65, 75
+  grossWeightLbs: number; // e.g. 80000
+  axles: number; // e.g. 5
+  isCommercial: boolean;
+  hazmatClass?: 'NONE' | 'GENERAL' | 'EXPLOSIVES' | 'FLAMMABLE_LIQUID' | 'FLAMMABLE_GAS' | 'RADIOACTIVE' | 'CORROSIVE' | 'INHALATION_HAZARD';
+  tunnelCategory?: 'B' | 'C' | 'D' | 'E';
+}
+
+export interface TomTomTruckRouteRequest {
+  origin: { lat: number; lng: number; address?: string };
+  destination: { lat: number; lng: number; address?: string };
+  vehicleProfile?: CommercialVehicleProfile;
+  avoidTolls?: boolean;
+  routeType?: 'FASTEST' | 'SHORTEST' | 'ECO' | 'THRIFTY';
+  trafficAware?: boolean;
+}
+
+export interface TomTomNavigationLeg {
+  instruction: string;
+  roadName: string;
+  distanceMiles: number;
+  durationSeconds: number;
+  clearanceNote?: string;
+  hazardWarning?: string;
+}
+
+export interface TomTomTruckRouteResponse {
+  provider: 'TOMTOM_TRUCK';
+  success: boolean;
+  routeId: string;
+  originAddress: string;
+  destinationAddress: string;
+  totalDistanceMiles: number;
+  travelTimeMinutes: number;
+  trafficDelayMinutes: number;
+  tollEstimateUsd: number;
+  clearanceVerified: boolean;
+  minimumClearanceEncounteredFt: number;
+  lowBridgeHazardsAvoided: number;
+  waypoints: [number, number][]; // [lat, lng]
+  legs: TomTomNavigationLeg[];
+  diverterExecuted: boolean;
+  webfleetTelematicsStatus: 'CONNECTED' | 'STANDALONE_READY';
+  timestamp: string;
+}
+
+export interface TrimblePcMilerRouteRequest {
+  origin: { lat: number; lng: number; address?: string };
+  destination: { lat: number; lng: number; address?: string };
+  routingType?: 'PRACTICAL' | 'SHORTEST' | 'TOLL_DISCOURAGED' | 'NATIONAL_NETWORK';
+  vehicleProfile?: CommercialVehicleProfile;
+  computeIftaJurisdictionSplits?: boolean;
+}
+
+export interface IftaStateSplit {
+  state: string;
+  tollMiles: number;
+  nonTollMiles: number;
+  totalMiles: number;
+  percentage: number;
+  estimatedGallons: number;
+}
+
+export interface TrimbleWeighStationPoint {
+  name: string;
+  mile: number;
+  state: string;
+  bypassEligible: boolean;
+  prepassAvailable: boolean;
+}
+
+export interface TrimblePcMilerRouteResponse {
+  provider: 'TRIMBLE_PCMILER';
+  success: boolean;
+  routeId: string;
+  originAddress: string;
+  destinationAddress: string;
+  totalMiles: number;
+  tollMiles: number;
+  nonTollMiles: number;
+  estimatedDriveHours: number;
+  routingType: 'PRACTICAL' | 'SHORTEST' | 'TOLL_DISCOURAGED' | 'NATIONAL_NETWORK';
+  stateMileageSplits: IftaStateSplit[];
+  weighStations: TrimbleWeighStationPoint[];
+  restrictionsAvoided: string[];
+  hazmatComplianceAttestation: string;
+  trimbleInstinctStatus: 'SYNCED' | 'STANDALONE_READY';
+  timestamp: string;
+}
+
+export interface CommercialRoutingProvidersStatus {
+  tomtom: {
+    status: 'OPERATIONAL' | 'DEGRADED';
+    configured: boolean;
+    provider: 'TomTom Truck Routing API & Webfleet';
+    apiVersion: string;
+    features: string[];
+  };
+  trimble: {
+    status: 'OPERATIONAL' | 'DEGRADED';
+    configured: boolean;
+    provider: 'Trimble MAPS / PC*MILER Commercial Web Services';
+    apiVersion: string;
+    features: string[];
+  };
+  fhwaRadar54b: {
+    status: 'OPERATIONAL';
+    configured: boolean;
+    provider: 'TruckWithEase FHWA Item 54B Radar Sentinel';
+    features: string[];
+  };
+  activeEngine: CommercialNavigationProvider;
+}
+
+
 
 
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TripWaypoint, WaypointCategory, TripRoutePlan, TabId } from '../../types';
+import { TripWaypoint, WaypointCategory, TripRoutePlan, TabId, CommercialNavigationProvider } from '../../types';
 import { tripPlannerService } from '../../services/tripPlannerService';
+import { commercialRoutingService } from '../../services/commercialRoutingService';
 
 interface TripPlannerScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -17,6 +18,11 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
   const [isGpsActive, setIsGpsActive] = useState<boolean>(false);
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [activeNavEngine, setActiveNavEngine] = useState<CommercialNavigationProvider>(commercialRoutingService.getActiveEngine());
+
+  useEffect(() => {
+    return commercialRoutingService.subscribeEngine((engine) => setActiveNavEngine(engine));
+  }, []);
 
   // New Waypoint Form State
   const [wpName, setWpName] = useState<string>('');
@@ -145,6 +151,38 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Navigation Engine Selector */}
+          <div className="flex items-center bg-surface-container-low p-1 rounded-xl border border-surface-container-high text-[10px]">
+            <button
+              onClick={() => {
+                commercialRoutingService.setActiveEngine('TOMTOM_TRUCK');
+                onShowToast('Active Engine: TomTom Commercial Truck Routing', 'navigation');
+              }}
+              className={`px-2.5 py-1 rounded-lg transition font-bold flex items-center gap-1 ${
+                activeNavEngine === 'TOMTOM_TRUCK'
+                  ? 'bg-primary text-black'
+                  : 'text-outline hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[13px]">navigation</span>
+              TomTom Truck
+            </button>
+            <button
+              onClick={() => {
+                commercialRoutingService.setActiveEngine('TRIMBLE_PCMILER');
+                onShowToast('Active Engine: Trimble MAPS / PC*MILER', 'alt_route');
+              }}
+              className={`px-2.5 py-1 rounded-lg transition font-bold flex items-center gap-1 ${
+                activeNavEngine === 'TRIMBLE_PCMILER'
+                  ? 'bg-primary text-black'
+                  : 'text-outline hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[13px]">alt_route</span>
+              Trimble PC*MILER
+            </button>
+          </div>
+
           <button
             onClick={requestGpsSync}
             disabled={isLocating}

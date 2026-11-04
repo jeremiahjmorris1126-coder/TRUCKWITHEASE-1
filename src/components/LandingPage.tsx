@@ -1651,6 +1651,132 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* =========================================================================
+          FEATURE 5B: TOMTOM TRUCK & TRIMBLE MAPS (PC*MILER) NAVIGATION STACK
+      ========================================================================= */}
+      <section id="navigation-engines" className="py-20 border-b border-[#1E2532] bg-[#05080E]">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFE500]/10 border border-[#FFE500]/40 text-[#FFE500] font-mono text-xs font-bold uppercase tracking-widest mb-3">
+              <span className="material-symbols-outlined text-[16px]">navigation</span>
+              <span>COMMERCIAL NAVIGATION &amp; IFTA ENGINES</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase text-white tracking-tight mb-4">
+              INTEGRATED WITH <br />
+              <span className="text-[#FFE500]">TOMTOM &amp; TRIMBLE MAPS</span>
+            </h2>
+            <p className="text-slate-300 text-base sm:text-lg">
+              TruckWithEase natively integrates both industry gold-standards: TomTom Truck Routing for dynamic low-clearance
+              avoidance and live traffic vectors, plus Trimble MAPS (PC*MILER) for statutory IFTA state mileage splits.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+            {/* TomTom Truck Engine Card */}
+            <div className="bg-[#0A0F14] border-2 border-amber-500/50 rounded-2xl p-6 sm:p-8 flex flex-col justify-between hover:border-amber-400 transition-all shadow-[0_0_25px_rgba(245,158,11,0.15)]">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[24px]">navigation</span>
+                    </div>
+                    <div>
+                      <h3 className="font-black text-xl text-white">TomTom Truck Routing</h3>
+                      <span className="text-xs font-mono text-amber-400">Live Traffic &amp; Webfleet FMS Gateway</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono text-[10px] font-bold">
+                    OPERATIONAL
+                  </span>
+                </div>
+
+                <p className="text-xs font-mono text-slate-300 mb-5 leading-relaxed">
+                  Calculates precision commercial vehicle corridors enforcing 13' 6" physical height, 102" trailer width,
+                  and 80,000 lbs gross weight. Dynamically diverts around sub-174" low bridges via certified bypasses.
+                </p>
+
+                <div className="space-y-2.5 font-mono text-xs text-slate-300 border-t border-[#1E2532] pt-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">✔</span>
+                    <span>FHWA Item 54B sub-174" bridge avoidance</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">✔</span>
+                    <span>Live congestion delay heatmaps &amp; ETA vectors</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">✔</span>
+                    <span>Commercial toll highway cost estimations</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">✔</span>
+                    <span>TomTom Webfleet telematics interface link</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => onNavigateToTab('radar-54b')}
+                className="btn-tactical-yellow w-full py-3 text-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>LAUNCH TOMTOM TRUCK RADAR</span>
+              </button>
+            </div>
+
+            {/* Trimble MAPS / PC*MILER Card */}
+            <div className="bg-[#0A0F14] border-2 border-blue-500/50 rounded-2xl p-6 sm:p-8 flex flex-col justify-between hover:border-blue-400 transition-all shadow-[0_0_25px_rgba(59,130,246,0.15)]">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 text-blue-300 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[24px]">alt_route</span>
+                    </div>
+                    <div>
+                      <h3 className="font-black text-xl text-white">Trimble MAPS (PC*MILER)</h3>
+                      <span className="text-xs font-mono text-blue-400">Practical Miles &amp; IFTA Quarterly Tax</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono text-[10px] font-bold">
+                    OPERATIONAL
+                  </span>
+                </div>
+
+                <p className="text-xs font-mono text-slate-300 mb-5 leading-relaxed">
+                  The commercial trucking industry standard for freight billing and IFTA tax audits. Computes exact state line
+                  mileage breakdowns, toll versus free miles, and 49 CFR Part 397 Hazardous Material routing corridors.
+                </p>
+
+                <div className="space-y-2.5 font-mono text-xs text-slate-300 border-t border-[#1E2532] pt-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">✔</span>
+                    <span>Statutory Practical vs. Shortest commercial truck miles</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">✔</span>
+                    <span>Automatic quarterly IFTA state mileage splits &amp; gallons</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">✔</span>
+                    <span>49 CFR Part 397 HazMat tunnel &amp; route compliance</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">✔</span>
+                    <span>Trimble Instinct &amp; PeopleNet telematics compatibility</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => onNavigateToTab('radar-54b')}
+                className="btn-secondary-tactical w-full py-3 text-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>VIEW PC*MILER IFTA SPLITS</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
           INTERACTIVE FLEET ROI CALCULATOR
       ========================================================================= */}
       <section id="roi-calculator" className="py-20 border-b border-[#1E2532]">

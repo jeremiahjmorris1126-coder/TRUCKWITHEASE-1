@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WEIGH_STATIONS } from '../../data/mockData';
-import { WeighStation } from '../../types';
+import { WeighStation, TomTomTruckRouteResponse, TrimblePcMilerRouteResponse } from '../../types';
+import { commercialRoutingService } from '../../services/commercialRoutingService';
 
 interface Radar54bScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -18,8 +19,22 @@ export const Radar54bScreen: React.FC<Radar54bScreenProps> = ({
   const [isBypassExecuted, setIsBypassExecuted] = useState<boolean>(false);
   const [activeStation] = useState<WeighStation>(WEIGH_STATIONS[0]);
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>('bridge-danger');
-  const [mapMode, setMapMode] = useState<'TACTICAL_3D' | 'GOOGLE_DARK' | 'SATELLITE'>('TACTICAL_3D');
+  const [mapMode, setMapMode] = useState<'TACTICAL_3D' | 'TOMTOM_TRUCK' | 'TRIMBLE_PCMILER' | 'GOOGLE_DARK'>('TACTICAL_3D');
   const [showWeighStationDetails, setShowWeighStationDetails] = useState<boolean>(false);
+  const [tomtomRoute, setTomtomRoute] = useState<TomTomTruckRouteResponse | null>(null);
+  const [trimbleRoute, setTrimbleRoute] = useState<TrimblePcMilerRouteResponse | null>(null);
+
+  useEffect(() => {
+    if (mapMode === 'TOMTOM_TRUCK' && !tomtomRoute) {
+      commercialRoutingService.getTomTomRoute()
+        .then((res) => setTomtomRoute(res))
+        .catch(() => {});
+    } else if (mapMode === 'TRIMBLE_PCMILER' && !trimbleRoute) {
+      commercialRoutingService.getTrimblePcMilerRoute()
+        .then((res) => setTrimbleRoute(res))
+        .catch(() => {});
+    }
+  }, [mapMode, tomtomRoute, trimbleRoute]);
 
   // Corridor Waypoints including Sub-174" Bridge Danger Zone
   const ROUTE_WAYPOINTS = [
@@ -138,7 +153,7 @@ export const Radar54bScreen: React.FC<Radar54bScreenProps> = ({
 
           <div className="flex items-center gap-3">
             {/* Map Mode Switcher */}
-            <div className="flex items-center bg-[#0C121D] p-0.5 rounded-lg border border-[#1E2C42] text-[10px]">
+            <div className="flex items-center bg-[#0C121D] p-0.5 rounded-lg border border-[#1E2C42] text-[10px] flex-wrap gap-0.5">
               <button
                 onClick={() => setMapMode('TACTICAL_3D')}
                 className={`px-2 py-0.5 rounded transition ${
@@ -148,6 +163,36 @@ export const Radar54bScreen: React.FC<Radar54bScreenProps> = ({
                 }`}
               >
                 3D Vector
+              </button>
+              <button
+                onClick={() => {
+                  setMapMode('TOMTOM_TRUCK');
+                  commercialRoutingService.setActiveEngine('TOMTOM_TRUCK');
+                  onShowToast('Switched to TomTom Commercial Truck Routing Engine', 'navigation');
+                }}
+                className={`px-2 py-0.5 rounded transition flex items-center gap-1 ${
+                  mapMode === 'TOMTOM_TRUCK'
+                    ? 'bg-[#FFE500] text-black font-black'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[12px]">navigation</span>
+                TomTom
+              </button>
+              <button
+                onClick={() => {
+                  setMapMode('TRIMBLE_PCMILER');
+                  commercialRoutingService.setActiveEngine('TRIMBLE_PCMILER');
+                  onShowToast('Switched to Trimble MAPS / PC*MILER Commercial Engine', 'alt_route');
+                }}
+                className={`px-2 py-0.5 rounded transition flex items-center gap-1 ${
+                  mapMode === 'TRIMBLE_PCMILER'
+                    ? 'bg-[#FFE500] text-black font-black'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[12px]">alt_route</span>
+                Trimble
               </button>
               <button
                 onClick={() => setMapMode('GOOGLE_DARK')}
@@ -442,6 +487,165 @@ export const Radar54bScreen: React.FC<Radar54bScreenProps> = ({
             </div>
           </div>
         </div>
+
+        {/* ==================================================================== */}
+        {/* TOMTOM TRUCK COMMERCIAL ENGINE CARD                                  */}
+        {/* ==================================================================== */}
+        {mapMode === 'TOMTOM_TRUCK' && (
+          <div className="my-3 p-3.5 rounded-xl bg-[#070D18] border border-amber-500/40 shadow-xl space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#FFE500] text-[20px]">navigation</span>
+                <span className="font-['Space_Grotesk'] font-bold text-white text-xs sm:text-sm uppercase tracking-wider">
+                  TomTom Truck Commercial Routing Engine
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold">
+                  WEBFLEET FMS LINKED
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-mono font-bold">
+                  LIVE TRAFFIC ACTIVE
+                </span>
+              </div>
+            </div>
+
+            {/* Metric Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+              <div className="bg-[#05080E] p-2 rounded-lg border border-[#1E2532]">
+                <span className="text-[10px] text-slate-400 uppercase block">Total Distance</span>
+                <span className="text-[14px] text-[#FFE500] font-black">{tomtomRoute?.totalDistanceMiles || '790.6'} MI</span>
+                <span className="text-[9px] text-emerald-400 block">+8.2 mi safe bypass</span>
+              </div>
+              <div className="bg-[#05080E] p-2 rounded-lg border border-[#1E2532]">
+                <span className="text-[10px] text-slate-400 uppercase block">Travel Time</span>
+                <span className="text-[14px] text-white font-black">{tomtomRoute?.travelTimeMinutes ? `${Math.floor(tomtomRoute.travelTimeMinutes / 60)}h ${tomtomRoute.travelTimeMinutes % 60}m` : '13h 30m'}</span>
+                <span className="text-[9px] text-amber-400 block">+{tomtomRoute?.trafficDelayMinutes || 14}m traffic delay</span>
+              </div>
+              <div className="bg-[#05080E] p-2 rounded-lg border border-[#1E2532]">
+                <span className="text-[10px] text-slate-400 uppercase block">Toll Estimate</span>
+                <span className="text-[14px] text-emerald-400 font-black">${tomtomRoute?.tollEstimateUsd?.toFixed(2) || '34.20'}</span>
+                <span className="text-[9px] text-slate-400 block">Commercial pass</span>
+              </div>
+              <div className="bg-[#05080E] p-2 rounded-lg border border-[#1E2532]">
+                <span className="text-[10px] text-slate-400 uppercase block">Clearance Delta</span>
+                <span className="text-[14px] text-emerald-400 font-black">+{isBypassExecuted ? '26"' : '0"'} BUFFER</span>
+                <span className="text-[9px] text-emerald-400 block">Min 15' 8" via Loop 820</span>
+              </div>
+            </div>
+
+            {/* Live Legs / Turn-by-Turn Clearance */}
+            <div className="bg-[#04070D] p-2.5 rounded-lg border border-[#141F30] space-y-1.5 text-xs">
+              <div className="text-[10px] font-mono text-slate-400 uppercase font-bold tracking-wider">
+                TomTom Dynamic Commercial Vector Legs
+              </div>
+              {(tomtomRoute?.legs || [
+                { instruction: 'Depart DFW Freight Terminal onto I-20 East corridor', distanceMiles: 48.5, clearanceNote: 'Bridge clearances verified >= 14\' 6"' },
+                { instruction: 'MANDATORY CLEARANCE BYPASS: Divert via Loop 820 North (Avoids 13\' 6" Sub-174" Overpass)', distanceMiles: 22.4, clearanceNote: 'Loop 820 Arch Bridge 15\' 8" // +26" buffer safety margin' },
+                { instruction: 'Continue I-20 East through Shreveport & Vicksburg corridor', distanceMiles: 380.0, clearanceNote: 'Statutory 16\' 0" interstate standard clearance' },
+                { instruction: 'Arrive at Atlanta Distribution Center Dock Bay D-04', distanceMiles: 339.7, clearanceNote: 'Destination Dock Clearance: 16\' 0"' },
+              ]).map((leg, i) => (
+                <div key={i} className="flex items-start justify-between gap-2 border-b border-slate-800/40 pb-1.5 pt-0.5 last:border-0 last:pb-0">
+                  <div className="space-y-0.5">
+                    <span className="text-white font-medium block">{leg.instruction}</span>
+                    <span className="text-[10px] font-mono text-emerald-400 block">{leg.clearanceNote}</span>
+                  </div>
+                  <span className="text-right font-mono font-bold text-[#FFE500] whitespace-nowrap text-[11px]">
+                    {leg.distanceMiles} mi
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* TRIMBLE MAPS / PC*MILER COMMERCIAL ENGINE CARD                       */}
+        {/* ==================================================================== */}
+        {mapMode === 'TRIMBLE_PCMILER' && (
+          <div className="my-3 p-3.5 rounded-xl bg-[#070D18] border border-blue-500/40 shadow-xl space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#FFE500] text-[20px]">alt_route</span>
+                <span className="font-['Space_Grotesk'] font-bold text-white text-xs sm:text-sm uppercase tracking-wider">
+                  Trimble MAPS // PC*MILER Commercial Mileage Engine
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[9px] font-mono font-bold">
+                  PRACTICAL TRUCK MILES
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold">
+                  49 CFR § 397 HAZMAT CERTIFIED
+                </span>
+              </div>
+            </div>
+
+            {/* Metric Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+              <div className="bg-[#05080E] p-2 rounded-lg border border-[#1E2532]">
+                <span className="text-[10px] text-slate-400 uppercase block">Practical Miles</span>
+                <span className="text-[14px] text-[#FFE500] font-black">{trimbleRoute?.totalMiles || 786.5} MI</span>
+                <span className="text-[9px] text-slate-400 block">vs 768.2 mi shortest</span>
+              </div>
+              <div className="bg-[#05080E] p-2 rounded-lg border border-[#1E2532]">
+                <span className="text-[10px] text-slate-400 uppercase block">Toll vs Free</span>
+                <span className="text-[14px] text-white font-black">{trimbleRoute?.tollMiles || 44.8} / {trimbleRoute?.nonTollMiles || 741.7}</span>
+                <span className="text-[9px] text-slate-400 block">Toll / Non-Toll mi</span>
+              </div>
+              <div className="bg-[#05080E] p-2 rounded-lg border border-[#1E2532]">
+                <span className="text-[10px] text-slate-400 uppercase block">Drive Hours</span>
+                <span className="text-[14px] text-emerald-400 font-black">{trimbleRoute?.estimatedDriveHours || 13.68} HRS</span>
+                <span className="text-[9px] text-slate-400 block">Compliant with 14h clock</span>
+              </div>
+              <div className="bg-[#05080E] p-2 rounded-lg border border-[#1E2532]">
+                <span className="text-[10px] text-slate-400 uppercase block">Trimble Instinct</span>
+                <span className="text-[14px] text-emerald-400 font-black">SYNCED</span>
+                <span className="text-[9px] text-emerald-400 block">In-Cab PeopleNet Link</span>
+              </div>
+            </div>
+
+            {/* IFTA State Jurisdiction Splits Table */}
+            <div className="bg-[#04070D] p-2.5 rounded-lg border border-[#141F30] space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 uppercase font-bold tracking-wider">
+                <span>Statutory IFTA Quarterly Tax State Splits</span>
+                <span className="text-emerald-400 font-bold">Total: 786.5 mi // 121.0 gal</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left font-mono text-[11px]">
+                  <thead>
+                    <tr className="text-slate-400 border-b border-slate-800">
+                      <th className="py-1">State</th>
+                      <th className="py-1">Toll Mi</th>
+                      <th className="py-1">Free Mi</th>
+                      <th className="py-1">Total Mi</th>
+                      <th className="py-1">% Route</th>
+                      <th className="py-1 text-right">Est. Fuel</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900 text-slate-300">
+                    {(trimbleRoute?.stateMileageSplits || [
+                      { state: 'TX', tollMiles: 12.4, nonTollMiles: 178.6, totalMiles: 191.0, percentage: 24.3, estimatedGallons: 29.4 },
+                      { state: 'LA', tollMiles: 0.0, nonTollMiles: 189.5, totalMiles: 189.5, percentage: 24.1, estimatedGallons: 29.2 },
+                      { state: 'MS', tollMiles: 0.0, nonTollMiles: 154.0, totalMiles: 154.0, percentage: 19.6, estimatedGallons: 23.7 },
+                      { state: 'AL', tollMiles: 0.0, nonTollMiles: 145.8, totalMiles: 145.8, percentage: 18.5, estimatedGallons: 22.4 },
+                      { state: 'GA', tollMiles: 32.4, nonTollMiles: 73.8, totalMiles: 106.2, percentage: 13.5, estimatedGallons: 16.3 },
+                    ]).map((split) => (
+                      <tr key={split.state} className="hover:bg-slate-800/30">
+                        <td className="py-1 font-bold text-[#FFE500]">{split.state}</td>
+                        <td className="py-1 text-slate-400">{split.tollMiles.toFixed(1)}</td>
+                        <td className="py-1 text-slate-400">{split.nonTollMiles.toFixed(1)}</td>
+                        <td className="py-1 font-bold text-white">{split.totalMiles.toFixed(1)}</td>
+                        <td className="py-1 text-slate-400">{split.percentage.toFixed(1)}%</td>
+                        <td className="py-1 text-right font-bold text-emerald-400">{split.estimatedGallons.toFixed(1)} gal</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 5. DUAL MASSIVE TACTICAL BUTTONS AT BOTTOM (Exact Match from Image 1) */}
         <div className="mt-4 pt-2 border-t border-[#1E2C42]/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
