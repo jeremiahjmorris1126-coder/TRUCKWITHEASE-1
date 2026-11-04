@@ -1,0 +1,51 @@
+# TruckWithEase — Authorized SQL Connect Mutations
+
+# Upsert the authenticated user's profile (safe for first login or profile updates)
+mutation UpsertMyProfile($email: String!, $displayName: String) @auth(level: USER) {
+  user_upsert(
+    data: {
+      uid_expr: "auth.uid"
+      email: $email
+      displayName: $displayName
+    }
+  )
+}
+
+# Update the status of a freight load assigned to the authenticated driver
+mutation UpdateMyLoadStatus($id: UUID!, $status: String!) @auth(level: USER) {
+  freightLoad_update(
+    first: {
+      where: {
+        id: { eq: $id }
+        assignedDriver: { uid: { eq_expr: "auth.uid" } }
+      }
+    }
+    data: {
+      status: $status
+      updatedAt_expr: "request.time"
+    }
+  )
+}
+
+# Update vehicle dimensions for a vehicle assigned to the authenticated driver
+mutation UpdateMyVehicleSpecs(
+  $id: UUID!
+  $heightFeet: Float
+  $weightLbs: Int
+  $hazmatClass: String
+) @auth(level: USER) {
+  vehicle_update(
+    first: {
+      where: {
+        id: { eq: $id }
+        assignedDriver: { uid: { eq_expr: "auth.uid" } }
+      }
+    }
+    data: {
+      heightFeet: $heightFeet
+      weightLbs: $weightLbs
+      hazmatClass: $hazmatClass
+      updatedAt_expr: "request.time"
+    }
+  )
+}

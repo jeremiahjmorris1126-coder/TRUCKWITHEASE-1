@@ -14,12 +14,12 @@ import {
  * Supplied via environment variables (VITE_FIREBASE_*)
  */
 export const firebaseClientConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDemoPlaceholderKey',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'truckwithease.firebaseapp.com',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyBctBVSVwv4pFAf_j_ucH0oqGtt1hswHgE',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'project-f0634118-be01-44f7-b36.firebaseapp.com',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'project-f0634118-be01-44f7-b36',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'truckwithease.appspot.com',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'project-f0634118-be01-44f7-b36.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '405307027459',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:405307027459:web:abcdef123456',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:405307027459:web:79c4804999fe774caf1e36',
 };
 
 // Initialize Firebase client app once

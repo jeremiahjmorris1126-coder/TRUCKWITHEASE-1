@@ -150,35 +150,33 @@ describe('Phase 3: End-to-End System Integration & Workflow Verification', () =>
     expect(profile.weightLbs).toBe(78000);
 
     // 2. Calculate commercial route via routingManager
-    const route = await routingManager.calculateRoute({
-      origin: 'Dallas, TX',
-      destination: 'Fort Worth, TX',
-      vehicle: {
-        heightFt: profile.heightFt,
-        weightLbs: profile.weightLbs,
-        axles: profile.axles,
-        isHazmat: profile.isHazmat,
-      },
+    const originStop = { address: 'Dallas, TX', coords: { lat: 32.7767, lon: -96.7970 } };
+    const destStop = { address: 'Fort Worth, TX', coords: { lat: 32.7555, lon: -97.3308 } };
+    const route = await routingManager.calculateRoute(originStop, destStop, [], {
+      heightFt: profile.heightFt,
+      weightLbs: profile.weightLbs,
+      axles: profile.axles,
+      isHazmat: profile.isHazmat,
+      widthFt: profile.widthFt,
+      lengthFt: profile.lengthFt,
     });
 
     expect(route).toBeDefined();
-    expect(route.distanceMiles).toBeGreaterThan(0);
-    expect(route.durationMinutes).toBeGreaterThan(0);
+    expect(route.totalDistanceMiles).toBeGreaterThan(0);
+    expect(route.totalTimeMinutes).toBeGreaterThan(0);
     expect(route.provider).toBeDefined();
 
     // 3. Test route caching: Second identical request is served from 15-minute cache
-    const cachedRoute = await routingManager.calculateRoute({
-      origin: 'Dallas, TX',
-      destination: 'Fort Worth, TX',
-      vehicle: {
-        heightFt: profile.heightFt,
-        weightLbs: profile.weightLbs,
-        axles: profile.axles,
-        isHazmat: profile.isHazmat,
-      },
+    const cachedRoute = await routingManager.calculateRoute(originStop, destStop, [], {
+      heightFt: profile.heightFt,
+      weightLbs: profile.weightLbs,
+      axles: profile.axles,
+      isHazmat: profile.isHazmat,
+      widthFt: profile.widthFt,
+      lengthFt: profile.lengthFt,
     });
 
-    expect(cachedRoute.distanceMiles).toBe(route.distanceMiles);
+    expect(cachedRoute.totalDistanceMiles).toBe(route.totalDistanceMiles);
   });
 
   // =========================================================================

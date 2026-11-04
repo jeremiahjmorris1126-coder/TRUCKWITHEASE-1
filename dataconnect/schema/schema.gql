@@ -1,0 +1,51 @@
+# TruckWithEase — Firebase SQL Connect (Data Connect) Relational Schema
+
+type Fleet @table(key: "id") {
+  id: String! @col(dataType: "varchar(64)")
+  carrierName: String! @col(dataType: "varchar(160)")
+  usdotNumber: String @col(dataType: "varchar(32)")
+  mcNumber: String @col(dataType: "varchar(32)")
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type User @table(key: "uid") {
+  uid: String! @default(expr: "auth.uid") @col(dataType: "varchar(128)")
+  email: String! @unique @col(dataType: "varchar(255)")
+  displayName: String @col(dataType: "varchar(120)")
+  role: String! @default(value: "driver") @col(dataType: "varchar(32)")
+  fleet: Fleet
+  disabled: Boolean! @default(value: false)
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+type Vehicle @table @index(fields: ["unitNumber"], order: [ASC]) {
+  id: UUID! @default(expr: "uuidV4()")
+  fleet: Fleet!
+  assignedDriver: User
+  unitNumber: String! @col(dataType: "varchar(32)")
+  vin: String @unique @col(dataType: "varchar(32)")
+  make: String @col(dataType: "varchar(64)")
+  model: String @col(dataType: "varchar(64)")
+  year: Int
+  heightFeet: Float @default(value: 13.5)
+  weightLbs: Int @default(value: 80000)
+  hazmatClass: String @col(dataType: "varchar(32)")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+type FreightLoad @table @index(fields: ["status", "createdAt"], order: [ASC, DESC]) {
+  id: UUID! @default(expr: "uuidV4()")
+  fleet: Fleet!
+  assignedDriver: User
+  origin: String! @col(dataType: "varchar(160)")
+  destination: String! @col(dataType: "varchar(160)")
+  rateUsd: Float!
+  miles: Float!
+  weightLbs: Int
+  equipmentType: String! @default(value: "DRY_VAN") @col(dataType: "varchar(32)")
+  status: String! @default(value: "AVAILABLE") @col(dataType: "varchar(32)")
+  pickupTime: Timestamp
+  deliveryTime: Timestamp
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}

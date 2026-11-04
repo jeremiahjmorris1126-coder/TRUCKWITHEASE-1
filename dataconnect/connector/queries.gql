@@ -1,0 +1,100 @@
+# TruckWithEase — Authorized SQL Connect Queries
+
+# Fetch the currently authenticated user's profile and fleet details
+query GetMyProfile @auth(level: USER) {
+  user(key: { uid_expr: "auth.uid" }) {
+    uid
+    email
+    displayName
+    role
+    disabled
+    createdAt
+    fleet {
+      id
+      carrierName
+      usdotNumber
+      mcNumber
+    }
+  }
+}
+
+# List vehicles assigned to the authenticated driver
+query ListMyAssignedVehicles @auth(level: USER) {
+  vehicles(
+    where: { assignedDriver: { uid: { eq_expr: "auth.uid" } } }
+    orderBy: [{ unitNumber: ASC }]
+  ) {
+    id
+    unitNumber
+    vin
+    make
+    model
+    year
+    heightFeet
+    weightLbs
+    hazmatClass
+    updatedAt
+    fleet {
+      id
+      carrierName
+    }
+  }
+}
+
+# List freight loads assigned to the authenticated driver (with real-time refresh)
+query ListMyAssignedLoads
+  @auth(level: USER)
+  @refresh(every: { seconds: 30 }) {
+  freightLoads(
+    where: { assignedDriver: { uid: { eq_expr: "auth.uid" } } }
+    orderBy: [{ createdAt: DESC }]
+    limit: 50
+  ) {
+    id
+    origin
+    destination
+    rateUsd
+    miles
+    weightLbs
+    equipmentType
+    status
+    pickupTime
+    deliveryTime
+    createdAt
+    updatedAt
+    fleet {
+      id
+      carrierName
+    }
+  }
+}
+
+# Get a single freight load by ID (only if assigned to the current driver)
+query GetMyLoadById($id: UUID!) @auth(level: USER) {
+  freightLoad(
+    first: {
+      where: {
+        id: { eq: $id }
+        assignedDriver: { uid: { eq_expr: "auth.uid" } }
+      }
+    }
+  ) {
+    id
+    origin
+    destination
+    rateUsd
+    miles
+    weightLbs
+    equipmentType
+    status
+    pickupTime
+    deliveryTime
+    createdAt
+    updatedAt
+    fleet {
+      id
+      carrierName
+      usdotNumber
+    }
+  }
+}
