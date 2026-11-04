@@ -1,4 +1,4 @@
-export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'the-g-o-a-t-' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner' | 'hardware-pricing' | 'landing';
+export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'the-g-o-a-t-' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner' | 'hardware-pricing' | 'landing' | 'insurance';
 
 export type DutyStatus = 'OFF' | 'SB' | 'D' | 'ON' | 'YM' | 'PC';
 
@@ -1156,6 +1156,293 @@ export interface CrossFunctionMemoryEvent {
   timestamp: string;
   payload: any;
 }
+
+// ============================================================================
+// COMMERCIAL TRUCK ROUTING: TOMTOM & TRIMBLE MAPS (PC*MILER) INTEGRATIONS
+// ============================================================================
+
+export type CommercialNavigationProvider = 'TOMTOM_TRUCK' | 'TRIMBLE_PCMILER' | 'FHWA_RADAR_54B';
+
+export interface CommercialVehicleProfile {
+  heightFt: number; // e.g. 13.5 (13' 6")
+  widthInches: number; // e.g. 102" (8' 6")
+  lengthFt: number; // e.g. 53, 65, 75
+  grossWeightLbs: number; // e.g. 80000
+  axles: number; // e.g. 5
+  isCommercial: boolean;
+  hazmatClass?: 'NONE' | 'GENERAL' | 'EXPLOSIVES' | 'FLAMMABLE_LIQUID' | 'FLAMMABLE_GAS' | 'RADIOACTIVE' | 'CORROSIVE' | 'INHALATION_HAZARD';
+  tunnelCategory?: 'B' | 'C' | 'D' | 'E';
+}
+
+export interface TomTomTruckRouteRequest {
+  origin: { lat: number; lng: number; address?: string };
+  destination: { lat: number; lng: number; address?: string };
+  vehicleProfile?: CommercialVehicleProfile;
+  avoidTolls?: boolean;
+  routeType?: 'FASTEST' | 'SHORTEST' | 'ECO' | 'THRIFTY';
+  trafficAware?: boolean;
+}
+
+export interface TomTomNavigationLeg {
+  instruction: string;
+  roadName: string;
+  distanceMiles: number;
+  durationSeconds: number;
+  clearanceNote?: string;
+  hazardWarning?: string;
+}
+
+export interface TomTomTruckRouteResponse {
+  provider: 'TOMTOM_TRUCK';
+  success: boolean;
+  routeId: string;
+  originAddress: string;
+  destinationAddress: string;
+  totalDistanceMiles: number;
+  travelTimeMinutes: number;
+  trafficDelayMinutes: number;
+  tollEstimateUsd: number;
+  clearanceVerified: boolean;
+  minimumClearanceEncounteredFt: number;
+  lowBridgeHazardsAvoided: number;
+  waypoints: [number, number][]; // [lat, lng]
+  legs: TomTomNavigationLeg[];
+  diverterExecuted: boolean;
+  webfleetTelematicsStatus: 'CONNECTED' | 'STANDALONE_READY';
+  timestamp: string;
+}
+
+export interface TrimblePcMilerRouteRequest {
+  origin: { lat: number; lng: number; address?: string };
+  destination: { lat: number; lng: number; address?: string };
+  routingType?: 'PRACTICAL' | 'SHORTEST' | 'TOLL_DISCOURAGED' | 'NATIONAL_NETWORK';
+  vehicleProfile?: CommercialVehicleProfile;
+  computeIftaJurisdictionSplits?: boolean;
+}
+
+export interface IftaStateSplit {
+  state: string;
+  tollMiles: number;
+  nonTollMiles: number;
+  totalMiles: number;
+  percentage: number;
+  estimatedGallons: number;
+}
+
+export interface TrimbleWeighStationPoint {
+  name: string;
+  mile: number;
+  state: string;
+  bypassEligible: boolean;
+  prepassAvailable: boolean;
+}
+
+export interface TrimblePcMilerRouteResponse {
+  provider: 'TRIMBLE_PCMILER';
+  success: boolean;
+  routeId: string;
+  originAddress: string;
+  destinationAddress: string;
+  totalMiles: number;
+  tollMiles: number;
+  nonTollMiles: number;
+  estimatedDriveHours: number;
+  routingType: 'PRACTICAL' | 'SHORTEST' | 'TOLL_DISCOURAGED' | 'NATIONAL_NETWORK';
+  stateMileageSplits: IftaStateSplit[];
+  weighStations: TrimbleWeighStationPoint[];
+  restrictionsAvoided: string[];
+  hazmatComplianceAttestation: string;
+  trimbleInstinctStatus: 'SYNCED' | 'STANDALONE_READY';
+  timestamp: string;
+}
+
+export interface CommercialRoutingProvidersStatus {
+  tomtom: {
+    status: 'OPERATIONAL' | 'DEGRADED';
+    configured: boolean;
+    provider: 'TomTom Truck Routing API & Webfleet';
+    apiVersion: string;
+    features: string[];
+  };
+  trimble: {
+    status: 'OPERATIONAL' | 'DEGRADED';
+    configured: boolean;
+    provider: 'Trimble MAPS / PC*MILER Commercial Web Services';
+    apiVersion: string;
+    features: string[];
+  };
+  fhwaRadar54b: {
+    status: 'OPERATIONAL';
+    configured: boolean;
+    provider: 'TruckWithEase FHWA Item 54B Radar Sentinel';
+    features: string[];
+  };
+  activeEngine: CommercialNavigationProvider;
+}
+
+// ============================================================================
+// DOT CARRIER RECORDS, FMCSA SMS SCORES & DRIVER VIOLATION TRACKING
+// ============================================================================
+
+export type DotSafetyRating = 'SATISFACTORY' | 'CONDITIONAL' | 'UNSATISFACTORY' | 'NOT_RATED';
+
+export interface DotCarrierOosRates {
+  driverOosPct: number;
+  driverNationalAvgPct: number;
+  vehicleOosPct: number;
+  vehicleNationalAvgPct: number;
+  hazmatOosPct: number;
+  hazmatNationalAvgPct: number;
+}
+
+export type DotSmsCategory =
+  | 'UNSAFE_DRIVING'
+  | 'CRASH_INDICATOR'
+  | 'HOS_COMPLIANCE'
+  | 'VEHICLE_MAINT'
+  | 'CONTROLLED_SUBSTANCES'
+  | 'HAZMAT'
+  | 'DRIVER_FITNESS';
+
+export interface DotSmsBasicScore {
+  category: DotSmsCategory;
+  name: string;
+  measure: number;
+  percentile: number; // 0 - 100
+  threshold: number; // e.g., 65 or 80
+  status: 'CLEAN' | 'EXCELLENT' | 'ALERT' | 'SERIOUS_VIOLATION';
+  totalViolations: number;
+  oosViolations: number;
+  description: string;
+}
+
+export interface DotOfficialLinks {
+  saferSnapshotUrl: string;
+  smsScorecardUrl: string;
+  licensingInsuranceUrl: string;
+  clearinghouseUrl: string;
+  dataQsUrl: string;
+}
+
+export interface DotCompanyRecord {
+  usdot: string;
+  mcNumber: string;
+  legalName: string;
+  dbaName?: string;
+  safetyRating: DotSafetyRating;
+  safetyRatingDate: string;
+  operatingStatus: 'AUTHORIZED_FOR_HIRE' | 'ACTIVE' | 'INACTIVE';
+  entityType: 'CARRIER' | 'BROKER' | 'SHIPPER';
+  carrierOperation: 'INTERSTATE' | 'INTRASTATE';
+  physicalAddress: string;
+  phone: string;
+  powerUnits: number;
+  drivers: number;
+  mcs150Mileage: number;
+  mcs150Date: string;
+  insuranceRequiredBipd: number;
+  insuranceOnFileBipd: number;
+  cargoInsuranceOnFile: number;
+  bondFormBmc91x: boolean;
+  outOfServiceRates: DotCarrierOosRates;
+  smsScores: DotSmsBasicScore[];
+  officialLinks: DotOfficialLinks;
+  lastFetchedIso: string;
+  verified: boolean;
+}
+
+export interface DriverViolationItem {
+  id: string;
+  violationCode: string;
+  cfrSection: string;
+  description: string;
+  basicCategory: DotSmsCategory;
+  severityWeight: number; // 1 to 10
+  timeWeight: number; // 1, 2, or 3
+  totalPoints: number;
+  outOfService: boolean;
+  status: 'ACTIVE' | 'CONTESTED_DATAQS' | 'REMEDIATED' | 'DISMISSED';
+  remediationNotes?: string;
+}
+
+export interface DriverRoadsideInspectionRecord {
+  id: string;
+  reportNumber: string;
+  inspectionDate: string;
+  state: string;
+  locationDescription: string;
+  level: 'LEVEL_I' | 'LEVEL_II' | 'LEVEL_III' | 'LEVEL_V';
+  driverId: string;
+  driverName: string;
+  cdlNumber: string;
+  cdlState: string;
+  unitNumber: string;
+  trailerNumber: string;
+  inspectingAgency: string;
+  officerBadge: string;
+  outOfServiceOrder: boolean;
+  cleanInspectionPass: boolean;
+  violations: DriverViolationItem[];
+  notes: string;
+  tamperEvidentSha256: string;
+}
+
+// ============================================================================
+// TRUCKWITHEASE INSURANCE CONNECTOR & FLEET COMPANY DISCOUNTS
+// ============================================================================
+
+export type InsuranceDiscountCategory =
+  | 'CLEAN_DOT_SMS'
+  | 'TELEMATICS_CANBUS'
+  | 'FHWA_RADAR_54B'
+  | 'ZERO_OOS_DRIVERS'
+  | 'ELECTRONIC_DVIR';
+
+export interface InsuranceDiscountTier {
+  id: string;
+  title: string;
+  discountPercent: number; // e.g. 15 for 15%
+  category: InsuranceDiscountCategory;
+  qualificationRule: string;
+  qualified: boolean;
+  annualSavingsUsd: number;
+}
+
+export interface InsuranceConnectorCompany {
+  id: string;
+  name: string;
+  tagline: string;
+  logoBadge: string;
+  underwritingTier: string;
+  supportedCoverages: string[];
+  baseRatePerPowerUnitAnnual: number;
+  maxDiscountPercent: number;
+  integrationStatus: 'CONNECTED' | 'PARTNER_VERIFIED' | 'INSTANT_BIND_READY';
+  telematicsApproved: boolean;
+  connectorDescription: string;
+  directPortalUrl: string;
+  discountsOffered: InsuranceDiscountTier[];
+}
+
+export interface FleetInsuranceQuote {
+  quoteId: string;
+  carrierUsdot: string;
+  carrierName: string;
+  fleetPowerUnits: number;
+  selectedCompanyId: string;
+  companyName: string;
+  baseAnnualTotal: number;
+  aggregateDiscountPct: number;
+  netAnnualTotal: number;
+  totalAnnualSavings: number;
+  qualifiedDiscounts: InsuranceDiscountTier[];
+  timestamp: string;
+  expirationDate: string;
+  status: 'GENERATED' | 'BIND_REQUESTED' | 'BOUND_ACTIVE';
+  merkleSealSha256: string;
+}
+
+
 
 
 

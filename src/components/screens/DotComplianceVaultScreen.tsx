@@ -8,6 +8,8 @@ import { RoadsideOfficerShieldModal } from '../RoadsideOfficerShieldModal';
 import { RodsPullModal } from '../RodsPullModal';
 import { DvirManagementModal } from '../DvirManagementModal';
 import { crossFunctionMemoryService } from '../../services/crossFunctionMemoryService';
+import { dotCompanyService } from '../../services/dotCompanyService.ts';
+import type { DotCompanyRecord, DriverRoadsideInspectionRecord } from '../../types.ts';
 
 interface DotComplianceVaultScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -16,7 +18,14 @@ interface DotComplianceVaultScreenProps {
   onOpenErodsTagAlong?: () => void;
 }
 
-type VaultSubModule = 'DRIVER_DQF' | 'VEHICLE_FLEET' | 'ELD_HOS_LOGS' | 'ALL_RECORDS' | 'FEDERAL_CUSTODY';
+type VaultSubModule =
+  | 'DRIVER_DQF'
+  | 'VEHICLE_FLEET'
+  | 'ELD_HOS_LOGS'
+  | 'ALL_RECORDS'
+  | 'FEDERAL_CUSTODY'
+  | 'DOT_SCORES'
+  | 'DRIVER_VIOLATIONS';
 
 export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> = ({
   onShowToast,
@@ -29,6 +38,17 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
   const [activeCategory, setActiveCategory] = useState<DotDocCategory | 'ALL'>('ALL');
   const [activeStatusFilter, setActiveStatusFilter] = useState<DotDocStatus | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Company DOT records state
+  const [carrierDot, setCarrierDot] = useState<DotCompanyRecord>(() => dotCompanyService.getCurrentCarrier());
+  const [dotQueryInput, setDotQueryInput] = useState<string>('3928110');
+  const [isPullingDot, setIsPullingDot] = useState<boolean>(false);
+
+  // Driver roadside inspections state
+  const [roadsideReports, setRoadsideReports] = useState<DriverRoadsideInspectionRecord[]>(() =>
+    dotCompanyService.getInspectionReports()
+  );
+  const [roadsideDriverFilter, setRoadsideDriverFilter] = useState<string>('ALL');
 
   // Fleet Driver and Vehicle files
   const [driverFiles, setDriverFiles] = useState<FleetDriverFileRecord[]>(() =>
@@ -96,7 +116,17 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
     const unsubscribe = dotDocumentsService.subscribe((docs) => {
       setDocuments(docs);
     });
-    return () => unsubscribe();
+    const unsubCarrier = dotCompanyService.subscribeCarrier((c) => {
+      setCarrierDot(c);
+    });
+    const unsubReports = dotCompanyService.subscribeReports((reps) => {
+      setRoadsideReports(reps);
+    });
+    return () => {
+      unsubscribe();
+      unsubCarrier();
+      unsubReports();
+    };
   }, []);
 
   const stats = useMemo(() => dotDocumentsService.getAuditReadinessStats(), [documents]);
@@ -376,65 +406,89 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
       {/* 2. SUB-MODULE TABS FOR STREAMLINED FLEET MANAGEMENT                  */}
       {/* ==================================================================== */}
       <div className="bg-[#0A0F14] p-1.5 rounded-2xl border border-[#1E2532] shadow-xl">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5 text-xs">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-1.5 text-xs">
           <button
             onClick={() => setActiveSubModule('DRIVER_DQF')}
-            className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-2 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
               activeSubModule === 'DRIVER_DQF'
                 ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
                 : 'text-slate-400 hover:text-white bg-slate-900/40'
             }`}
           >
             <span className="material-symbols-outlined text-[16px]">badge</span>
-            <span>Driver DQF Files</span>
+            <span>Driver DQF</span>
           </button>
 
           <button
             onClick={() => setActiveSubModule('VEHICLE_FLEET')}
-            className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-2 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
               activeSubModule === 'VEHICLE_FLEET'
                 ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
                 : 'text-slate-400 hover:text-white bg-slate-900/40'
             }`}
           >
             <span className="material-symbols-outlined text-[16px]">local_shipping</span>
-            <span>Vehicle Equipment</span>
+            <span>Vehicles</span>
           </button>
 
           <button
             onClick={() => setActiveSubModule('ELD_HOS_LOGS')}
-            className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-2 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
               activeSubModule === 'ELD_HOS_LOGS'
                 ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
                 : 'text-slate-400 hover:text-white bg-slate-900/40'
             }`}
           >
             <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
-            <span>ELD Daily Logs</span>
+            <span>ELD Logs</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubModule('DOT_SCORES')}
+            className={`py-2 px-2 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeSubModule === 'DOT_SCORES'
+                ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
+                : 'text-slate-400 hover:text-white bg-slate-900/40'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">verified</span>
+            <span>DOT Scores</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubModule('DRIVER_VIOLATIONS')}
+            className={`py-2 px-2 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeSubModule === 'DRIVER_VIOLATIONS'
+                ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
+                : 'text-slate-400 hover:text-white bg-slate-900/40'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">gavel</span>
+            <span>Violations</span>
           </button>
 
           <button
             onClick={() => setActiveSubModule('ALL_RECORDS')}
-            className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-2 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
               activeSubModule === 'ALL_RECORDS'
                 ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
                 : 'text-slate-400 hover:text-white bg-slate-900/40'
             }`}
           >
             <span className="material-symbols-outlined text-[16px]">folder_special</span>
-            <span>All Federal Records</span>
+            <span>All Records</span>
           </button>
 
           <button
             onClick={() => setActiveSubModule('FEDERAL_CUSTODY')}
-            className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 col-span-2 md:col-span-1 ${
+            className={`py-2 px-2 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
               activeSubModule === 'FEDERAL_CUSTODY'
                 ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
                 : 'text-slate-400 hover:text-white bg-slate-900/40'
             }`}
           >
             <span className="material-symbols-outlined text-[16px]">policy</span>
-            <span>Custody Attestation</span>
+            <span>Attestation</span>
           </button>
         </div>
       </div>
@@ -875,6 +929,291 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
                 Export Complete Audit Dossier
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODULE 6: DOT CARRIER RECORDS & OFFICIAL FMCSA SMS SCORES            */}
+      {/* ==================================================================== */}
+      {activeSubModule === 'DOT_SCORES' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Quick Pull Controls Bar */}
+          <div className="bg-[#0A0F14] p-4 rounded-2xl border border-[#1E2532] shadow-xl space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#FFE500]">badge</span>
+                  <span>FMCSA DOT Carrier Records &amp; SMS Safety Scores</span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Quick lookup of company federal authority, inspection statistics, and direct links to official safety scores.
+                </p>
+              </div>
+
+              <button
+                onClick={async () => {
+                  setIsPullingDot(true);
+                  const p = await dotCompanyService.pullCarrierDotRecord('3928110');
+                  setCarrierDot(p);
+                  setIsPullingDot(false);
+                  onShowToast(`PULLED RECORDS FOR ${p.legalName} // USDOT #${p.usdot}`, 'verified');
+                }}
+                className="px-3 py-1.5 rounded-xl btn-tactical-yellow text-black font-black text-[11px] uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(255,229,0,0.35)] shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[15px]">flash_on</span>
+                <span>Pull My Company (3928110)</span>
+              </button>
+            </div>
+
+            {/* Search Input Bar */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={dotQueryInput}
+                onChange={(e) => setDotQueryInput(e.target.value)}
+                placeholder="Enter USDOT # or MC # (e.g. 3928110, 264184, 270659)..."
+                className="flex-1 px-3 py-2 rounded-xl bg-[#05080E] border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#FFE500]"
+              />
+              <button
+                onClick={async () => {
+                  if (!dotQueryInput.trim()) return;
+                  setIsPullingDot(true);
+                  const p = await dotCompanyService.pullCarrierDotRecord(dotQueryInput);
+                  setCarrierDot(p);
+                  setIsPullingDot(false);
+                  onShowToast(`PULLED DOT RECORD FOR ${p.legalName}`, 'verified');
+                }}
+                disabled={isPullingDot}
+                className="px-4 py-2 rounded-xl btn-tactical-yellow text-black font-black text-xs uppercase tracking-wider cursor-pointer shadow-md disabled:opacity-50"
+              >
+                {isPullingDot ? 'Pulling...' : 'Quick Pull'}
+              </button>
+            </div>
+          </div>
+
+          {/* Carrier Snapshot Card */}
+          <div className="bg-[#0A0F14] p-5 rounded-2xl border-2 border-emerald-500/50 shadow-2xl space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-base font-black text-white">{carrierDot.legalName}</h4>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black border border-emerald-500/50">
+                    SAFETY RATING: {carrierDot.safetyRating}
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-bold border border-sky-500/40">
+                    {carrierDot.operatingStatus}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-3 flex-wrap">
+                  <span>USDOT #: <strong className="text-[#FFE500] font-mono">{carrierDot.usdot}</strong></span>
+                  <span>&bull;</span>
+                  <span>MC/FF #: <strong className="text-white">{carrierDot.mcNumber}</strong></span>
+                  <span>&bull;</span>
+                  <span>Units: <strong className="text-white">{carrierDot.powerUnits} Tractors</strong></span>
+                  <span>&bull;</span>
+                  <span>Drivers: <strong className="text-white">{carrierDot.drivers}</strong></span>
+                </div>
+              </div>
+
+              <div className="text-right text-[10px] text-slate-400 shrink-0">
+                <span className="block text-slate-500">Address: {carrierDot.physicalAddress}</span>
+                <span className="text-emerald-400 font-bold">Insurance: $1,000,000 BIPD On File</span>
+              </div>
+            </div>
+
+            {/* Official FMCSA Government Deep Links */}
+            <div className="p-3 rounded-xl bg-[#05080E] border border-[#FFE500]/40 space-y-2">
+              <span className="text-[11px] text-[#FFE500] font-black uppercase block">
+                OFFICIAL FMCSA GOVERNMENT RECORDS &amp; SCORECARD PORTAL LINKS:
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                <a
+                  href={carrierDot.officialLinks.saferSnapshotUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2.5 rounded-lg bg-[#0E1524] hover:bg-[#152036] border border-slate-700 hover:border-[#FFE500] transition flex items-center justify-between group"
+                >
+                  <div>
+                    <span className="text-[11px] font-bold text-white block">SAFER Carrier Snapshot</span>
+                    <span className="text-[9px] text-slate-400">safer.fmcsa.dot.gov</span>
+                  </div>
+                  <span className="material-symbols-outlined text-slate-500 group-hover:text-[#FFE500] text-[16px]">open_in_new</span>
+                </a>
+
+                <a
+                  href={carrierDot.officialLinks.smsScorecardUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2.5 rounded-lg bg-[#0E1524] hover:bg-[#152036] border border-slate-700 hover:border-[#FFE500] transition flex items-center justify-between group"
+                >
+                  <div>
+                    <span className="text-[11px] font-bold text-white block">SMS Safety Scores (ai.fmcsa)</span>
+                    <span className="text-[9px] text-slate-400">ai.fmcsa.dot.gov/SMS</span>
+                  </div>
+                  <span className="material-symbols-outlined text-slate-500 group-hover:text-emerald-400 text-[16px]">open_in_new</span>
+                </a>
+
+                <a
+                  href={carrierDot.officialLinks.licensingInsuranceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2.5 rounded-lg bg-[#0E1524] hover:bg-[#152036] border border-slate-700 hover:border-[#FFE500] transition flex items-center justify-between group"
+                >
+                  <div>
+                    <span className="text-[11px] font-bold text-white block">Licensing &amp; Insurance (L&amp;I)</span>
+                    <span className="text-[9px] text-slate-400">li-public.fmcsa.dot.gov</span>
+                  </div>
+                  <span className="material-symbols-outlined text-slate-500 group-hover:text-sky-400 text-[16px]">open_in_new</span>
+                </a>
+              </div>
+            </div>
+
+            {/* 7 SMS BASIC Scores Gauge Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+              {carrierDot.smsScores.map((basic) => (
+                <div
+                  key={basic.category}
+                  className="p-3 rounded-xl bg-[#05080E] border border-slate-800 space-y-1"
+                >
+                  <div className="flex justify-between items-center text-[10px] text-slate-400 uppercase font-bold">
+                    <span className="truncate">{basic.name}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[8px] bg-emerald-500/20 text-emerald-400 font-bold">
+                      {basic.status}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-2xl font-black text-white">{basic.percentile}%</span>
+                    <span className="text-[10px] text-slate-500">Threshold: {basic.threshold}%</span>
+                  </div>
+                  <span className="text-[9px] text-slate-400 block truncate">
+                    Violations: {basic.totalViolations} &bull; OOS: {basic.oosViolations}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODULE 7: DRIVER ROADSIDE INSPECTIONS & VIOLATIONS TRACKER           */}
+      {/* ==================================================================== */}
+      {activeSubModule === 'DRIVER_VIOLATIONS' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0A0F14] p-4 rounded-2xl border border-[#1E2532]">
+            <div>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#FFE500]">gavel</span>
+                <span>Driver Roadside Inspection Reports &amp; Citations Ledger</span>
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Official federal inspection reports, citations assigned to drivers, severity weighting, and DataQs status.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                const csv = dotCompanyService.exportViolationsCsv(roadsideDriverFilter);
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `USDOT_${carrierDot.usdot}_DRIVER_VIOLATIONS_${new Date().toISOString().substring(0, 10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                onShowToast('EXPORTED DRIVER VIOLATIONS DOSSIER (.CSV)', 'download');
+              }}
+              className="px-3.5 py-2 rounded-xl btn-tactical-yellow text-black font-black text-xs uppercase tracking-wider shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined text-[16px]">download</span>
+              <span>Export Violations CSV</span>
+            </button>
+          </div>
+
+          {/* Driver filter dropdown */}
+          <div className="flex items-center gap-3 bg-[#0A0F14] p-3 rounded-xl border border-slate-800 text-xs">
+            <span className="text-slate-400 uppercase font-bold text-[10px]">Filter Inspections:</span>
+            <select
+              value={roadsideDriverFilter}
+              onChange={(e) => setRoadsideDriverFilter(e.target.value)}
+              className="py-1 px-2 rounded-lg bg-[#05080E] border border-slate-700 text-xs text-white focus:outline-none"
+            >
+              <option value="ALL">All Drivers in Fleet</option>
+              <option value="drv-jeremiah-904">Jeremiah J. Morris (IL-CDL-98104820)</option>
+              <option value="drv-marcus-702">Marcus Ortiz (TX-CDL-8819204)</option>
+              <option value="drv-sarah-309">Sarah Kowalski (IN-CDL-7741029)</option>
+              <option value="drv-tyrone-880">Tyrone Washington (GA-CDL-5520194)</option>
+            </select>
+          </div>
+
+          {/* Inspection reports roster */}
+          <div className="space-y-3">
+            {roadsideReports
+              .filter((r) => roadsideDriverFilter === 'ALL' || r.driverId === roadsideDriverFilter)
+              .map((rep) => (
+                <div
+                  key={rep.id}
+                  className="p-4 rounded-2xl bg-[#0A0F14] border border-[#1E2532] space-y-2.5"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black text-white">{rep.reportNumber}</span>
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300">
+                          {rep.level}
+                        </span>
+                        {rep.cleanInspectionPass && (
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold">
+                            CLEAN PASS
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400">
+                        {rep.inspectionDate} &bull; State: {rep.state} &bull; {rep.locationDescription}
+                      </span>
+                    </div>
+
+                    <div className="text-right text-xs">
+                      <span className="text-[10px] text-slate-400 block">Driver:</span>
+                      <strong className="text-[#FFE500]">{rep.driverName}</strong>
+                    </div>
+                  </div>
+
+                  {rep.violations.length === 0 ? (
+                    <div className="text-xs text-emerald-400 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px]">verified</span>
+                      <span>Zero violations cited &bull; Clean Inspection Pass verified</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {rep.violations.map((viol) => (
+                        <div
+                          key={viol.id}
+                          className="p-2.5 rounded-xl bg-[#05080E] border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                        >
+                          <div>
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[10px] font-bold mr-2">
+                              {viol.violationCode}
+                            </span>
+                            <span className="font-bold text-white">{viol.description}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] text-[#FFE500] font-bold">
+                              {viol.totalPoints} Points
+                            </span>
+                            <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                              {viol.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
           </div>
         </div>
       )}
