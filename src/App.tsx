@@ -35,7 +35,7 @@ import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
-import { FirebaseDeploymentModal } from './components/FirebaseDeploymentModal';
+// Deployment modals removed from driver app build
 import { BluetoothEldModal } from './components/BluetoothEldModal';
 import { AuthLoginModal } from './components/AuthLoginModal';
 import { clientAuth } from './services/firebaseClientAuth';
@@ -43,6 +43,16 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { bluetoothEldService } from './services/bluetoothEldService';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
+import {
+  ENABLE_UNVERIFIED_HOS_CLOCKS,
+  ENABLE_TELEMETRY_10HZ,
+  ENABLE_BLUETOOTH_ELD,
+  ENABLE_HAPTICS_SCREEN,
+  ENABLE_QUANTUM_INDEX,
+  ENABLE_MASTER_SYNC,
+  ENABLE_MEMORY_QUANTUM_DIAGNOSTICS,
+} from './config/featureFlags';
+import { apiClient, registerApiAuthHandlers } from './services/apiClient';
 
 const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
   speedAlertToleranceMph: 5,
@@ -52,20 +62,19 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
   autoStateBoundaryAlerts: true,
   voiceControlEnabled: true,
   enabledModules: {
-    'master-sync': true,
-    'the-g-o-a-t-': false,
+    'master-sync': ENABLE_MASTER_SYNC,
     'night-hud': true,
     'dispatch-eta': true,
     'vault': true,
     'fleet-expenses': true,
-    'hos-clocks': true,
+    'hos-clocks': ENABLE_UNVERIFIED_HOS_CLOCKS,
     'radar-54b': true,
     'trip-planner': true,
     'master-mechanic': true,
-    'haptics': true,
+    'haptics': ENABLE_HAPTICS_SCREEN,
     'ecosystem': true,
-    'telemetry': true,
-    'quantum-index': true,
+    'telemetry': ENABLE_TELEMETRY_10HZ,
+    'quantum-index': ENABLE_QUANTUM_INDEX,
   },
 };
 
@@ -80,7 +89,7 @@ export default function App() {
     }
     return 'night-hud';
   });
-  const [speed, setSpeed] = useState<number>(65);
+  const [speed, setSpeed] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastIcon, setToastIcon] = useState<string>('verified_user');
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
@@ -89,6 +98,39 @@ export default function App() {
   const [isBluetoothConnected, setIsBluetoothConnected] = useState<boolean>(() => bluetoothEldService.getStatus() === 'CONNECTED');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [driverProfile, setDriverProfile] = useState<{ name?: string; cdlNumber?: string } | null>(null);
+  const [tenantInfo, setTenantInfo] = useState<{ carrierName?: string; usdotNumber?: string; tenantId?: string } | null>(null);
+
+  useEffect(() => {
+    if (!firebaseUser) {
+      setDriverProfile(null);
+      setTenantInfo(null);
+      return;
+    }
+    apiClient.get('/api/driver/profile')
+      .then((res) => {
+        if (res?.profile) setDriverProfile(res.profile);
+      })
+      .catch(() => {});
+
+    apiClient.get('/api/auth/tenant')
+      .then((res) => {
+        if (res?.tenant) setTenantInfo(res.tenant);
+      })
+      .catch(() => {});
+  }, [firebaseUser]);
+
+  // Register API Client 401 & 429 Handlers
+  useEffect(() => {
+    registerApiAuthHandlers({
+      onUnauthorized: () => {
+        setIsAuthModalOpen(true);
+      },
+      onRateLimited: (message) => {
+        showToast(message, 'warning');
+      },
+    });
+  }, []);
 
   // Synchronize Firebase Auth state
   useEffect(() => {
@@ -130,6 +172,7 @@ export default function App() {
 
   // Background Global Memory & Performance Tracker
   useEffect(() => {
+    if (!ENABLE_MEMORY_QUANTUM_DIAGNOSTICS) return;
     const trackAppMemory = () => {
       memoryPerformanceService.trackSnapshot({ activeRoute: activeTab });
     };
@@ -162,7 +205,7 @@ export default function App() {
     ).join('');
     const recNum = `REC-${now.getFullYear()}-${pad(now.getMonth() + 1)}${pad(now.getDate())}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    let title = 'FMCSA Â§ 395.8 Driver Daily Log (8-Day Package)';
+    let title = 'FMCSA § 395.8 Driver Daily Log (8-Day Package)';
     if (actionType === 'PRINTED') {
       title = 'In-Cab Mobile Bluetooth Printer Dispatch';
     } else if (actionType === 'ROADSIDE_AUDIT') {
@@ -186,8 +229,7 @@ export default function App() {
       fileSize: `${Math.floor(340 + Math.random() * 25)} KB`,
       verified: true,
       notes:
-        notes ||
-        `Attested by Jeremiah J. Morris (CDL IL-98104820) at ${displayTime}. Verified compliant under 49 CFR Â§ 395.8.`,
+        notes || (firebaseUser?.email ? `Attested by authenticated driver (${firebaseUser.email}) at ${displayTime}. Compliant under 49 CFR § 395.8.` : `Inspection record generated at ${displayTime}. Driver sign-in required for digital attestation.`),
     };
 
     setInspectionLogs((prev) => {
@@ -210,19 +252,7 @@ export default function App() {
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-  // Speed simulation (subtle variance around 65 mph while moving)
-  useEffect(() => {
-    if (speed > 0) {
-      const interval = setInterval(() => {
-        setSpeed((prev) => {
-          const delta = (Math.random() - 0.5) * 2;
-          const next = Math.round(prev + delta);
-          return Math.min(68, Math.max(62, next));
-        });
-      }, 4000);
-      return () => clearInterval(interval);
-    }
-  }, [speed]);
+  // Vehicle speed derived from connected Bluetooth ELD or J1939 telematics stream
 
   const showToast = (message: string, icon = 'verified_user') => {
     setToastMessage(message);
@@ -284,7 +314,7 @@ export default function App() {
       case 'radar-54b':
       case 'dispatch-eta':
       case 'master-mechanic':
-      case 'the-g-o-a-t-':
+
         return (
           <RouteDispatchHub
             initialSubTab={
@@ -292,7 +322,7 @@ export default function App() {
                 ? 'weigh-scales'
                 : activeTab === 'dispatch-eta'
                 ? 'dispatch'
-                : activeTab === 'the-g-o-a-t-' || activeTab === 'master-mechanic'
+                : activeTab === 'master-mechanic'
                 ? 'clearance'
                 : 'planner'
             }
@@ -374,6 +404,10 @@ export default function App() {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         enabledModules={fleetSettings.enabledModules}
         onOpenCustomizer={() => setShowCustomizer(true)}
+        currentUser={firebaseUser}
+        driverName={driverProfile?.name}
+        tenantCarrierName={tenantInfo?.carrierName}
+        usdotNumber={tenantInfo?.usdotNumber}
       />
 
       {/* Cockpit Header */}
@@ -391,6 +425,7 @@ export default function App() {
         isBluetoothConnected={isBluetoothConnected}
         onOpenAuthLogin={() => setIsAuthModalOpen(true)}
         currentUser={firebaseUser}
+        driverName={driverProfile?.name}
       />
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
@@ -478,20 +513,17 @@ export default function App() {
         />
       )}
 
-      {/* 1-Click Google Cloud / Firebase Deployment Center Modal */}
-      <FirebaseDeploymentModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        onShowToast={showToast}
-      />
+      {/* Deployment modal removed */}
 
       {/* Commercial Bluetooth ELD & J1939 Telemetrics Control Suite */}
-      <BluetoothEldModal
-        isOpen={isBluetoothModalOpen}
-        onClose={() => setIsBluetoothModalOpen(false)}
-        onShowToast={showToast}
-        onUpdateVehicleSpeed={(newSpeed) => setSpeed(newSpeed)}
-      />
+      {ENABLE_BLUETOOTH_ELD && (
+        <BluetoothEldModal
+          isOpen={isBluetoothModalOpen}
+          onClose={() => setIsBluetoothModalOpen(false)}
+          onShowToast={showToast}
+          onUpdateVehicleSpeed={(newSpeed) => setSpeed(newSpeed)}
+        />
+      )}
     </div>
   );
 }

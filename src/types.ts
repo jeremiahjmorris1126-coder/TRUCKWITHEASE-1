@@ -1,4 +1,4 @@
-export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'the-g-o-a-t-' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner';
+export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner';
 
 export type DutyStatus = 'OFF' | 'SB' | 'D' | 'ON' | 'YM' | 'PC';
 
@@ -198,7 +198,8 @@ export type InvoiceCategory =
   | 'MAINTENANCE_PARTS'
   | 'TOLLS_SCALES'
   | 'MEALS_CATERING'
-  | 'LODGING_TRAVEL';
+  | 'LODGING_TRAVEL'
+  | 'FREIGHT_HAUL_REVENUE';
 
 export interface InvoiceItem {
   itemNumber: string;
@@ -276,20 +277,51 @@ export interface TripWaypoint {
   notes?: string;
 }
 
+export interface CommercialVehicleProfileInput {
+  unitNumber?: string;
+  heightFt: number;
+  weightLbs: number;
+  lengthFt: number;
+  widthFt: number;
+  axles: number;
+  isHazmat?: boolean;
+  hazmatClass?: string;
+  avoidTolls?: boolean;
+}
+
+export interface RouteTurnStep {
+  stepIndex: number;
+  instruction: string;
+  distanceMiles: number;
+  durationMinutes: number;
+  streetName?: string;
+}
+
 export interface TripRoutePlan {
   id: string;
   title: string;
   origin: string;
   destination: string;
+  originCoords?: { lat: number; lon: number };
+  destinationCoords?: { lat: number; lon: number };
   totalDistanceMiles: number;
   totalEstHours: number;
   activeCorridor: string;
   waypoints: TripWaypoint[];
   routingEngine?: 'trimble' | 'tomtom' | 'mock';
+  mock?: boolean;
   fallbackTriggered?: boolean;
   tollDistanceMiles?: number;
   estimatedTollCostUsd?: number;
   bridgeWarningsCount?: number;
+  bridgeClearanceWarnings?: Array<{
+    warningId?: string;
+    location?: string;
+    clearanceFt?: number;
+    requiredFt?: number;
+    severity?: 'WARNING' | 'CRITICAL';
+  }>;
+  turnByTurnSteps?: RouteTurnStep[];
   cached?: boolean;
 }
 

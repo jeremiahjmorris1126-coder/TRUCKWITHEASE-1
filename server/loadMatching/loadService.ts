@@ -20,6 +20,16 @@ export interface FreightLoad {
   assignedUnitId?: string;
   estimatedTransitHours: number;
   yieldPerHourUsd: number; // Dispatch Zero metric: ($ / Hr)
+  detentionRatePerHour?: number; // From rate confirmation ($/hr)
+  freeMinutes?: number; // Free dwell time from rate confirmation (minutes)
+  shipperBrokerEmail?: string;
+  rateConDocUrl?: string;
+  deliveryFacilityName?: string;
+  deliveryAddress?: string;
+  originFacilityName?: string;
+  originAddress?: string;
+  deliveryCoordinates?: { lat: number; lng: number };
+  appointmentTs?: number;
 }
 
 const DEFAULT_CALLER: CallerIdentity = {
@@ -44,9 +54,15 @@ const INITIAL_LOADS: FreightLoad[] = [
     deliveryTime: 'Tomorrow 10:00 EST',
     shipperBroker: 'Apex Logistics Freight',
     contactPhone: '+1-800-555-0199',
+    shipperBrokerEmail: 'billing@apexlogistics.example.com',
     status: 'AVAILABLE',
     estimatedTransitHours: 12.2,
     yieldPerHourUsd: 233.60,
+    detentionRatePerHour: 75.0,
+    freeMinutes: 120,
+    deliveryFacilityName: 'Apex Southeast Distribution Center',
+    deliveryAddress: '4200 Logistics Pkwy, Atlanta, GA 30336',
+    deliveryCoordinates: { lat: 33.749, lng: -84.388 },
   },
   {
     id: 'load-mo-02',
@@ -63,9 +79,15 @@ const INITIAL_LOADS: FreightLoad[] = [
     deliveryTime: 'Tomorrow 06:00 EST',
     shipperBroker: 'Heartland Cold Chain Corp',
     contactPhone: '+1-800-555-0144',
+    shipperBrokerEmail: 'dispatch@heartlandcold.example.com',
     status: 'AVAILABLE',
     estimatedTransitHours: 6.8,
     yieldPerHourUsd: 242.65,
+    detentionRatePerHour: 85.0,
+    freeMinutes: 60,
+    deliveryFacilityName: 'Heartland Frozen Logistics Terminal',
+    deliveryAddress: '880 Cold Storage Way, Columbus, OH 43215',
+    deliveryCoordinates: { lat: 39.9612, lng: -82.9988 },
   },
   {
     id: 'load-in-03',
@@ -82,9 +104,15 @@ const INITIAL_LOADS: FreightLoad[] = [
     deliveryTime: 'Tomorrow 14:00 CST',
     shipperBroker: 'Midwest Steel Express',
     contactPhone: '+1-800-555-0182',
+    shipperBrokerEmail: 'settlements@midweststeel.example.com',
     status: 'AVAILABLE',
     estimatedTransitHours: 4.6,
     yieldPerHourUsd: 239.13,
+    detentionRatePerHour: 70.0,
+    freeMinutes: 120,
+    deliveryFacilityName: 'Midwest Tube & Beam Yard',
+    deliveryAddress: '120 Industrial Blvd, Nashville, TN 37210',
+    deliveryCoordinates: { lat: 36.1627, lng: -86.7816 },
   },
 ];
 
@@ -193,4 +221,24 @@ export async function dispatchLoad(
     assignedDriverId: driverId,
     assignedUnitId: unitId,
   });
+}
+
+export async function updateLoadStatus(
+  caller: CallerIdentity,
+  loadId: string,
+  status: 'AVAILABLE' | 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED',
+  assignedUnitId?: string
+): Promise<FreightLoad | null> {
+  const existing = await fleetStore.getScopedDocument<FreightLoad>(caller, 'loads', loadId);
+  if (!existing) {
+    return null;
+  }
+  const updates: Partial<FreightLoad> = {
+    status,
+  };
+  if (caller.role === 'driver') {
+    updates.assignedDriverId = caller.uid;
+    if (assignedUnitId) updates.assignedUnitId = assignedUnitId;
+  }
+  return fleetStore.updateScopedDocument<FreightLoad>(caller, 'loads', loadId, updates);
 }

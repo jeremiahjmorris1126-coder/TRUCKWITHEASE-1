@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authenticatedFetch } from '../../services/firebaseClientAuth';
 
 interface QuantumIndexScreenProps {
   onShowToast: (msg: string) => void;
@@ -79,7 +80,7 @@ export const QuantumIndexScreen: React.FC<QuantumIndexScreenProps> = ({
   const handleRunQuantumCollapse = async () => {
     setIsSuperpositioned(false);
     try {
-      const res = await fetch('/api/predictive/resolve-states', {
+      const res = await authenticatedFetch('/api/predictive/resolve-states', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ speedMph: speed, grossWeightLbs: 76220 }),

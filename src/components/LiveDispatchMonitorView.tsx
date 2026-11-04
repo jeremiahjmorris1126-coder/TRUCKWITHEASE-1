@@ -77,7 +77,7 @@ import {
   playDispatchLoopChime,
 } from '../services/driverDispatchLoopService';
 import { triggerHapticFeedback } from '../services/haptics';
-import { AntigravityExportModal } from './AntigravityExportModal';
+import { ENABLE_NASA_ORBITAL_SPOTTER } from '../config/featureFlags';
 import { NasaGoogleCloseUpOrbitalSpotter } from './NasaGoogleCloseUpOrbitalSpotter';
 import {
   getStoredRouteUpdates,
@@ -358,10 +358,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
       )}
 
       {/* Cloud Export Modal (Antigravity & GitHub) */}
-      <AntigravityExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-      />
+      {/* AntigravityExportModal removed for driver app */}
 
       {/* ==================================================================== */}
       {/* 1. TOP COMMAND BAR: STATUS, SEARCH, VIEW MODE PILL & SYSTEMS MENU   */}
@@ -441,6 +438,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
               <Globe className="w-3 h-3" />
               <span>Roadways</span>
             </button>
+            {ENABLE_NASA_ORBITAL_SPOTTER && (
             <button
               onClick={() => {
                 setDisplayMode('ALL_NASA_EXCLUSIVE');
@@ -456,6 +454,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
               <Satellite className="w-3 h-3" />
               <span>Satellite</span>
             </button>
+          )}
             <button
               onClick={() => {
                 setDisplayMode('SPLIT_VIEW');
@@ -571,23 +570,6 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
                         <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                       </div>
                     )}
-
-                    <div
-                      onClick={() => {
-                        setIsIntegrationsMenuOpen(false);
-                        setIsExportModalOpen(true);
-                      }}
-                      className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-[#D4AF37]/10 transition cursor-pointer border-t border-slate-800/80"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Rocket className="w-3.5 h-3.5 text-[#D4AF37]" />
-                        <div>
-                          <div className="font-bold text-white">Export Cryptographic Sync</div>
-                          <div className="text-[10px] text-slate-400">GitHub &amp; Antigravity audit ledger</div>
-                        </div>
-                      </div>
-                      <Download className="w-3.5 h-3.5 text-slate-400" />
-                    </div>
                   </div>
                 </div>
               )}
@@ -634,7 +616,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
           </span>
         </button>
 
-        {/* High-Resolution Orbit Spotter */}
+        {ENABLE_NASA_ORBITAL_SPOTTER && (
         <button
           onClick={() => {
             setDisplayMode('ALL_NASA_EXCLUSIVE');
@@ -648,6 +630,7 @@ export const LiveDispatchMonitorView: React.FC<LiveDispatchMonitorViewProps> = (
             NASA Close-Up Spotter
           </span>
         </button>
+      )}
 
         {/* Geofence Overlay Toggle */}
         <button

@@ -1,4 +1,5 @@
 import { US_STATE_DOT_REGULATIONS, StateDotRegulation } from '../data/stateRegulationsData';
+import { apiClient } from './apiClient';
 
 export interface StateGeolocationState {
   stateCode: string;
@@ -205,8 +206,7 @@ class StateGeolocationService {
 
     // Async reverse-geocoding validation call if online
     if (typeof window !== 'undefined' && navigator.onLine) {
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=5`)
-        .then((res) => res.json())
+      apiClient.get(`/api/routing/geocode?q=${encodeURIComponent(`${lat},${lng}`)}`, { skipUnauthorizedRedirect: true })
         .then((data) => {
           if (data && data.address && data.address['ISO3166-2-lvl4']) {
             const isoCode = data.address['ISO3166-2-lvl4'].replace('US-', '').toUpperCase();

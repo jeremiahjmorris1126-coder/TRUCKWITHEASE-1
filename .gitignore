@@ -7,3 +7,13 @@ coverage/
 *.tar.gz
 .env*
 !.env.example
+
+# Mobile signing keys, certificates & credentials
+*.keystore
+*.jks
+*.p12
+*.key
+*.mobileprovision
+*service-account*.json
+*credentials*.txt
+*credentials*.json

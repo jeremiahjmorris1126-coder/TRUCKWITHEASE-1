@@ -264,7 +264,7 @@ function generateCorridorFallbackReport(
       lon,
     },
     overallRisk,
-    summary,
+    summary: `[GENERAL CORRIDOR WEATHER FALLBACK — NOT A REPLY TO YOUR SPECIFIC QUESTION] ${summary}`,
     hazards,
     searchGrounding: {
       grounded: false,

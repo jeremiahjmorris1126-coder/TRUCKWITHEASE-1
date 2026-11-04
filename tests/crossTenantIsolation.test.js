@@ -553,3 +553,65 @@ test('9. Gate G-4 & G-5: Canonical loads Collection & Fail-Closed Auth Invariant
   }
 });
 
+
+test('10. Commercial Routing & Vehicle Profile: Multi-Tenant Fleet Isolation & Mock Attribution', async () => {
+  const { routingManager } = await import('../server/routing/routingManager.ts');
+
+  // 1. Save vehicle profile for FLEET1_DRIVER
+  const savedProfile = await vehicleProfileService.saveVehicleProfile(FLEET1_DRIVER, FLEET1_DRIVER.uid, {
+    heightFt: 13.5,
+    weightLbs: 80000,
+    lengthFt: 53.0,
+    widthFt: 8.5,
+    axles: 5,
+    hazmatClass: 'None',
+    unitNumber: 'TRACTOR-F1',
+  });
+  assert.equal(savedProfile.fleetId, 'FLEET1');
+  assert.equal(savedProfile.heightFt, 13.5);
+
+  // 2. FLEET1_DRIVER can retrieve own profile
+  const ownProfile = await vehicleProfileService.getVehicleProfile(FLEET1_DRIVER, FLEET1_DRIVER.uid);
+  assert.ok(ownProfile);
+  assert.equal(ownProfile.unitNumber, 'TRACTOR-F1');
+
+  // 3. FLEET2_DRIVER probing FLEET1_DRIVER profile returns 404
+  let crossFleetProbeBlocked = false;
+  try {
+    await vehicleProfileService.getVehicleProfile(FLEET2_DRIVER, FLEET1_DRIVER.uid, 'FLEET2');
+  } catch (err) {
+    crossFleetProbeBlocked = true;
+    assert.equal(err.statusCode || err.status, 404);
+  }
+  assert.equal(crossFleetProbeBlocked, true, 'Cross-fleet vehicle profile probe must return 404');
+
+  // 4. FLEET1_DRIVER trying to edit another driver's vehicle profile is rejected with 403
+  let crossDriverEditBlocked = false;
+  try {
+    await vehicleProfileService.saveVehicleProfile(FLEET1_DRIVER, 'other-driver-uid', {
+      heightFt: 14.0,
+      weightLbs: 75000,
+      lengthFt: 53.0,
+      widthFt: 8.5,
+      axles: 5,
+    });
+  } catch (err) {
+    crossDriverEditBlocked = true;
+    assert.equal(err.statusCode || err.status, 403);
+  }
+  assert.equal(crossDriverEditBlocked, true, 'Driver cannot edit other driver vehicle profiles (403)');
+
+  // 5. Commercial route calculation returns valid distance, provider, and mock flag
+  const route = await routingManager.calculateRoute(
+    { coords: { lat: 32.7767, lon: -96.7970 }, label: 'Dallas, TX' },
+    { coords: { lat: 29.7604, lon: -95.3698 }, label: 'Houston, TX' },
+    [],
+    ownProfile
+  );
+
+  assert.ok(route.totalDistanceMiles > 200, 'Route distance between Dallas and Houston must be > 200 miles');
+  assert.ok(route.provider === 'tomtom' || route.provider === 'trimble' || route.provider === 'mock');
+  if (route.provider === 'mock') {
+    assert.equal(route.mock, true, 'Mock route must be explicitly flagged with mock: true');
+  }
+});

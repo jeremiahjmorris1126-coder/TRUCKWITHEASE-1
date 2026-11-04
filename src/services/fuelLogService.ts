@@ -1,7 +1,26 @@
-import { FuelLogEntry } from '../types';
-import { fleetInvoicesService } from './fleetInvoicesService';
+import { apiClient } from './apiClient';
 
-const FUEL_LOG_STORAGE_KEY = 'truck_with_ease_fuel_logs_v1';
+export interface FuelLogEntry {
+  id: string;
+  date: string;
+  timestamp?: number;
+  gallons: number;
+  pricePerGallon: number;
+  totalCost: number;
+  previousOdometer?: number;
+  currentOdometer: number;
+  milesDriven?: number;
+  fuelMpg?: number;
+  mpg?: number;
+  costPerMile?: number;
+  fuelType?: 'DIESEL' | 'DEF' | 'SCALE' | 'MAINTENANCE';
+  stationName?: string;
+  city?: string;
+  state?: string;
+  unitNumber?: string;
+  receiptUrl?: string;
+  notes?: string;
+}
 
 export interface MpgEfficiencyMetrics {
   milesDriven: number;
@@ -13,40 +32,7 @@ export interface MpgEfficiencyMetrics {
   ratingAdvice: string;
 }
 
-const INITIAL_FUEL_LOGS: FuelLogEntry[] = [
-  {
-    id: 'fuel-log-01',
-    date: '2026-09-14',
-    timestamp: Date.now() - 3 * 86400000,
-    gallons: 95.0,
-    pricePerGallon: 3.89,
-    totalCost: 369.55,
-    previousOdometer: 141850,
-    currentOdometer: 142500,
-    milesDriven: 650,
-    mpg: 6.84,
-    costPerMile: 0.569,
-    fuelType: 'DIESEL',
-    stationName: "Love's Travel Stop #402 (I-44 MM 184)",
-    notes: 'Full tank refuel before Missouri state line crossing.',
-  },
-  {
-    id: 'fuel-log-02',
-    date: '2026-09-16',
-    timestamp: Date.now() - 1 * 86400000,
-    gallons: 98.0,
-    pricePerGallon: 3.85,
-    totalCost: 377.30,
-    previousOdometer: 142500,
-    currentOdometer: 143180,
-    milesDriven: 680,
-    mpg: 6.94,
-    costPerMile: 0.555,
-    fuelType: 'DIESEL',
-    stationName: 'Pilot Travel Center #118 (I-44 Exit 208)',
-    notes: 'Interstate cruising, dry conditions, 64 MPH governed speed.',
-  },
-];
+const STORAGE_KEY = 'truck_with_ease_fuel_logs_v2';
 
 class FuelLogService {
   private logs: FuelLogEntry[] = [];
@@ -58,30 +44,26 @@ class FuelLogService {
 
   private loadFromStorage() {
     try {
-      const stored = localStorage.getItem(FUEL_LOG_STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         this.logs = JSON.parse(stored);
       } else {
-        this.logs = INITIAL_FUEL_LOGS;
-        this.saveToStorage();
+        this.logs = [];
       }
-    } catch (e) {
-      console.error('Failed to load fuel logs from localStorage:', e);
-      this.logs = INITIAL_FUEL_LOGS;
+    } catch {
+      this.logs = [];
     }
   }
 
   private saveToStorage() {
     try {
-      localStorage.setItem(FUEL_LOG_STORAGE_KEY, JSON.stringify(this.logs));
-    } catch (e) {
-      console.error('Failed to save fuel logs to localStorage:', e);
-    }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.logs));
+    } catch {}
     this.notify();
   }
 
   private notify() {
-    this.listeners.forEach((listener) => listener([...this.logs]));
+    this.listeners.forEach((fn) => fn([...this.logs]));
   }
 
   public subscribe(listener: (logs: FuelLogEntry[]) => void): () => void {
@@ -96,12 +78,113 @@ class FuelLogService {
     return [...this.logs];
   }
 
-  public getLastOdometer(): number {
-    if (this.logs.length === 0) return 143180;
-    // Top-most log has the highest/most recent currentOdometer
-    return this.logs[0].currentOdometer;
+  public async fetchServerLogs(): Promise<FuelLogEntry[]> {
+    try {
+      const res = await apiClient.get<{ success: boolean; fuelLogs: any[] }>(
+        '/api/fuel-logs',
+        { skipUnauthorizedRedirect: true }
+      );
+      if (res && Array.isArray(res.fuelLogs)) {
+        const mapped: FuelLogEntry[] = res.fuelLogs.map((l) => ({
+          id: l.id,
+          date: l.date,
+          timestamp: new Date(l.createdAt || l.date).getTime(),
+          gallons: l.gallons,
+          pricePerGallon: l.pricePerGallon,
+          totalCost: l.totalCost,
+          currentOdometer: l.currentOdometer,
+          previousOdometer: l.previousOdometer,
+          milesDriven: l.milesDriven,
+          mpg: l.fuelMpg || (l.milesDriven && l.gallons ? parseFloat((l.milesDriven / l.gallons).toFixed(2)) : undefined),
+          fuelMpg: l.fuelMpg,
+          stationName: l.stationName,
+          city: l.city,
+          state: l.state,
+          unitNumber: l.unitNumber,
+          receiptUrl: l.receiptUrl,
+        }));
+        this.logs = mapped;
+        this.saveToStorage();
+        return mapped;
+      }
+    } catch (err) {
+      console.warn('[FuelLogService] fetchServerLogs error:', err);
+    }
+    return [...this.logs];
   }
 
+  public async addFuelLog(entry: {
+    gallons: number;
+    pricePerGallon: number;
+    totalCost?: number;
+    currentOdometer: number;
+    previousOdometer?: number;
+    fuelType?: FuelLogEntry['fuelType'] | 'REEFER';
+    stationName?: string;
+    city?: string;
+    state?: string;
+    unitNumber?: string;
+    receiptUrl?: string;
+    date?: string;
+    notes?: string;
+  }): Promise<FuelLogEntry> {
+    const res = await apiClient.post<{ success: boolean; fuelLog: any }>(
+      '/api/fuel-logs',
+      entry
+    );
+
+    const saved = res.fuelLog;
+    const newLog: FuelLogEntry = {
+      id: saved.id,
+      date: saved.date,
+      timestamp: Date.now(),
+      gallons: saved.gallons,
+      pricePerGallon: saved.pricePerGallon,
+      totalCost: saved.totalCost,
+      currentOdometer: saved.currentOdometer,
+      previousOdometer: saved.previousOdometer,
+      milesDriven: saved.milesDriven,
+      mpg: saved.fuelMpg,
+      fuelMpg: saved.fuelMpg,
+      stationName: saved.stationName,
+      city: saved.city,
+      state: saved.state,
+      unitNumber: saved.unitNumber,
+      receiptUrl: saved.receiptUrl,
+      notes: entry.notes,
+      fuelType: entry.fuelType === 'REEFER' ? 'DIESEL' : entry.fuelType,
+      costPerMile:
+        saved.milesDriven > 0 ? parseFloat((saved.totalCost / saved.milesDriven).toFixed(3)) : undefined,
+    };
+
+    this.logs = [newLog, ...this.logs];
+    this.saveToStorage();
+    return newLog;
+  }
+
+  /**
+   * Removes an entry from the local cache only.
+   * NOTE: server has no DELETE /api/fuel-logs/:id route yet, so the entry
+   * will reappear on the next fetchServerLogs() call.
+   */
+  public deleteFuelLog(id: string): boolean {
+    const prevLen = this.logs.length;
+    this.logs = this.logs.filter((l) => l.id !== id);
+    if (this.logs.length !== prevLen) {
+      this.saveToStorage();
+      return true;
+    }
+    return false;
+  }
+
+  public getAverageFleetMpg(): number {
+    const valid = this.logs.filter((l) => (l.mpg ?? 0) > 0);
+    if (valid.length === 0) return 6.8;
+    const sum = valid.reduce((acc, l) => acc + (l.mpg ?? 0), 0);
+    return Number((sum / valid.length).toFixed(2));
+  }
+
+  /** Live, pre-save MPG preview used by the fuel entry form. */
   public calculateRealTimeMpg(
     gallons: number,
     pricePerGallon: number,
@@ -114,7 +197,7 @@ class FuelLogService {
     const costPerMile = milesDriven > 0 ? Number((totalCost / milesDriven).toFixed(3)) : 0;
 
     let ratingLabel = 'AWAITING METRICS';
-    let ratingColor: 'emerald' | 'amber' | 'rose' | 'outline' = 'outline';
+    let ratingColor: MpgEfficiencyMetrics['ratingColor'] = 'outline';
     let ratingAdvice = 'Enter gallons, price, and current odometer to calculate live MPG.';
 
     if (mpg > 0) {
@@ -137,8 +220,45 @@ class FuelLogService {
       }
     }
 
+    return { milesDriven, mpg, totalCost, costPerMile, ratingLabel, ratingColor, ratingAdvice };
+  }
+
+  public calculateMetrics(): MpgEfficiencyMetrics {
+    if (this.logs.length === 0) {
+      return {
+        milesDriven: 0,
+        mpg: 0,
+        totalCost: 0,
+        costPerMile: 0,
+        ratingLabel: 'NO FUEL LOGS YET',
+        ratingColor: 'outline',
+        ratingAdvice: 'Record your first fuel stop to track MPG and cost per mile.',
+      };
+    }
+
+    const totalGallons = this.logs.reduce((acc, l) => acc + l.gallons, 0);
+    const totalCost = this.logs.reduce((acc, l) => acc + l.totalCost, 0);
+    const totalMiles = this.logs.reduce((acc, l) => acc + (l.milesDriven || 0), 0);
+
+    const mpg = totalGallons > 0 && totalMiles > 0 ? parseFloat((totalMiles / totalGallons).toFixed(2)) : 6.8;
+    const costPerMile = totalMiles > 0 ? parseFloat((totalCost / totalMiles).toFixed(3)) : 0.55;
+
+    let ratingLabel = 'FLEET AVERAGE (6.5 - 7.2 MPG)';
+    let ratingColor: 'emerald' | 'amber' | 'rose' | 'outline' = 'emerald';
+    let ratingAdvice = 'Standard fuel efficiency across commercial freight corridors.';
+
+    if (mpg >= 7.5) {
+      ratingLabel = 'OPTIMAL EFFICIENCY (> 7.5 MPG)';
+      ratingColor = 'emerald';
+      ratingAdvice = 'Aerodynamic cruising speed and minimal idle burn.';
+    } else if (mpg < 6.0) {
+      ratingLabel = 'HIGH CONSUMPTION (< 6.0 MPG)';
+      ratingColor = 'amber';
+      ratingAdvice = 'Heavy headwind or excessive idling detected.';
+    }
+
     return {
-      milesDriven,
+      milesDriven: totalMiles,
       mpg,
       totalCost,
       costPerMile,
@@ -146,107 +266,6 @@ class FuelLogService {
       ratingColor,
       ratingAdvice,
     };
-  }
-
-  public addFuelLog(params: {
-    gallons: number;
-    pricePerGallon: number;
-    currentOdometer: number;
-    previousOdometer: number;
-    fuelType?: 'DIESEL' | 'DEF' | 'REEFER';
-    stationName?: string;
-    notes?: string;
-  }): FuelLogEntry {
-    const metrics = this.calculateRealTimeMpg(
-      params.gallons,
-      params.pricePerGallon,
-      params.currentOdometer,
-      params.previousOdometer
-    );
-
-    const now = new Date();
-    const entry: FuelLogEntry = {
-      id: `fuel-log-${Date.now()}`,
-      date: now.toISOString().slice(0, 10),
-      timestamp: Date.now(),
-      gallons: params.gallons,
-      pricePerGallon: params.pricePerGallon,
-      totalCost: metrics.totalCost,
-      previousOdometer: params.previousOdometer,
-      currentOdometer: params.currentOdometer,
-      milesDriven: metrics.milesDriven,
-      mpg: metrics.mpg,
-      costPerMile: metrics.costPerMile,
-      fuelType: params.fuelType || 'DIESEL',
-      stationName: params.stationName || "Love's Travel Stop #402",
-      notes: params.notes || `Fuel fill-up at odometer ${params.currentOdometer} mi (${metrics.mpg} MPG)`,
-    };
-
-    // Prepend to logs
-    this.logs = [entry, ...this.logs];
-    this.saveToStorage();
-
-    // Automatically record corresponding fleet invoice record for unified expense ledger
-    try {
-      fleetInvoicesService.addInvoice({
-        orderNumber: `FUEL-${Date.now().toString().slice(-6)}`,
-        dateOrdered: now.toLocaleDateString('en-US') + ' at ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        status: 'PAID',
-        paymentMethod: 'Fleet One Comdata Fuel Card - XXXX9102',
-        vendorName: entry.stationName || 'Commercial Fuel Terminal',
-        vendorAddress: 'Interstate Highway Corridor Travel Plaza',
-        vendorPhone: '800-555-4921',
-        vendorContactEmail: 'receipts@fleetnetwork.com',
-        category: 'FUEL_DIESEL',
-        billToName: 'Jeremiah J. Morris (Owner-Operator)',
-        billToCompany: 'Morrishive Logistics LLC',
-        billToAddress: '1042 Highway Transport Way, St. Louis, MO 63101',
-        shipToName: 'Truck #1042 Tractor (Freightliner Cascadia)',
-        shipToCompany: 'Direct In-Frame Fuel Tank',
-        shipToAddress: entry.stationName || 'Terminal Pump Island',
-        shippingMethod: 'On-Site Terminal Pump',
-        customerPhone: '312-555-0142',
-        subtotal: entry.totalCost,
-        shippingAndHandling: 0,
-        estimatedTax: Number((entry.totalCost * 0.05).toFixed(2)),
-        totalAmount: Number((entry.totalCost * 1.05).toFixed(2)),
-        balanceDue: 0,
-        taxDeductible: true,
-        capturedViaCamera: false,
-        notes: `Driver Fuel Log // Odo: ${entry.currentOdometer} mi (+${entry.milesDriven} mi) // ${entry.gallons} Gal @ $${entry.pricePerGallon.toFixed(2)}/gal // Calculated ${entry.mpg} MPG ($${entry.costPerMile}/mi)`,
-        items: [
-          {
-            itemNumber: 'DSL-BULK-ULTRA',
-            description: `${entry.gallons} Gal ${entry.fuelType} (Odometer: ${entry.currentOdometer} mi, ${entry.mpg} MPG)`,
-            qty: entry.gallons,
-            unitPrice: entry.pricePerGallon,
-            estTax: Number((entry.totalCost * 0.05).toFixed(2)),
-            total: entry.totalCost,
-          },
-        ],
-      });
-    } catch (e) {
-      console.warn('Could not auto-create fleet invoice record:', e);
-    }
-
-    return entry;
-  }
-
-  public deleteFuelLog(id: string): boolean {
-    const prevLen = this.logs.length;
-    this.logs = this.logs.filter((l) => l.id !== id);
-    if (this.logs.length !== prevLen) {
-      this.saveToStorage();
-      return true;
-    }
-    return false;
-  }
-
-  public getAverageFleetMpg(): number {
-    const validLogs = this.logs.filter((l) => l.mpg > 0);
-    if (validLogs.length === 0) return 6.8;
-    const sum = validLogs.reduce((acc, curr) => acc + curr.mpg, 0);
-    return Number((sum / validLogs.length).toFixed(2));
   }
 }
 

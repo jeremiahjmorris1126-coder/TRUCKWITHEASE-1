@@ -1,13 +1,16 @@
 import { createHash } from 'node:crypto';
 import {
-  StopTracker,
   EvidencePacket,
   DetentionInvoice,
   CarrierIdentityInfo,
   VehicleIdentityInfo,
   DriverIdentityInfo,
   BillToParty,
+  DoorEvent,
+  GpsEvent,
+  TelephonyCallEvent,
 } from './types';
+import { StopTracker } from './detentionEngine';
 
 /**
  * Deterministic JSON stringifier ensuring identical object hashing across systems.
@@ -76,14 +79,15 @@ export function buildEvidencePacket(opts: BuildEvidencePacketOptions): EvidenceP
       waitBeforeDoorMinutes: s.waitBeforeDoorMinutes,
       dockWorkMinutes: s.dockWorkMinutes,
     },
-    doorEvents: snap.doorEvents.map((d) => ({ at: iso(d.ts)!, state: d.state })),
-    gpsTrail: snap.gpsTrail.map((g) => ({
+    doorEvents: snap.doorEvents.map((d: DoorEvent) => ({ at: iso(d.ts)!, state: d.state })),
+    gpsTrail: snap.gpsTrail.map((g: GpsEvent) => ({
       at: iso(g.ts)!,
       lat: g.lat,
       lng: g.lng,
       speedMph: g.speedMph ?? null,
+      source: (g as any).source === 'phone_gps' ? 'PHONE_GPS' : ((g as any).source || 'ECM_TELEMATICS'),
     })),
-    callLog: snap.calls.map((c) => ({
+    callLog: snap.calls.map((c: TelephonyCallEvent) => ({
       at: iso(c.ts)!,
       direction: c.direction,
       durationSec: c.durationSec,

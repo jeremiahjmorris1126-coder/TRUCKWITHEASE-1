@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { apiClient } from '../../services/apiClient';
+import { detentionClientService } from '../../services/detentionClientService';
 import { MOCK_DISPATCH_LOADS } from '../../data/mockData';
 import { DispatchLoad, LoadStatus, DispatchMonitorDriver, BrokeredLoadMemory } from '../../types';
 import {
@@ -79,11 +81,73 @@ const INITIAL_YIELD_LOADS: QuantumYieldLoad[] = [
   },
 ];
 
+
+export interface RealFreightLoad {
+  id: string;
+  loadNumber: string;
+  origin: string;
+  destination: string;
+  originFacilityName?: string;
+  originAddress?: string;
+  deliveryFacilityName?: string;
+  deliveryAddress?: string;
+  miles: number;
+  grossPayUsd: number;
+  yieldPerHourUsd: number;
+  equipmentType: string;
+  weightLbs: number;
+  pickupTime: string;
+  deliveryTime: string;
+  shipperBroker: string;
+  contactPhone: string;
+  status: 'AVAILABLE' | 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED';
+}
+
 export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) => {
   const [dispatchViewMode, setDispatchViewMode] = useState<
     'DISPATCH_ZERO' | 'LIVE_DISPATCH_MONITOR' | 'BROKERED_MEMORY' | 'DOCK_TIMELINE'
   >('DISPATCH_ZERO');
   const [yieldLoads, setYieldLoads] = useState<QuantumYieldLoad[]>(INITIAL_YIELD_LOADS);
+  // Real Server-Connected Loads State
+  const [realLoads, setRealLoads] = useState<RealFreightLoad[]>([]);
+  const [isLoadingLoads, setIsLoadingLoads] = useState<boolean>(true);
+  const [loadsError, setLoadsError] = useState<string | null>(null);
+  const [updatingLoadId, setUpdatingLoadId] = useState<string | null>(null);
+
+  const fetchRealLoads = async () => {
+    setIsLoadingLoads(true);
+    setLoadsError(null);
+    try {
+      const res = await apiClient.get('/api/loads', { skipUnauthorizedRedirect: true });
+      if (res && Array.isArray(res.loads)) {
+        setRealLoads(res.loads);
+      } else {
+        setRealLoads([]);
+      }
+    } catch (err: any) {
+      setLoadsError(err.message || 'Failed to connect to dispatch load service.');
+    } finally {
+      setIsLoadingLoads(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRealLoads();
+  }, []);
+
+  const handleUpdateLoadStatus = async (loadId: string, nextStatus: 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED') => {
+    setUpdatingLoadId(loadId);
+    try {
+      await apiClient.post(`/api/loads/${loadId}/status`, { status: nextStatus });
+      onShowToast(`Load status updated to ${nextStatus}`, 'check_circle');
+      await fetchRealLoads();
+    } catch (err: any) {
+      onShowToast(err.message || 'Failed to update load status', 'error');
+    } finally {
+      setUpdatingLoadId(null);
+    }
+  };
+
   const [loads, setLoads] = useState<DispatchLoad[]>(MOCK_DISPATCH_LOADS);
   const [draggedLoadId, setDraggedLoadId] = useState<string | null>(null);
   const [selectedLoadId, setSelectedLoadId] = useState<string>('load-8910');
@@ -443,119 +507,201 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
       </div>
 
       {/* ==================================================================== */}
-      {/* MODE 1: DISPATCH ZERO $/HR YIELD VIEW                                */}
+      {/* ==================================================================== */}
+      {/* MODE 1: DISPATCH ZERO REAL FLEET LOADS                                */}
       {/* ==================================================================== */}
       {dispatchViewMode === 'DISPATCH_ZERO' && (
         <div className="space-y-4 max-w-2xl mx-auto w-full animate-fade-in">
           {/* Header */}
-          <div className="text-center pt-1 pb-1">
-            <h1 className="font-['Space_Grotesk'] text-2xl sm:text-3xl font-black text-white tracking-wider uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-              DISPATCH ZERO: $/HR YIELD
-            </h1>
-            <p className="text-sm font-medium text-slate-300 tracking-wide mt-1">
-              Loads Ranked by Remaining Legal Hours
-            </p>
-          </div>
-
-          {/* Yield Cards */}
-          <div className="space-y-3">
-            {yieldLoads.map((load) => (
-              <div
-                key={load.id}
-                className="bg-[#0A0F14] p-4 rounded-2xl border border-[#1E2532] shadow-xl space-y-3 relative overflow-hidden"
-              >
-                {/* Top Label & Verified */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-[#F59E0B] tracking-wider uppercase">
-                    REVENUE PER LEGAL DUTY HOUR
-                  </span>
-                  {load.verified && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-950/70 text-emerald-400 border border-emerald-500/50 text-[10px] font-bold flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.25)]">
-                      <span>&#10004;</span>
-                      <span>VERIFIED</span>
-                    </span>
-                  )}
-                </div>
-
-                {/* Rate & Origin/Destination */}
-                <div className="flex items-baseline flex-wrap gap-2">
-                  <span className="font-['Space_Grotesk'] text-2xl sm:text-3xl font-black text-[#FFE500] tracking-tight drop-shadow-[0_0_10px_rgba(255,229,0,0.35)]">
-                    {load.revenuePerDutyHour}
-                  </span>
-                  <span className="text-slate-400 text-lg">&rarr;</span>
-                  <span className="font-['Space_Grotesk'] text-lg sm:text-xl font-bold text-white">
-                    {load.origin} <span className="text-slate-400 font-normal text-sm sm:text-base">to</span> {load.destination}
-                  </span>
-                </div>
-
-                <p className="text-[11px] text-slate-400 font-mono -mt-1">
-                  {load.corridorDistance}
-                </p>
-
-                {/* Net Quantum & Details */}
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#1E2532] text-xs">
-                  <div>
-                    <span className="text-[9px] text-slate-400 uppercase block">NET QUANTUM</span>
-                    <span className="text-[#FFE500] font-bold text-sm">{load.netQuantumClock}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[9px] text-slate-400 uppercase block">
-                      {load.cargoTag ? 'COLD-CHAIN CARGO' : 'HOS Coherence'}
-                    </span>
-                    <span className="text-white font-bold text-xs truncate block">
-                      {load.cargoTag || load.hosCoherence}
-                    </span>
-                  </div>
-                </div>
-
-                {load.fuelArbitrage && (
-                  <div className="p-2 rounded-lg bg-[#05080E] border border-[#1E2532] flex items-center gap-2 text-[11px] text-slate-300">
-                    <span className="material-symbols-outlined text-[16px] text-amber-400">local_gas_station</span>
-                    <span>Fuel Arb: {load.fuelArbitrage}</span>
-                  </div>
-                )}
-
-                {load.safetyTags && (
-                  <div className="flex items-center gap-2 flex-wrap text-[10px]">
-                    {load.safetyTags.map((tag, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-0.5 rounded bg-[#05080E] border border-slate-700 text-slate-300 flex items-center gap-1"
-                      >
-                        <span className="text-[#FFE500]">&#9733;</span>
-                        <span>{tag}</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Tactical Yellow CTA */}
-                <button
-                  onClick={() => handleDispatchYieldLoad(load.id)}
-                  disabled={load.isDispatched}
-                  className={`w-full py-3.5 px-4 rounded-xl font-['Space_Grotesk'] font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    load.isDispatched
-                      ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                      : 'btn-tactical-yellow'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[18px]">bolt</span>
-                  <span>{load.isDispatched ? 'DISPATCHED // ON MASTER SCHEDULE' : 'ONE-CLICK QUANTUM DISPATCH'}</span>
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Breach Guard Container */}
-          <div className="banner-hos-breach p-3.5 sm:p-4 text-xs font-mono space-y-1">
-            <div className="flex items-center gap-1.5 text-red-400 font-bold">
-              <span className="material-symbols-outlined text-[18px]">warning</span>
-              <span>HOS Breach Guard: Driver Window 08h 10m remaining</span>
+          <div className="flex items-center justify-between pt-1 pb-1">
+            <div>
+              <h1 className="font-['Space_Grotesk'] text-2xl sm:text-3xl font-black text-white tracking-wider uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                DISPATCH LOADS
+              </h1>
+              <p className="text-sm font-medium text-slate-300 tracking-wide mt-1">
+                Real Server Fleet Loads &amp; Status Controls
+              </p>
             </div>
-            <p className="text-[11px] text-red-200/80 leading-relaxed pl-6">
-              Transit demands 12h 15m. Net yield collapsed by Florida Turnpike tolls and empty outbound deadhead.
-            </p>
+            <button
+              onClick={fetchRealLoads}
+              className="p-2 rounded-lg bg-surface-container border border-surface-container-high text-primary hover:bg-surface-container-high cursor-pointer flex items-center gap-1 text-xs font-mono font-bold"
+              title="Refresh Loads"
+            >
+              <span className="material-symbols-outlined text-[16px]">refresh</span>
+              <span>Refresh</span>
+            </button>
           </div>
+
+          {/* Loading State */}
+          {isLoadingLoads && (
+            <div className="bg-[#0A0F14] p-8 rounded-2xl border border-[#1E2532] text-center space-y-3 font-mono">
+              <span className="material-symbols-outlined text-[#FFE500] text-[36px] animate-spin">
+                progress_activity
+              </span>
+              <p className="text-sm text-slate-300">
+                Fetching fleet loads from dispatch server...
+              </p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {!isLoadingLoads && loadsError && (
+            <div className="bg-red-950/40 p-5 rounded-2xl border border-red-500/50 space-y-3 font-mono">
+              <div className="flex items-center gap-2 text-red-400 font-bold text-sm">
+                <span className="material-symbols-outlined text-[20px]">error</span>
+                <span>Connection Error</span>
+              </div>
+              <p className="text-xs text-red-200">{loadsError}</p>
+              <button
+                onClick={fetchRealLoads}
+                className="px-3 py-1.5 rounded-lg bg-red-500 text-black font-bold text-xs uppercase cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoadingLoads && !loadsError && realLoads.length === 0 && (
+            <div className="bg-[#0A0F14] p-8 rounded-2xl border border-[#1E2532] text-center space-y-2 font-mono">
+              <span className="material-symbols-outlined text-slate-500 text-[40px]">
+                local_shipping
+              </span>
+              <h3 className="text-base font-bold text-white uppercase">No Loads Assigned</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                No active loads currently found for your fleet. New loads dispatched by your carrier will appear here automatically.
+              </p>
+            </div>
+          )}
+
+          {/* Real Loads List */}
+          {!isLoadingLoads && !loadsError && realLoads.length > 0 && (
+            <div className="space-y-3">
+              {realLoads.map((load) => {
+                const isUpdating = updatingLoadId === load.id;
+                const statusColor =
+                  load.status === 'COMPLETED'
+                    ? 'bg-slate-800 text-slate-300 border-slate-700'
+                    : load.status === 'IN_TRANSIT'
+                    ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/50'
+                    : load.status === 'DISPATCHED'
+                    ? 'bg-amber-950/70 text-amber-300 border-amber-500/50'
+                    : 'bg-sky-950/70 text-sky-400 border-sky-500/50';
+
+                return (
+                  <div
+                    key={load.id}
+                    className="bg-[#0A0F14] p-4 rounded-2xl border border-[#1E2532] shadow-xl space-y-3 relative overflow-hidden font-mono"
+                  >
+                    {/* Top Row: Load # & Status */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#F59E0B] tracking-wider uppercase">
+                          LOAD #{load.loadNumber}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          ({load.equipmentType})
+                        </span>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusColor}`}>
+                        {load.status.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    {/* Pay & Lane */}
+                    <div className="flex items-baseline justify-between flex-wrap gap-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-['Space_Grotesk'] text-2xl font-black text-[#FFE500]">
+                          ${load.grossPayUsd.toLocaleString()}
+                        </span>
+                        {load.yieldPerHourUsd > 0 && (
+                          <span className="text-xs text-slate-400">
+                            (${Math.round(load.yieldPerHourUsd)}/Hr)
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-400 font-bold">
+                        {load.miles} Miles
+                      </span>
+                    </div>
+
+                    {/* Origin & Destination with real facility addresses */}
+                    <div className="p-3 rounded-xl bg-[#05080E] border border-[#1E2532] space-y-2 text-xs">
+                      <div>
+                        <div className="flex items-center gap-1.5 text-white font-bold">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                          <span>PICKUP: {load.originFacilityName || load.origin}</span>
+                        </div>
+                        {load.originAddress && (
+                          <p className="text-[10px] text-slate-400 pl-3.5 mt-0.5">{load.originAddress}</p>
+                        )}
+                        <p className="text-[10px] text-slate-500 pl-3.5">Target: {load.pickupTime}</p>
+                      </div>
+
+                      <div className="border-t border-[#1E2532] pt-2">
+                        <div className="flex items-center gap-1.5 text-white font-bold">
+                          <span className="w-2 h-2 rounded-full bg-amber-400" />
+                          <span>DELIVERY: {load.deliveryFacilityName || load.destination}</span>
+                        </div>
+                        {load.deliveryAddress && (
+                          <p className="text-[10px] text-slate-400 pl-3.5 mt-0.5">{load.deliveryAddress}</p>
+                        )}
+                        <p className="text-[10px] text-slate-500 pl-3.5">Target: {load.deliveryTime}</p>
+                      </div>
+                    </div>
+
+                    {/* Weight & Broker */}
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>Weight: {load.weightLbs.toLocaleString()} lbs</span>
+                      <span>Broker: {load.shipperBroker}</span>
+                    </div>
+
+                    {/* Action Controls for Driver */}
+                    <div className="pt-1">
+                      {load.status === 'AVAILABLE' && (
+                        <button
+                          onClick={() => handleUpdateLoadStatus(load.id, 'DISPATCHED')}
+                          disabled={isUpdating}
+                          className="w-full py-3 px-4 rounded-xl font-['Space_Grotesk'] font-bold text-xs uppercase tracking-wider bg-[#FFE500] text-black hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(255,229,0,0.3)] disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                          <span>{isUpdating ? 'Updating...' : 'Accept Load'}</span>
+                        </button>
+                      )}
+
+                      {load.status === 'DISPATCHED' && (
+                        <button
+                          onClick={() => handleUpdateLoadStatus(load.id, 'IN_TRANSIT')}
+                          disabled={isUpdating}
+                          className="w-full py-3 px-4 rounded-xl font-['Space_Grotesk'] font-bold text-xs uppercase tracking-wider bg-emerald-500 text-black hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(16,185,129,0.3)] disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">navigation</span>
+                          <span>{isUpdating ? 'Updating...' : 'Start Trip (Mark In-Transit)'}</span>
+                        </button>
+                      )}
+
+                      {load.status === 'IN_TRANSIT' && (
+                        <button
+                          onClick={() => handleUpdateLoadStatus(load.id, 'COMPLETED')}
+                          disabled={isUpdating}
+                          className="w-full py-3 px-4 rounded-xl font-['Space_Grotesk'] font-bold text-xs uppercase tracking-wider bg-purple-500 text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(168,85,247,0.3)] disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">task_alt</span>
+                          <span>{isUpdating ? 'Updating...' : 'Complete Delivery'}</span>
+                        </button>
+                      )}
+
+                      {load.status === 'COMPLETED' && (
+                        <div className="w-full py-2.5 px-4 rounded-xl bg-slate-900 border border-slate-800 text-center text-xs text-slate-400 font-bold uppercase">
+                          Delivery Completed
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

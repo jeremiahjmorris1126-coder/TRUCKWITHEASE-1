@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { dotDocumentsService } from '../services/dotDocumentsService';
 import { CARRIER_INFO, DRIVER_INFO } from '../data/mockData';
+import { getSubscriberSession } from '../services/firebaseClientAuth';
 
 interface ComplianceDocumentArchiveProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -206,31 +207,10 @@ export const ComplianceDocumentArchive: React.FC<ComplianceDocumentArchiveProps>
     reader.readAsDataURL(file);
   };
 
-  // OCR Auto-Parser simulation based on document detection
-  const processOcrSimulation = (imageData: string, fileName?: string) => {
-    setIsProcessingOcr(true);
-    setTimeout(() => {
-      setIsProcessingOcr(false);
-      onShowToast('OCR DOCUMENT PARSING COMPLETE • 99.4% FMCSA MATCH', 'document_scanner');
-
-      // Auto classify document type if filename or standard mode
-      const nameLower = (fileName || '').toLowerCase();
-      if (nameLower.includes('drug') || nameLower.includes('ccf') || nameLower.includes('screen')) {
-        setScanTitle('5-Panel Federal Drug & Alcohol Test Certificate (Form CCF)');
-        setScanCategory('DRUG_ALCOHOL');
-        setScanCfr('49 CFR § 382.301 / Pre-Employment');
-        setScanDocNum('CCF-2026-99104');
-        setScanAuthority('Quest Diagnostics MRO / Dr. Harold Finch, MRO');
-        setScanNotes('Negative 5-Panel urine screen. THCA, Cocaine, PCP, Opiates, Amphetamines cleared.');
-      } else if (nameLower.includes('physical') || nameLower.includes('5875')) {
-        setScanTitle('Medical Examination Report Form (Form MCSA-5875)');
-        setScanCategory('DRIVER_DQF');
-        setScanCfr('49 CFR § 391.41 / Complete Physical Exam');
-        setScanDocNum('PHYS-2026-9810');
-        setScanAuthority('Midwest Occupational Health Center (NPI #19820192)');
-        setScanNotes('Full clinical physical examination. Blood pressure 120/78 mmHg. 20/20 vision. Cleared for 24 months.');
-      }
-    }, 900);
+  // OCR Auto-Parser simulation replaced with direct image attachment
+  const processOcrSimulation = (_imageData: string, _fileName?: string) => {
+    setIsProcessingOcr(false);
+    onShowToast('Document image attached — enter document details to save', 'document_scanner');
   };
 
   const handleSaveScannedRecord = (e: React.FormEvent) => {
@@ -247,9 +227,9 @@ export const ComplianceDocumentArchive: React.FC<ComplianceDocumentArchiveProps>
       issuedDate: scanIssuedDate,
       expirationDate: scanExpDate,
       status: 'VALID',
-      issuingAuthority: scanAuthority || 'Mobile Camera Certified Inspection Agent',
+      issuingAuthority: scanAuthority || 'Mobile Camera Document Capture',
       documentNumber: scanDocNum || `CAM-${Date.now().toString().substring(6)}`,
-      driverName: DRIVER_INFO.name,
+      driverName: getSubscriberSession()?.user?.name || DRIVER_INFO.name,
       unitNumber: 'TRK-904',
       fileSizeBytes: Math.floor(450000 + Math.random() * 800000),
       fileFormat: 'JPEG / Mobile Camera Scanned PDF',
@@ -318,7 +298,8 @@ export const ComplianceDocumentArchive: React.FC<ComplianceDocumentArchiveProps>
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `DOT_Compliance_Archive_Export_${DRIVER_INFO.name.replace(' ', '_')}_${new Date().toISOString().substring(0, 10)}.csv`;
+    const activeDriverName = getSubscriberSession()?.user?.name || DRIVER_INFO.name;
+    a.download = `DOT_Compliance_Archive_Export_${activeDriverName.replace(/\s+/g, '_')}_${new Date().toISOString().substring(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
 

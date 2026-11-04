@@ -1,8 +1,22 @@
-import { TripWaypoint, TripRoutePlan } from '../types';
-import { MOCK_TRIP_PLAN, INITIAL_WAYPOINTS } from '../data/mockTripData';
-import { authenticatedFetch } from './firebaseClientAuth';
+import { TripWaypoint, TripRoutePlan, CommercialVehicleProfileInput } from '../types';
+import { apiClient } from './apiClient';
 
-const STORAGE_KEY = 'truck_with_ease_trip_planner_v1';
+const STORAGE_KEY = 'truck_with_ease_trip_planner_v2';
+
+export const EMPTY_TRIP_PLAN: TripRoutePlan = {
+  id: '',
+  title: 'No Active Route Planned',
+  origin: '',
+  destination: '',
+  totalDistanceMiles: 0,
+  totalEstHours: 0,
+  activeCorridor: 'Pending Commercial Route',
+  waypoints: [],
+  routingEngine: undefined,
+  mock: false,
+  turnByTurnSteps: [],
+  bridgeClearanceWarnings: [],
+};
 
 // Haversine distance in miles
 export const calculateDistanceMiles = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -19,8 +33,24 @@ export const calculateDistanceMiles = (lat1: number, lon1: number, lat2: number,
   return parseFloat((R * c).toFixed(1));
 };
 
+export interface PlaceSearchResultItem {
+  placeId: string;
+  name: string;
+  formattedAddress: string;
+  coords?: { lat: number; lon: number };
+  provider?: string;
+}
+
+export interface GeocodeResultItem {
+  query: string;
+  formattedAddress: string;
+  coords: { lat: number; lon: number };
+  confidence?: number;
+  provider?: string;
+}
+
 class TripPlannerService {
-  private currentPlan: TripRoutePlan = MOCK_TRIP_PLAN;
+  private currentPlan: TripRoutePlan = EMPTY_TRIP_PLAN;
   private listeners: ((plan: TripRoutePlan) => void)[] = [];
   private currentDriverLat: number = 38.805;
   private currentDriverLon: number = -90.652;
@@ -28,7 +58,6 @@ class TripPlannerService {
 
   constructor() {
     this.loadFromStorage();
-    this.updateWaypointCalculations();
   }
 
   private loadFromStorage() {
@@ -37,12 +66,11 @@ class TripPlannerService {
       if (stored) {
         this.currentPlan = JSON.parse(stored);
       } else {
-        this.currentPlan = MOCK_TRIP_PLAN;
-        this.saveToStorage();
+        this.currentPlan = EMPTY_TRIP_PLAN;
       }
     } catch (e) {
       console.warn('Failed to load trip plan from storage:', e);
-      this.currentPlan = MOCK_TRIP_PLAN;
+      this.currentPlan = EMPTY_TRIP_PLAN;
     }
   }
 
@@ -75,6 +103,8 @@ class TripPlannerService {
   }
 
   private updateWaypointCalculations() {
+    if (!this.currentPlan.waypoints || this.currentPlan.waypoints.length === 0) return;
+
     const updatedWaypoints = this.currentPlan.waypoints.map((wp) => {
       const distanceMiles = calculateDistanceMiles(
         this.currentDriverLat,
@@ -90,7 +120,6 @@ class TripPlannerService {
       };
     });
 
-    // Sort waypoints by distance from current location
     updatedWaypoints.sort((a, b) => a.distanceMiles - b.distanceMiles);
 
     this.currentPlan = {
@@ -102,6 +131,79 @@ class TripPlannerService {
 
   public getPlan(): TripRoutePlan {
     return { ...this.currentPlan };
+  }
+
+  public clearPlan(): void {
+    this.currentPlan = EMPTY_TRIP_PLAN;
+    this.saveToStorage();
+  }
+
+  /**
+   * Search places via server Google Places / Freight Hub Autocomplete
+   */
+  public async searchPlaces(query: string, bias?: { lat: number; lon: number }): Promise<PlaceSearchResultItem[]> {
+    if (!query || !query.trim()) return [];
+    try {
+      const params = new URLSearchParams({ input: query.trim() });
+      if (bias) {
+        params.append('lat', String(bias.lat));
+        params.append('lon', String(bias.lon));
+      }
+      const data = await apiClient.get<PlaceSearchResultItem[]>(
+        `/api/routing/places/autocomplete?${params.toString()}`,
+        { skipUnauthorizedRedirect: true }
+      );
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('[TripPlannerService] searchPlaces error:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Geocode address or postal query via server geocode endpoint
+   */
+  public async geocode(query: string): Promise<GeocodeResultItem | null> {
+    if (!query || !query.trim()) return null;
+    try {
+      const data = await apiClient.get<GeocodeResultItem>(
+        `/api/routing/geocode?q=${encodeURIComponent(query.trim())}`,
+        { skipUnauthorizedRedirect: true }
+      );
+      return data;
+    } catch (err) {
+      console.warn('[TripPlannerService] geocode error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Retrieve driver's stored commercial vehicle profile from server
+   */
+  public async getVehicleProfile(): Promise<CommercialVehicleProfileInput | null> {
+    try {
+      const res = await apiClient.get<{ success: boolean; profile: CommercialVehicleProfileInput }>(
+        '/api/routing/vehicle-profile',
+        { skipUnauthorizedRedirect: true }
+      );
+      return res?.profile || null;
+    } catch (err) {
+      console.warn('[TripPlannerService] getVehicleProfile error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Save driver's commercial vehicle profile to server
+   */
+  public async saveVehicleProfile(profile: CommercialVehicleProfileInput): Promise<boolean> {
+    try {
+      await apiClient.post('/api/routing/vehicle-profile', profile);
+      return true;
+    } catch (err) {
+      console.error('[TripPlannerService] saveVehicleProfile error:', err);
+      throw err;
+    }
   }
 
   public addWaypoint(newWp: Omit<TripWaypoint, 'id' | 'distanceMiles' | 'etaMinutes'>): TripWaypoint {
@@ -120,7 +222,7 @@ class TripPlannerService {
       etaMinutes,
     };
 
-    const newWaypoints = [...this.currentPlan.waypoints, wp];
+    const newWaypoints = [...(this.currentPlan.waypoints || []), wp];
     newWaypoints.sort((a, b) => a.distanceMiles - b.distanceMiles);
 
     this.currentPlan = {
@@ -132,8 +234,8 @@ class TripPlannerService {
   }
 
   public removeWaypoint(id: string): boolean {
-    const initialLen = this.currentPlan.waypoints.length;
-    const filtered = this.currentPlan.waypoints.filter((w) => w.id !== id);
+    const initialLen = this.currentPlan.waypoints?.length || 0;
+    const filtered = (this.currentPlan.waypoints || []).filter((w) => w.id !== id);
     if (filtered.length !== initialLen) {
       this.currentPlan = {
         ...this.currentPlan,
@@ -145,63 +247,60 @@ class TripPlannerService {
     return false;
   }
 
+  /**
+   * Dispatch route calculation request to backend Commercial Engine (Trimble -> TomTom -> Mock)
+   */
   public async calculateCommercialEngineRoute(
-    originCoords: { lat: number; lon: number },
-    destCoords: { lat: number; lon: number },
-    vehicleProfile?: {
-      heightFt?: number;
-      weightLbs?: number;
-      avoidTolls?: boolean;
-      isHazmat?: boolean;
-    }
+    origin: { label: string; coords: { lat: number; lon: number } },
+    destination: { label: string; coords: { lat: number; lon: number } },
+    vehicleProfile?: CommercialVehicleProfileInput
   ): Promise<TripRoutePlan> {
-    try {
-      const waypointsPayload = this.currentPlan.waypoints.map((wp) => ({
-        coords: { lat: wp.lat, lon: wp.lon },
-        label: wp.name,
-      }));
+    const waypointsPayload = (this.currentPlan.waypoints || []).map((wp) => ({
+      coords: { lat: wp.lat, lon: wp.lon },
+      label: wp.name,
+    }));
 
-      const res = await authenticatedFetch('/api/routing/calculate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          origin: { coords: originCoords, label: this.currentPlan.origin },
-          destination: { coords: destCoords, label: this.currentPlan.destination },
-          waypoints: waypointsPayload,
-          vehicle: {
-            heightFt: vehicleProfile?.heightFt || 13.5,
-            weightLbs: vehicleProfile?.weightLbs || 80000,
-            avoidTolls: vehicleProfile?.avoidTolls || false,
-            isHazmat: vehicleProfile?.isHazmat || false,
-          },
-        }),
-      });
+    const bodyPayload = {
+      origin: { coords: origin.coords, label: origin.label },
+      destination: { coords: destination.coords, label: destination.label },
+      waypoints: waypointsPayload,
+      vehicle: {
+        heightFt: vehicleProfile?.heightFt || 13.5,
+        weightLbs: vehicleProfile?.weightLbs || 80000,
+        lengthFt: vehicleProfile?.lengthFt || 53.0,
+        widthFt: vehicleProfile?.widthFt || 8.5,
+        axles: vehicleProfile?.axles || 5,
+        hazmatClass: vehicleProfile?.hazmatClass || 'None',
+        avoidTolls: vehicleProfile?.avoidTolls || false,
+      },
+    };
 
-      if (res.ok) {
-        const routeData = (await res.json()) as any;
-        this.currentPlan = {
-          ...this.currentPlan,
-          totalDistanceMiles: routeData.totalDistanceMiles || this.currentPlan.totalDistanceMiles,
-          totalEstHours: parseFloat(((routeData.totalTimeMinutes || 300) / 60).toFixed(1)),
-          routingEngine: routeData.provider,
-          fallbackTriggered: routeData.fallbackTriggered,
-          tollDistanceMiles: routeData.tollDistanceMiles,
-          estimatedTollCostUsd: routeData.estimatedTollCostUsd,
-          bridgeWarningsCount: routeData.bridgeClearanceWarnings?.length || 0,
-          cached: routeData.cached,
-        };
-        this.saveToStorage();
-        return { ...this.currentPlan };
-      }
-    } catch (err) {
-      console.warn('[TripPlannerService] Backend commercial routing request failed, maintaining local plan:', err);
-    }
-    return { ...this.currentPlan };
-  }
+    const routeData = await apiClient.post<any>('/api/routing/calculate', bodyPayload);
 
-  public resetToDefault(): TripRoutePlan {
-    this.currentPlan = MOCK_TRIP_PLAN;
-    this.updateWaypointCalculations();
+    const plan: TripRoutePlan = {
+      id: routeData.routeId || `route-${Date.now()}`,
+      title: `${origin.label} → ${destination.label}`,
+      origin: origin.label,
+      destination: destination.label,
+      originCoords: origin.coords,
+      destinationCoords: destination.coords,
+      totalDistanceMiles: routeData.totalDistanceMiles || 0,
+      totalEstHours: parseFloat(((routeData.totalTimeMinutes || 0) / 60).toFixed(1)),
+      activeCorridor: routeData.summaryTitle || `${origin.label} Corridor`,
+      waypoints: this.currentPlan.waypoints || [],
+      routingEngine: routeData.provider,
+      mock: routeData.mock === true || routeData.provider === 'mock',
+      fallbackTriggered: routeData.fallbackTriggered || false,
+      tollDistanceMiles: routeData.tollDistanceMiles || 0,
+      estimatedTollCostUsd: routeData.estimatedTollCostUsd || 0,
+      bridgeWarningsCount: routeData.bridgeClearanceWarnings?.length || 0,
+      bridgeClearanceWarnings: routeData.bridgeClearanceWarnings || [],
+      turnByTurnSteps: routeData.turnByTurnSteps || [],
+      cached: routeData.cached || false,
+    };
+
+    this.currentPlan = plan;
+    this.saveToStorage();
     return { ...this.currentPlan };
   }
 }

@@ -1,6 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { TripWaypoint, WaypointCategory, TripRoutePlan, TabId } from '../../types';
-import { tripPlannerService } from '../../services/tripPlannerService';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  TripWaypoint,
+  WaypointCategory,
+  TripRoutePlan,
+  TabId,
+  CommercialVehicleProfileInput,
+} from '../../types';
+import {
+  tripPlannerService,
+  PlaceSearchResultItem,
+  EMPTY_TRIP_PLAN,
+} from '../../services/tripPlannerService';
 
 interface TripPlannerScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -18,30 +28,95 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState<boolean>(false);
+  const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Origin & Destination Inputs
+  const [originInput, setOriginInput] = useState<string>(tripPlan.origin || '');
+  const [destinationInput, setDestinationInput] = useState<string>(tripPlan.destination || '');
+  const [originCoords, setOriginCoords] = useState<{ lat: number; lon: number } | null>(
+    tripPlan.originCoords || null
+  );
+  const [destinationCoords, setDestinationCoords] = useState<{ lat: number; lon: number } | null>(
+    tripPlan.destinationCoords || null
+  );
+
+  // Autocomplete Suggestions State
+  const [originSuggestions, setOriginSuggestions] = useState<PlaceSearchResultItem[]>([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState<PlaceSearchResultItem[]>([]);
+  const [isSearchingOrigin, setIsSearchingOrigin] = useState<boolean>(false);
+  const [isSearchingDest, setIsSearchingDest] = useState<boolean>(false);
+  const [showOriginDropdown, setShowOriginDropdown] = useState<boolean>(false);
+  const [showDestDropdown, setShowDestDropdown] = useState<boolean>(false);
+
+  // Vehicle Dimensions & Profile Inputs
+  const [unitNumber, setUnitNumber] = useState<string>('TRACTOR-01');
+  const [heightFt, setHeightFt] = useState<number>(13.5);
+  const [widthFt, setWidthFt] = useState<number>(8.5);
+  const [lengthFt, setLengthFt] = useState<number>(53.0);
+  const [weightLbs, setWeightLbs] = useState<number>(80000);
+  const [axles, setAxles] = useState<number>(5);
+  const [hazmatClass, setHazmatClass] = useState<string>('None');
+  const [avoidTolls, setAvoidTolls] = useState<boolean>(false);
+  const [showVehicleSpecs, setShowVehicleSpecs] = useState<boolean>(true);
 
   // New Waypoint Form State
   const [wpName, setWpName] = useState<string>('');
   const [wpCategory, setWpCategory] = useState<WaypointCategory>('REST_STOP');
-  const [wpCorridor, setWpCorridor] = useState<string>('I-70 Corridor');
-  const [wpMileMarker, setWpMileMarker] = useState<number>(215.0);
-  const [wpLat, setWpLat] = useState<number>(38.85);
-  const [wpLon, setWpLon] = useState<number>(-90.95);
-  const [wpExit, setWpExit] = useState<string>('Exit 215');
+  const [wpCorridor, setWpCorridor] = useState<string>('Freight Corridor');
+  const [wpMileMarker, setWpMileMarker] = useState<number>(100.0);
+  const [wpLat, setWpLat] = useState<number>(39.0);
+  const [wpLon, setWpLon] = useState<number>(-90.0);
+  const [wpExit, setWpExit] = useState<string>('Exit 100');
   const [wpPrice, setWpPrice] = useState<number>(3.849);
-  const [wpParking, setWpParking] = useState<number>(50);
-  const [wpNotes, setWpNotes] = useState<string>('Driver recommended rest & staging location.');
+  const [wpParking, setWpParking] = useState<number>(40);
+  const [wpNotes, setWpNotes] = useState<string>('');
 
+  const originSearchTimerRef = useRef<any>(null);
+  const destSearchTimerRef = useRef<any>(null);
+
+  // Subscribe to service updates
   useEffect(() => {
     const unsubscribe = tripPlannerService.subscribe((plan) => {
       setTripPlan(plan);
+      if (plan.origin && !originInput) setOriginInput(plan.origin);
+      if (plan.destination && !destinationInput) setDestinationInput(plan.destination);
+      if (plan.originCoords) setOriginCoords(plan.originCoords);
+      if (plan.destinationCoords) setDestinationCoords(plan.destinationCoords);
     });
     return () => unsubscribe();
   }, []);
 
+  // Fetch driver's vehicle profile from server on mount
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const stored = await tripPlannerService.getVehicleProfile();
+        if (stored && mounted) {
+          if (stored.heightFt) setHeightFt(stored.heightFt);
+          if (stored.widthFt) setWidthFt(stored.widthFt);
+          if (stored.lengthFt) setLengthFt(stored.lengthFt);
+          if (stored.weightLbs) setWeightLbs(stored.weightLbs);
+          if (stored.axles) setAxles(stored.axles);
+          if (stored.hazmatClass) setHazmatClass(stored.hazmatClass);
+          if (stored.avoidTolls !== undefined) setAvoidTolls(stored.avoidTolls);
+          if (stored.unitNumber) setUnitNumber(stored.unitNumber);
+        }
+      } catch (err) {
+        console.warn('Vehicle profile initial load:', err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Geolocation lock
   const requestGpsSync = useCallback(() => {
     setIsLocating(true);
     if (!navigator.geolocation) {
-      onShowToast('Browser Geolocation API unequipped. Using Freight Corridor Geofence.', 'warning');
+      onShowToast('Browser Geolocation API unequipped.', 'warning');
       setIsLocating(false);
       return;
     }
@@ -49,16 +124,19 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude, speed } = pos.coords;
-        const speedMph = speed ? Math.round(speed * 2.23694) : 62;
+        const speedMph = speed ? Math.round(speed * 2.23694) : 0;
         tripPlannerService.setDriverLocationAndSpeed(latitude, longitude, speedMph);
         setIsGpsActive(true);
         setIsLocating(false);
-        onShowToast(`GPS POSITION LOCKED: ${latitude.toFixed(3)}°, ${longitude.toFixed(3)}° (${speedMph} MPH)`, 'my_location');
+        onShowToast(
+          `GPS LOCKED: ${latitude.toFixed(3)}°, ${longitude.toFixed(3)}° (${speedMph} MPH)`,
+          'my_location'
+        );
       },
       (err) => {
         console.warn('Geolocation error:', err.message);
         setIsLocating(false);
-        onShowToast('GPS permission pending. Loaded Missouri Corridor baseline milestones.', 'explore');
+        onShowToast('GPS permission required for live device location.', 'explore');
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
@@ -68,15 +146,187 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
     requestGpsSync();
   }, [requestGpsSync]);
 
-  const filteredWaypoints = tripPlan.waypoints.filter((wp) => {
-    const matchesCategory = activeCategory === 'ALL' || wp.category === activeCategory;
-    const matchesSearch =
-      wp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      wp.corridor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      wp.exitNumber.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // Autocomplete for Origin
+  const handleOriginChange = (val: string) => {
+    setOriginInput(val);
+    setOriginCoords(null);
+    setErrorMessage(null);
+    if (originSearchTimerRef.current) clearTimeout(originSearchTimerRef.current);
+    if (!val.trim()) {
+      setOriginSuggestions([]);
+      setShowOriginDropdown(false);
+      return;
+    }
+    originSearchTimerRef.current = setTimeout(async () => {
+      setIsSearchingOrigin(true);
+      const results = await tripPlannerService.searchPlaces(val);
+      setOriginSuggestions(results);
+      setShowOriginDropdown(results.length > 0);
+      setIsSearchingOrigin(false);
+    }, 300);
+  };
 
+  // Autocomplete for Destination
+  const handleDestinationChange = (val: string) => {
+    setDestinationInput(val);
+    setDestinationCoords(null);
+    setErrorMessage(null);
+    if (destSearchTimerRef.current) clearTimeout(destSearchTimerRef.current);
+    if (!val.trim()) {
+      setDestinationSuggestions([]);
+      setShowDestDropdown(false);
+      return;
+    }
+    destSearchTimerRef.current = setTimeout(async () => {
+      setIsSearchingDest(true);
+      const results = await tripPlannerService.searchPlaces(val);
+      setDestinationSuggestions(results);
+      setShowDestDropdown(results.length > 0);
+      setIsSearchingDest(false);
+    }, 300);
+  };
+
+  const handleSelectOrigin = async (place: PlaceSearchResultItem) => {
+    setOriginInput(place.formattedAddress || place.name);
+    setShowOriginDropdown(false);
+    if (place.coords) {
+      setOriginCoords(place.coords);
+    } else {
+      const geo = await tripPlannerService.geocode(place.formattedAddress || place.name);
+      if (geo) setOriginCoords(geo.coords);
+    }
+  };
+
+  const handleSelectDestination = async (place: PlaceSearchResultItem) => {
+    setDestinationInput(place.formattedAddress || place.name);
+    setShowDestDropdown(false);
+    if (place.coords) {
+      setDestinationCoords(place.coords);
+    } else {
+      const geo = await tripPlannerService.geocode(place.formattedAddress || place.name);
+      if (geo) setDestinationCoords(geo.coords);
+    }
+  };
+
+  // Swap Origin & Destination
+  const handleSwapAddresses = () => {
+    const tempInput = originInput;
+    const tempCoords = originCoords;
+    setOriginInput(destinationInput);
+    setOriginCoords(destinationCoords);
+    setDestinationInput(tempInput);
+    setDestinationCoords(tempCoords);
+  };
+
+  // Save Vehicle Profile
+  const handleSaveVehicleProfile = async () => {
+    setIsSavingProfile(true);
+    setErrorMessage(null);
+    try {
+      const profile: CommercialVehicleProfileInput = {
+        unitNumber,
+        heightFt: Number(heightFt),
+        widthFt: Number(widthFt),
+        lengthFt: Number(lengthFt),
+        weightLbs: Number(weightLbs),
+        axles: Number(axles),
+        hazmatClass,
+        avoidTolls,
+      };
+      await tripPlannerService.saveVehicleProfile(profile);
+      onShowToast(`VEHICLE SPECS SAVED: ${heightFt} FT • ${weightLbs} LBS • ${axles} AXLES`, 'check_circle');
+    } catch (err: any) {
+      const msg = err.message || 'Failed to save vehicle profile.';
+      setErrorMessage(msg);
+      onShowToast(msg, 'error');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Commercial Route Calculation
+  const handleCalculateRoute = async () => {
+    if (!originInput.trim()) {
+      setErrorMessage('Please enter an origin address or terminal.');
+      return;
+    }
+    if (!destinationInput.trim()) {
+      setErrorMessage('Please enter a destination address or dock.');
+      return;
+    }
+
+    setIsCalculatingRoute(true);
+    setErrorMessage(null);
+    setShowOriginDropdown(false);
+    setShowDestDropdown(false);
+
+    try {
+      // 1. Resolve Origin Coords if missing
+      let resolvedOriginCoords = originCoords;
+      if (!resolvedOriginCoords) {
+        const geoOrigin = await tripPlannerService.geocode(originInput.trim());
+        if (!geoOrigin || !geoOrigin.coords) {
+          throw new Error(`Unable to geocode origin address: "${originInput}". Please check spelling.`);
+        }
+        resolvedOriginCoords = geoOrigin.coords;
+        setOriginCoords(resolvedOriginCoords);
+      }
+
+      // 2. Resolve Destination Coords if missing
+      let resolvedDestCoords = destinationCoords;
+      if (!resolvedDestCoords) {
+        const geoDest = await tripPlannerService.geocode(destinationInput.trim());
+        if (!geoDest || !geoDest.coords) {
+          throw new Error(`Unable to geocode destination address: "${destinationInput}". Please check spelling.`);
+        }
+        resolvedDestCoords = geoDest.coords;
+        setDestinationCoords(resolvedDestCoords);
+      }
+
+      const vehicleProfile: CommercialVehicleProfileInput = {
+        unitNumber,
+        heightFt: Number(heightFt),
+        widthFt: Number(widthFt),
+        lengthFt: Number(lengthFt),
+        weightLbs: Number(weightLbs),
+        axles: Number(axles),
+        hazmatClass,
+        avoidTolls,
+      };
+
+      const calculated = await tripPlannerService.calculateCommercialEngineRoute(
+        { label: originInput.trim(), coords: resolvedOriginCoords },
+        { label: destinationInput.trim(), coords: resolvedDestCoords },
+        vehicleProfile
+      );
+
+      const isMock = calculated.mock || calculated.routingEngine === 'mock';
+      const toastMsg = isMock
+        ? `ROUTE ESTIMATE (${calculated.totalDistanceMiles} MI) — NOT TRUCK-VERIFIED`
+        : `ROUTE VERIFIED (${calculated.totalDistanceMiles} MI) VIA ${calculated.routingEngine?.toUpperCase()}`;
+      onShowToast(toastMsg, isMock ? 'warning' : 'verified');
+    } catch (err: any) {
+      console.error('[TripPlannerScreen] Route error:', err);
+      const msg = err.message || 'Route calculation failed. Check network or addresses.';
+      setErrorMessage(msg);
+      onShowToast(msg, 'error');
+    } finally {
+      setIsCalculatingRoute(false);
+    }
+  };
+
+  // Clear / Reset
+  const handleResetTrip = () => {
+    tripPlannerService.clearPlan();
+    setOriginInput('');
+    setDestinationInput('');
+    setOriginCoords(null);
+    setDestinationCoords(null);
+    setErrorMessage(null);
+    onShowToast('TRIP CLEARED', 'delete');
+  };
+
+  // Add Waypoint
   const handleAddWaypointSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!wpName) {
@@ -106,47 +356,24 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
     setWpName('');
   };
 
-  const handleRemove = (id: string, name: string) => {
+  const handleRemoveWaypoint = (id: string, name: string) => {
     tripPlannerService.removeWaypoint(id);
-    onShowToast(`REMOVED MILESTONE: ${name.toUpperCase()}`, 'delete');
+    onShowToast(`REMOVED: ${name.toUpperCase()}`, 'delete');
   };
 
-  const handleReset = () => {
-    tripPlannerService.resetToDefault();
-    onShowToast('RESET TRIP PLANNER TO DEFAULT CORRIDOR WAYPOINTS', 'restore');
-  };
+  // Filter waypoints
+  const waypoints = tripPlan.waypoints || [];
+  const filteredWaypoints = waypoints.filter((wp) => {
+    const matchesCategory = activeCategory === 'ALL' || wp.category === activeCategory;
+    const matchesSearch =
+      wp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      wp.corridor.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      wp.exitNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
-  const handleCommercialRouteRecalculate = async () => {
-    setIsCalculatingRoute(true);
-    onShowToast('DISPATCHING ROUTE TO COMMERCIAL ENGINE (TRIMBLE -> TOMTOM)...', 'alt_route');
-    try {
-      const updatedPlan = await tripPlannerService.calculateCommercialEngineRoute(
-        { lat: 38.627, lon: -90.199 },
-        { lat: 39.768, lon: -86.158 },
-        { heightFt: 13.5, weightLbs: 80000, avoidTolls: false }
-      );
-      const engineName =
-        updatedPlan.routingEngine === 'trimble'
-          ? 'TRIMBLE PC*MILER (PRIMARY)'
-          : updatedPlan.routingEngine === 'tomtom'
-          ? 'TOMTOM TRUCK (FALLBACK)'
-          : 'COMMERCIAL MOCK SIMULATOR';
-      onShowToast(
-        `ROUTE VERIFIED VIA ${engineName} (${updatedPlan.totalDistanceMiles} MI${updatedPlan.cached ? ' • 15M CACHED' : ''})`,
-        'verified'
-      );
-    } catch {
-      onShowToast('Route calculation complete with local fail-safe.', 'check_circle');
-    } finally {
-      setIsCalculatingRoute(false);
-    }
-  };
-
-  // Stats calculation
-  const totalWaypoints = tripPlan.waypoints.length;
-  const restStopsCount = tripPlan.waypoints.filter((w) => w.category === 'REST_STOP').length;
-  const fuelStopsCount = tripPlan.waypoints.filter((w) => w.category === 'FUEL_STATION').length;
-  const weighScalesCount = tripPlan.waypoints.filter((w) => w.category === 'WEIGH_STATION').length;
+  const hasActiveRoute = Boolean(tripPlan.origin && tripPlan.totalDistanceMiles > 0);
+  const isMockRoute = tripPlan.mock === true || tripPlan.routingEngine === 'mock';
 
   return (
     <div className="flex flex-col w-full max-w-6xl mx-auto space-y-4 font-mono text-on-surface p-2 sm:p-4">
@@ -159,46 +386,29 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-bold text-on-surface uppercase tracking-wider">
-                TRIP PLANNER &amp; ROUTE MILESTONES
+                TRIP PLANNER &amp; COMMERCIAL ROUTING
               </h2>
-              <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${isGpsActive ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'}`}>
-                {isGpsActive ? 'GPS LOCATED' : 'CORRIDOR MESH'}
+              <span
+                className={`px-2 py-0.5 rounded text-[9px] font-bold border ${
+                  isGpsActive
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                }`}
+              >
+                {isGpsActive ? 'GPS ACTIVE' : 'GPS STANDBY'}
               </span>
-              {tripPlan.routingEngine && (
-                <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${tripPlan.routingEngine === 'trimble' ? 'bg-[#FFE500]/20 text-[#FFE500] border-[#FFE500]/50' : tripPlan.routingEngine === 'tomtom' ? 'bg-sky-500/20 text-sky-400 border-sky-500/40' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'}`}>
-                  {tripPlan.routingEngine === 'trimble' ? 'TRIMBLE PC*MILER' : tripPlan.routingEngine === 'tomtom' ? 'TOMTOM FALLBACK' : 'MOCK ENGINE'}
-                  {tripPlan.cached ? ' • 15M CACHE' : ''}
-                </span>
-              )}
             </div>
             <p className="text-[11px] text-outline mt-0.5">
-              Current route: <strong className="text-primary">{tripPlan.title}</strong>
-              {tripPlan.estimatedTollCostUsd !== undefined && (
-                <span className="ml-2 text-on-surface-variant font-bold">
-                  • Est. Tolls: <span className="text-[#FFE500]">${tripPlan.estimatedTollCostUsd.toFixed(2)}</span>
-                </span>
-              )}
+              FMCSA Commercial Low-Clearance &amp; Axle-Weight Compliant Navigation
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={handleCommercialRouteRecalculate}
-            disabled={isCalculatingRoute}
-            className="btn-tactical-yellow px-3.5 py-2 rounded-xl text-black font-black uppercase text-[11px] tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-[0_0_20px_rgba(255,229,0,0.45)] disabled:opacity-50"
-            title="Recalculate safe commercial truck route with Trimble Maps primary & TomTom fallback"
-          >
-            <span className={`material-symbols-outlined text-[16px] ${isCalculatingRoute ? 'animate-spin' : ''}`}>
-              {isCalculatingRoute ? 'sync' : 'alt_route'}
-            </span>
-            <span>{isCalculatingRoute ? 'Calculating...' : 'Commercial Route'}</span>
-          </button>
-
-          <button
             onClick={requestGpsSync}
             disabled={isLocating}
-            className="px-3.5 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest border border-primary/30 text-primary font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="px-3 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest border border-primary/30 text-primary font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <span className={`material-symbols-outlined text-[16px] ${isLocating ? 'animate-spin' : ''}`}>
               {isLocating ? 'autorenew' : 'my_location'}
@@ -206,303 +416,622 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
             <span>{isLocating ? 'Locating...' : 'Sync GPS'}</span>
           </button>
 
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-bold text-[11px] uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-lg flex items-center gap-1.5 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[18px]">add_location_alt</span>
-            <span>Add Waypoint</span>
-          </button>
-
-          <button
-            onClick={handleReset}
-            className="px-3 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-high text-outline hover:text-on-surface font-bold text-[10px] uppercase transition-all"
-            title="Reset to default I-70 corridor milestones"
-          >
-            Reset
-          </button>
+          {hasActiveRoute && (
+            <button
+              onClick={handleResetTrip}
+              className="px-3 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-high text-outline hover:text-on-surface font-bold text-[10px] uppercase transition-all"
+              title="Clear current planned route"
+            >
+              Clear Route
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Corridor Summary Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg">
-          <span className="text-[9px] text-outline uppercase block font-bold">TOTAL ROUTE DISTANCE</span>
-          <div className="flex items-baseline justify-between mt-1">
-            <span className="text-[22px] font-bold text-primary">{tripPlan.totalDistanceMiles} MI</span>
-            <span className="text-[10px] text-outline">{tripPlan.totalEstHours} Hours</span>
-          </div>
-        </div>
-
-        <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg">
-          <span className="text-[9px] text-outline uppercase block font-bold">REST AREAS &amp; HAVENS</span>
-          <div className="flex items-baseline justify-between mt-1">
-            <span className="text-[22px] font-bold text-emerald-400">{restStopsCount} Stops</span>
-            <span className="text-[10px] text-emerald-300">Parking Active</span>
-          </div>
-        </div>
-
-        <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg">
-          <span className="text-[9px] text-outline uppercase block font-bold">DIESEL &amp; DEF STATIONS</span>
-          <div className="flex items-baseline justify-between mt-1">
-            <span className="text-[22px] font-bold text-sky-400">{fuelStopsCount} Stations</span>
-            <span className="text-[10px] text-sky-300">Avg $3.839/gal</span>
-          </div>
-        </div>
-
-        <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg">
-          <span className="text-[9px] text-outline uppercase block font-bold">WEIGH SCALES &amp; INSPECTION</span>
-          <div className="flex items-baseline justify-between mt-1">
-            <span className="text-[22px] font-bold text-amber-400">{weighScalesCount} Scales</span>
-            <span className="text-[10px] text-amber-300">PrePass Active</span>
-          </div>
-        </div>
-      </div>
-
-      {/* TACTICAL HIGHWAY CORRIDOR VECTOR MAP (Signature Obsidian & Emerald-to-Amber Glow) */}
-      <div className="bg-[#05080E] p-4 rounded-2xl border border-[#1E2532] shadow-2xl space-y-2">
-        <div className="flex items-center justify-between text-xs font-mono border-b border-[#1E2532] pb-2">
+      {/* ERROR ALERT */}
+      {errorMessage && (
+        <div className="bg-red-500/10 border border-red-500/40 text-red-300 p-3 rounded-xl flex items-center justify-between gap-3 text-[12px]">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#FFE500]">alt_route</span>
-            <span className="font-bold text-white uppercase tracking-wider font-['Space_Grotesk']">
-              Live Corridor Vector Polyline &bull; {tripPlan.title}
-            </span>
+            <span className="material-symbols-outlined text-red-400">error</span>
+            <span>{errorMessage}</span>
           </div>
-          <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
-            ALL OVERPASSES &gt; 15' 6&quot; CLEAR
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-outline hover:text-white"
+          >
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      )}
+
+      {/* ROUTING CONTROLS: ORIGIN / DESTINATION / VEHICLE SPECS */}
+      <div className="bg-surface-container p-4 rounded-2xl border border-surface-container-high shadow-xl space-y-4">
+        <div className="flex items-center justify-between border-b border-surface-container-high pb-2">
+          <span className="text-[12px] font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-[18px]">alt_route</span>
+            Commercial Trip Parameters
           </span>
+          <button
+            type="button"
+            onClick={() => setShowVehicleSpecs(!showVehicleSpecs)}
+            className="text-[11px] text-primary hover:underline flex items-center gap-1"
+          >
+            <span>{showVehicleSpecs ? 'Hide Vehicle Specs' : 'Edit Vehicle Specs'}</span>
+            <span className="material-symbols-outlined text-[14px]">
+              {showVehicleSpecs ? 'expand_less' : 'expand_more'}
+            </span>
+          </button>
         </div>
 
-        {/* Vector SVG Corridor Stage */}
-        <div className="relative w-full h-32 sm:h-36 rounded-xl overflow-hidden bg-[#070B12] border border-[#1E2532] flex items-center justify-between px-4 sm:px-8">
-          {/* Subtle Grid */}
-          <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#10B981_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
+        {/* Origin & Destination Inputs */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-center">
+          {/* Origin Search */}
+          <div className="relative">
+            <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+              Origin (Terminal / Shipper)
+            </label>
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400 text-[18px]">
+                trip_origin
+              </span>
+              <input
+                type="text"
+                value={originInput}
+                onChange={(e) => handleOriginChange(e.target.value)}
+                onFocus={() => originSuggestions.length > 0 && setShowOriginDropdown(true)}
+                placeholder="Enter origin address, city, or terminal..."
+                className="w-full bg-surface-container-lowest border border-surface-container-high rounded-xl pl-9 pr-8 py-2.5 text-[12px] text-on-surface focus:outline-none focus:border-primary"
+              />
+              {isSearchingOrigin && (
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline text-[16px] animate-spin">
+                  sync
+                </span>
+              )}
+            </div>
 
-          {/* Glowing Neon Route Polyline */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="tripCorridorGradient" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#10B981" />
-                <stop offset="50%" stopColor="#22C55E" />
-                <stop offset="85%" stopColor="#F59E0B" />
-                <stop offset="100%" stopColor="#FFE500" />
-              </linearGradient>
-              <filter id="tripNeonGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3.5" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            {/* Ambient Aura */}
-            <path
-              d="M 20,70 Q 200,30 450,70 T 800,60 T 1100,70"
-              fill="none"
-              stroke="url(#tripCorridorGradient)"
-              strokeWidth="7"
-              filter="url(#tripNeonGlow)"
-              opacity="0.8"
-            />
-            {/* Center Core Line */}
-            <path
-              d="M 20,70 Q 200,30 450,70 T 800,60 T 1100,70"
-              fill="none"
-              stroke="#FFFFFF"
-              strokeWidth="2"
-              opacity="0.95"
-            />
-          </svg>
+            {/* Suggestions Dropdown */}
+            {showOriginDropdown && originSuggestions.length > 0 && (
+              <div className="absolute z-40 left-0 right-0 mt-1 bg-surface-container-high border border-primary/40 rounded-xl shadow-2xl overflow-hidden max-h-56 overflow-y-auto">
+                {originSuggestions.map((p) => (
+                  <div
+                    key={p.placeId}
+                    onClick={() => handleSelectOrigin(p)}
+                    className="p-2.5 hover:bg-primary/20 cursor-pointer border-b border-surface-container-highest last:border-0 transition-colors"
+                  >
+                    <div className="text-[11px] font-bold text-on-surface">{p.name}</div>
+                    <div className="text-[10px] text-outline truncate">{p.formattedAddress}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-          {/* Interactive Milestone Nodes Along the Corridor */}
-          <div className="relative z-10 flex items-center justify-between w-full">
-            {tripPlan.waypoints.slice(0, 5).map((wp, i) => (
-              <div key={wp.id} className="flex flex-col items-center group relative cursor-pointer">
-                {/* Node Pill */}
-                <div className="w-8 h-8 rounded-full bg-[#0A0F14] border-2 border-[#FFE500] text-[#FFE500] flex items-center justify-center shadow-[0_0_12px_rgba(255,229,0,0.4)] group-hover:scale-125 transition-all">
-                  <span className="material-symbols-outlined text-[16px]">
-                    {wp.category === 'FUEL_STATION'
-                      ? 'local_gas_station'
-                      : wp.category === 'REST_STOP'
-                      ? 'local_parking'
-                      : 'scale'}
-                  </span>
+          {/* Swap Button */}
+          <div className="flex justify-center md:pt-4">
+            <button
+              type="button"
+              onClick={handleSwapAddresses}
+              title="Swap Origin and Destination"
+              className="p-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest border border-surface-container-highest text-outline hover:text-white transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[20px]">swap_horiz</span>
+            </button>
+          </div>
+
+          {/* Destination Search */}
+          <div className="relative">
+            <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+              Destination (Receiver / Dock)
+            </label>
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-red-400 text-[18px]">
+                location_on
+              </span>
+              <input
+                type="text"
+                value={destinationInput}
+                onChange={(e) => handleDestinationChange(e.target.value)}
+                onFocus={() => destinationSuggestions.length > 0 && setShowDestDropdown(true)}
+                placeholder="Enter destination address, city, or dock..."
+                className="w-full bg-surface-container-lowest border border-surface-container-high rounded-xl pl-9 pr-8 py-2.5 text-[12px] text-on-surface focus:outline-none focus:border-primary"
+              />
+              {isSearchingDest && (
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline text-[16px] animate-spin">
+                  sync
+                </span>
+              )}
+            </div>
+
+            {/* Suggestions Dropdown */}
+            {showDestDropdown && destinationSuggestions.length > 0 && (
+              <div className="absolute z-40 left-0 right-0 mt-1 bg-surface-container-high border border-primary/40 rounded-xl shadow-2xl overflow-hidden max-h-56 overflow-y-auto">
+                {destinationSuggestions.map((p) => (
+                  <div
+                    key={p.placeId}
+                    onClick={() => handleSelectDestination(p)}
+                    className="p-2.5 hover:bg-primary/20 cursor-pointer border-b border-surface-container-highest last:border-0 transition-colors"
+                  >
+                    <div className="text-[11px] font-bold text-on-surface">{p.name}</div>
+                    <div className="text-[10px] text-outline truncate">{p.formattedAddress}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Commercial Vehicle Specs Card */}
+        {showVehicleSpecs && (
+          <div className="p-3 bg-surface-container-lowest rounded-xl border border-surface-container-high/80 space-y-3">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-bold text-primary uppercase tracking-wide flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px]">local_shipping</span>
+                Vehicle Profile &amp; Dimensions (Enforced in Routing Engine)
+              </span>
+              <button
+                type="button"
+                onClick={handleSaveVehicleProfile}
+                disabled={isSavingProfile}
+                className="px-2.5 py-1 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 font-bold text-[10px] uppercase transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isSavingProfile ? 'Saving...' : 'Save Specs to Profile'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5 text-[11px]">
+              <div>
+                <label className="block text-[9px] text-outline uppercase font-bold mb-0.5">Unit #</label>
+                <input
+                  type="text"
+                  value={unitNumber}
+                  onChange={(e) => setUnitNumber(e.target.value)}
+                  className="w-full bg-surface-container border border-surface-container-high rounded-lg p-1.5 text-on-surface"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] text-outline uppercase font-bold mb-0.5">Height (ft)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="6"
+                  max="16.5"
+                  value={heightFt}
+                  onChange={(e) => setHeightFt(Number(e.target.value))}
+                  className="w-full bg-surface-container border border-surface-container-high rounded-lg p-1.5 text-on-surface"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] text-outline uppercase font-bold mb-0.5">Width (ft)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="5"
+                  max="12"
+                  value={widthFt}
+                  onChange={(e) => setWidthFt(Number(e.target.value))}
+                  className="w-full bg-surface-container border border-surface-container-high rounded-lg p-1.5 text-on-surface"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] text-outline uppercase font-bold mb-0.5">Length (ft)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="10"
+                  max="120"
+                  value={lengthFt}
+                  onChange={(e) => setLengthFt(Number(e.target.value))}
+                  className="w-full bg-surface-container border border-surface-container-high rounded-lg p-1.5 text-on-surface"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] text-outline uppercase font-bold mb-0.5">Gross Wt (lbs)</label>
+                <input
+                  type="number"
+                  step="500"
+                  min="4000"
+                  max="160000"
+                  value={weightLbs}
+                  onChange={(e) => setWeightLbs(Number(e.target.value))}
+                  className="w-full bg-surface-container border border-surface-container-high rounded-lg p-1.5 text-on-surface"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] text-outline uppercase font-bold mb-0.5">Axles</label>
+                <input
+                  type="number"
+                  min="2"
+                  max="13"
+                  value={axles}
+                  onChange={(e) => setAxles(Number(e.target.value))}
+                  className="w-full bg-surface-container border border-surface-container-high rounded-lg p-1.5 text-on-surface"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] text-outline uppercase font-bold mb-0.5">Hazmat Class</label>
+                <select
+                  value={hazmatClass}
+                  onChange={(e) => setHazmatClass(e.target.value)}
+                  className="w-full bg-surface-container border border-surface-container-high rounded-lg p-1.5 text-on-surface"
+                >
+                  <option value="None">None</option>
+                  <option value="General">General</option>
+                  <option value="Flammable">Flammable</option>
+                  <option value="Corrosive">Corrosive</option>
+                  <option value="Explosive">Explosive</option>
+                  <option value="Radioactive">Radioactive</option>
+                  <option value="Inhalant">Inhalant</option>
+                  <option value="Caustic">Caustic</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-[10px] text-outline pt-1">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={avoidTolls}
+                  onChange={(e) => setAvoidTolls(e.target.checked)}
+                  className="rounded border-surface-container-high text-primary focus:ring-0"
+                />
+                <span className="text-on-surface font-bold">Avoid Toll Roads</span>
+              </label>
+              <span>Bridge clearance safety buffer: 6 inches</span>
+            </div>
+
+            {weightLbs >= 18000 && (
+              <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 px-3 py-2 rounded-xl text-[10px] font-bold flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px] text-amber-400">local_shipping</span>
+                  <span>COMMERCIAL TRUCK ROUTING (GVWR &gt; 18,000 LBS): Low bridge radar active • Prohibits parkways & non-truck roads</span>
                 </div>
-                {/* Milestone Name */}
-                <span className="mt-1.5 px-2 py-0.5 rounded bg-[#0A0F14] border border-[#1E2532] text-[9px] font-bold text-slate-200 whitespace-nowrap shadow">
-                  MM {wp.mileMarker}
-                </span>
-                {/* Overpass Clearance Tag */}
-                <span className="text-[8px] text-emerald-400 font-bold mt-0.5">
-                  Clear: 16' 2&quot;
-                </span>
+                <span className="text-[9px] text-outline uppercase tracking-wider">FHWA / STAA ONLY</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Calculate Button */}
+        <div className="flex items-center justify-end gap-3 pt-1">
+          <button
+            onClick={handleCalculateRoute}
+            disabled={isCalculatingRoute}
+            className="btn-tactical-yellow px-5 py-3 rounded-xl text-black font-black uppercase text-[12px] tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(255,229,0,0.45)] disabled:opacity-50 w-full sm:w-auto justify-center"
+          >
+            <span className={`material-symbols-outlined text-[18px] ${isCalculatingRoute ? 'animate-spin' : ''}`}>
+              {isCalculatingRoute ? 'sync' : 'alt_route'}
+            </span>
+            <span>{isCalculatingRoute ? 'Calculating Route...' : 'Calculate Commercial Route'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* PROVIDER ATTRIBUTION BADGE (REQUIRED) */}
+      {hasActiveRoute && (
+        <div>
+          {isMockRoute ? (
+            <div className="bg-amber-500/10 border-2 border-amber-500/50 text-amber-300 p-4 rounded-2xl flex items-start sm:items-center gap-3 shadow-lg">
+              <span className="material-symbols-outlined text-amber-400 text-[26px] shrink-0 mt-0.5 sm:mt-0">
+                warning
+              </span>
+              <div className="flex-1">
+                <div className="text-[13px] font-black uppercase tracking-wider text-amber-200">
+                  Estimated route — not truck-verified
+                </div>
+                <p className="text-[11px] text-amber-300/80 mt-0.5">
+                  Commercial routing provider offline or using simulation fallback. Verify all bridge clearances, weight limits, and hazardous materials restrictions independently before departure.
+                </p>
+              </div>
+            </div>
+          ) : tripPlan.routingEngine === 'tomtom' ? (
+            <div className="bg-sky-500/10 border-2 border-sky-500/40 text-sky-300 p-4 rounded-2xl flex items-start sm:items-center gap-3 shadow-lg">
+              <span className="material-symbols-outlined text-sky-400 text-[26px] shrink-0 mt-0.5 sm:mt-0">
+                verified
+              </span>
+              <div className="flex-1">
+                <div className="text-[13px] font-black uppercase tracking-wider text-sky-200">
+                  Truck-Verified Commercial Route (TomTom)
+                </div>
+                <p className="text-[11px] text-sky-300/80 mt-0.5">
+                  Route verified against live commercial vector maps with bridge clearance ({heightFt} ft) and gross weight ({weightLbs.toLocaleString()} lbs) enforcement.
+                  {tripPlan.cached ? ' • 15M CACHED' : ''}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-[#FFE500]/10 border-2 border-[#FFE500]/40 text-[#FFE500] p-4 rounded-2xl flex items-start sm:items-center gap-3 shadow-lg">
+              <span className="material-symbols-outlined text-[#FFE500] text-[26px] shrink-0 mt-0.5 sm:mt-0">
+                verified
+              </span>
+              <div className="flex-1">
+                <div className="text-[13px] font-black uppercase tracking-wider text-white">
+                  Truck-Verified Commercial Route (Trimble PC*MILER)
+                </div>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  Official commercial mileage, IFTA verified, and low-clearance radar applied.
+                  {tripPlan.cached ? ' • 15M CACHED' : ''}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* LOW BRIDGE ASSIST WARNING RADAR (>18,000 LBS & HEIGHT OVERHEAD CLEARANCES) */}
+      {hasActiveRoute && (tripPlan.bridgeClearanceWarnings?.length || 0) > 0 && (
+        <div className="bg-red-500/15 border-2 border-red-500/60 p-4 rounded-2xl shadow-2xl space-y-3">
+          <div className="flex items-center gap-3 text-red-400">
+            <span className="material-symbols-outlined text-[28px] shrink-0 text-red-400">warning</span>
+            <div>
+              <div className="text-[14px] font-black uppercase tracking-wider text-red-200">
+                LOW BRIDGE ASSIST WARNING: {tripPlan.bridgeClearanceWarnings?.length} Overhead Structure(s) Ahead
+              </div>
+              <p className="text-[11px] text-red-300">
+                Vehicle Height: {heightFt} ft • Gross Weight: {weightLbs.toLocaleString()} lbs. Bridge clearances evaluated via FHWA Item 54B database against Google/TomTom/Trimble commercial network.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {tripPlan.bridgeClearanceWarnings?.map((b: any, idx: number) => (
+              <div key={idx} className="p-2.5 rounded-xl bg-red-950/70 border border-red-500/40 flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-400 text-[18px]">warning</span>
+                  <span className="font-bold text-white">{b.structureName || b.location || 'Overhead Bridge Structure'}</span>
+                </div>
+                <div className="text-right">
+                  <span className="font-black text-red-300">{b.clearanceFt} ft Clearance</span>
+                  <div className="text-[9px] text-amber-300 font-bold">
+                    {b.bufferDeltaInches !== undefined ? `${b.bufferDeltaInches > 0 ? '+' : ''}${b.bufferDeltaInches} in buffer` : (b.severity || 'CRITICAL')}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
-        {/* Category Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto scrollbar-none">
-          {[
-            { id: 'ALL', label: `ALL (${totalWaypoints})`, icon: 'map' },
-            { id: 'REST_STOP', label: `REST AREAS (${restStopsCount})`, icon: 'local_parking' },
-            { id: 'FUEL_STATION', label: `DIESEL (${fuelStopsCount})`, icon: 'local_gas_station' },
-            { id: 'WEIGH_STATION', label: `SCALES (${weighScalesCount})`, icon: 'scale' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveCategory(tab.id as WaypointCategory | 'ALL')}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                activeCategory === tab.id
-                  ? 'bg-primary text-on-primary shadow-md'
-                  : 'bg-surface-container-lowest text-outline hover:text-on-surface border border-surface-container-high'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[14px]">{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Search Input */}
-        <div className="relative w-full sm:w-72">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
-            search
-          </span>
-          <input
-            type="text"
-            placeholder="Search milestones, exits, corridors..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-surface-container-lowest border border-surface-container-high rounded-xl pl-9 pr-4 py-2 text-[11px] text-on-surface focus:outline-none focus:border-primary"
-          />
-        </div>
-      </div>
-
-      {/* Waypoint Detailed Cards List */}
-      <div className="space-y-3">
-        {filteredWaypoints.length === 0 ? (
-          <div className="bg-surface-container p-8 rounded-2xl border border-surface-container-high text-center space-y-2">
-            <span className="material-symbols-outlined text-[36px] text-outline">no_crash</span>
-            <p className="text-outline text-[12px]">No milestones match your search query or category filter.</p>
+          <div className="text-[10px] text-red-200 bg-red-900/40 p-2 rounded-lg font-medium">
+            STAA National Network compliance: Trucks over 18,000 lbs must follow designated commercial truck corridors from Google Truck Maps, TomTom Truck, or Trimble PC*MILER. Non-truck parkways strictly prohibited.
           </div>
-        ) : (
-          filteredWaypoints.map((wp, index) => (
-            <div
-              key={wp.id}
-              className="bg-surface-container p-4 rounded-2xl border border-surface-container-high hover:border-primary/50 transition-all shadow-lg space-y-3 group"
-            >
-              {/* Card Top Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-container-high pb-2.5">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-primary/20 text-primary font-bold text-[11px] flex items-center justify-center shrink-0 border border-primary/30">
-                    {index + 1}
-                  </span>
+        </div>
+      )}
 
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-[14px] font-bold text-on-surface group-hover:text-primary transition-colors">
-                        {wp.name}
-                      </h3>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-container-highest border border-surface-container-high text-primary">
-                        {wp.exitNumber}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-outline mt-0.5">{wp.corridor} • Mile Marker {wp.mileMarker}</p>
-                  </div>
-                </div>
+      {/* EMPTY STATE */}
+      {!hasActiveRoute && !isCalculatingRoute && (
+        <div className="bg-surface-container p-10 rounded-2xl border border-surface-container-high text-center space-y-3">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-surface-container-highest flex items-center justify-center text-outline">
+            <span className="material-symbols-outlined text-[32px]">directions_boat</span>
+          </div>
+          <h3 className="text-base font-bold text-on-surface uppercase tracking-wide">
+            No Route Planned Yet
+          </h3>
+          <p className="text-outline text-[12px] max-w-md mx-auto">
+            Enter an origin and destination address above, check your vehicle dimensions ({heightFt} ft / {weightLbs.toLocaleString()} lbs), and tap &ldquo;Calculate Commercial Route&rdquo; to plan a truck-safe path.
+          </p>
+        </div>
+      )}
 
-                {/* Distance & ETA Badge */}
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right">
-                    <span className="text-[16px] font-bold text-primary block leading-none">{wp.distanceMiles} MI AWAY</span>
-                    <span className="text-[10px] text-outline">EST. ARRIVAL: ~{wp.etaMinutes} MIN</span>
-                  </div>
+      {/* LOADING STATE */}
+      {isCalculatingRoute && (
+        <div className="bg-surface-container p-10 rounded-2xl border border-surface-container-high text-center space-y-3 animate-pulse">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
+            <span className="material-symbols-outlined text-[32px] animate-spin">sync</span>
+          </div>
+          <h3 className="text-base font-bold text-primary uppercase tracking-wide">
+            Calculating Commercial Route...
+          </h3>
+          <p className="text-outline text-[12px] max-w-md mx-auto">
+            Evaluating low bridges, axle weight restrictions, and toll corridors for your {heightFt} ft tractor-trailer.
+          </p>
+        </div>
+      )}
 
-                  <button
-                    onClick={() => handleRemove(wp.id, wp.name)}
-                    className="p-1.5 rounded-lg text-outline hover:text-red-400 hover:bg-surface-container-high transition-colors cursor-pointer"
-                    title="Remove waypoint from trip"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
-                </div>
+      {/* ACTIVE ROUTE METRICS */}
+      {hasActiveRoute && (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg">
+              <span className="text-[9px] text-outline uppercase block font-bold">TOTAL ROUTE DISTANCE</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-[22px] font-bold text-primary">{tripPlan.totalDistanceMiles} MI</span>
+                <span className="text-[10px] text-outline">{tripPlan.totalEstHours} Hours</span>
               </div>
-
-              {/* Waypoint Specific Information Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-                {wp.category === 'FUEL_STATION' && (
-                  <>
-                    <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex justify-between items-center">
-                      <span className="text-outline text-[10px]">Diesel Price:</span>
-                      <span className="text-[#00E676] font-bold text-[12px]">${wp.dieselPricePerGal?.toFixed(3)}/gal</span>
-                    </div>
-
-                    <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex justify-between items-center">
-                      <span className="text-outline text-[10px]">DEF &amp; High Flow:</span>
-                      <span className="text-sky-300 font-bold">{wp.defAvailable ? 'Yes (Bulk Pump)' : 'Bottle Only'}</span>
-                    </div>
-
-                    <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex justify-between items-center">
-                      <span className="text-outline text-[10px]">Showers:</span>
-                      <span className="text-primary font-bold">{wp.showersAvailable || 0} Reservable</span>
-                    </div>
-                  </>
-                )}
-
-                {wp.category === 'REST_STOP' && (
-                  <>
-                    <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex justify-between items-center">
-                      <span className="text-outline text-[10px]">Available Spots:</span>
-                      <span className="text-emerald-400 font-bold text-[12px]">{wp.availableParkingSpots} / {wp.totalParkingSpots}</span>
-                    </div>
-
-                    <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex justify-between items-center">
-                      <span className="text-outline text-[10px]">Status:</span>
-                      <span className={`font-bold ${wp.parkingStatus === 'AMPLE' ? 'text-emerald-400' : 'text-amber-400'}`}>{wp.parkingStatus}</span>
-                    </div>
-
-                    <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex justify-between items-center">
-                      <span className="text-outline text-[10px]">Amenities:</span>
-                      <span className="text-primary font-bold truncate max-w-[120px]">{wp.amenities?.join(', ') || 'Restrooms, Lights'}</span>
-                    </div>
-                  </>
-                )}
-
-                {wp.category === 'WEIGH_STATION' && (
-                  <>
-                    <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex justify-between items-center">
-                      <span className="text-outline text-[10px]">Scales Status:</span>
-                      <span className={`font-bold text-[12px] ${wp.weighStationStatus === 'OPEN' ? 'text-red-400' : 'text-emerald-400'}`}>
-                        {wp.weighStationStatus}
-                      </span>
-                    </div>
-
-                    <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex justify-between items-center">
-                      <span className="text-outline text-[10px]">PrePass Bypass:</span>
-                      <span className="text-sky-300 font-bold">{wp.bypassProbabilityPct}% Likelihood</span>
-                    </div>
-
-                    <div className="p-2 rounded-xl bg-surface-container-lowest border border-surface-container-high flex justify-between items-center">
-                      <span className="text-outline text-[10px]">Scale Type:</span>
-                      <span className="text-primary font-bold truncate max-w-[120px]">{wp.scaleType || 'WIM Platform'}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {wp.notes && (
-                <p className="text-[10px] text-outline italic bg-surface-container-lowest p-2 rounded-xl border border-surface-container-high/60">
-                  💡 Note: {wp.notes}
-                </p>
-              )}
             </div>
-          ))
-        )}
-      </div>
+
+            <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg">
+              <span className="text-[9px] text-outline uppercase block font-bold">ESTIMATED TOLLS</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-[22px] font-bold text-emerald-400">
+                  ${(tripPlan.estimatedTollCostUsd || 0).toFixed(2)}
+                </span>
+                <span className="text-[10px] text-emerald-300">
+                  {tripPlan.tollDistanceMiles ? `${tripPlan.tollDistanceMiles} mi toll` : 'No Tolls'}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg">
+              <span className="text-[9px] text-outline uppercase block font-bold">BRIDGE CLEARANCES</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <span
+                  className={`text-[22px] font-bold ${
+                    (tripPlan.bridgeWarningsCount || 0) > 0 ? 'text-red-400' : 'text-sky-400'
+                  }`}
+                >
+                  {(tripPlan.bridgeWarningsCount || 0) > 0 ? `${tripPlan.bridgeWarningsCount} Hazards` : 'All Clear'}
+                </span>
+                <span className="text-[10px] text-sky-300">&gt; {heightFt} ft Min</span>
+              </div>
+            </div>
+
+            <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg">
+              <span className="text-[9px] text-outline uppercase block font-bold">WAYPOINTS &amp; STOPS</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <span className="text-[22px] font-bold text-amber-400">{waypoints.length}</span>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="text-[10px] text-primary hover:underline font-bold"
+                >
+                  + Add Stop
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* TURN-BY-TURN DIRECTIONS / STEPS */}
+          {tripPlan.turnByTurnSteps && tripPlan.turnByTurnSteps.length > 0 && (
+            <div className="bg-surface-container p-4 rounded-2xl border border-surface-container-high shadow-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-surface-container-high pb-2">
+                <span className="text-[12px] font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[18px]">turn_sharp_right</span>
+                  Turn-By-Turn Route Guidance ({tripPlan.turnByTurnSteps.length} Steps)
+                </span>
+              </div>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {tripPlan.turnByTurnSteps.map((step, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-xl bg-surface-container-lowest border border-surface-container-high/60 flex items-center justify-between gap-3 text-[11px]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-primary/20 text-primary font-bold text-[10px] flex items-center justify-center shrink-0">
+                        {step.stepIndex || idx + 1}
+                      </span>
+                      <div>
+                        <div className="font-bold text-on-surface">{step.instruction}</div>
+                        {step.streetName && (
+                          <div className="text-[10px] text-outline">{step.streetName}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-bold text-primary">{step.distanceMiles} mi</span>
+                      <div className="text-[9px] text-outline">~{step.durationMinutes} min</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* WAYPOINTS SECTION */}
+          <div className="bg-surface-container p-4 rounded-2xl border border-surface-container-high shadow-xl space-y-3">
+            <div className="flex items-center justify-between border-b border-surface-container-high pb-2 flex-wrap gap-2">
+              <span className="text-[12px] font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[18px]">add_location_alt</span>
+                Route Stops &amp; Waypoints ({waypoints.length})
+              </span>
+
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-[10px] uppercase hover:brightness-110 shadow flex items-center gap-1 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[14px]">add</span>
+                <span>Add Waypoint</span>
+              </button>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto scrollbar-none">
+                {[
+                  { id: 'ALL', label: `ALL (${waypoints.length})`, icon: 'map' },
+                  {
+                    id: 'REST_STOP',
+                    label: `REST (${waypoints.filter((w) => w.category === 'REST_STOP').length})`,
+                    icon: 'local_parking',
+                  },
+                  {
+                    id: 'FUEL_STATION',
+                    label: `DIESEL (${waypoints.filter((w) => w.category === 'FUEL_STATION').length})`,
+                    icon: 'local_gas_station',
+                  },
+                  {
+                    id: 'WEIGH_STATION',
+                    label: `SCALES (${waypoints.filter((w) => w.category === 'WEIGH_STATION').length})`,
+                    icon: 'scale',
+                  },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveCategory(tab.id as WaypointCategory | 'ALL')}
+                    className={`px-2.5 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
+                      activeCategory === tab.id
+                        ? 'bg-primary text-on-primary shadow'
+                        : 'bg-surface-container-lowest text-outline hover:text-on-surface border border-surface-container-high'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[13px]">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative w-full sm:w-60">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[16px]">
+                  search
+                </span>
+                <input
+                  type="text"
+                  placeholder="Filter milestones..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-surface-container-lowest border border-surface-container-high rounded-xl pl-8 pr-3 py-1.5 text-[11px] text-on-surface focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            {/* Waypoints List */}
+            {filteredWaypoints.length === 0 ? (
+              <div className="p-6 text-center text-outline text-[11px]">
+                No waypoints added along this corridor yet. Tap &ldquo;Add Waypoint&rdquo; to add a rest stop or fuel station.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredWaypoints.map((wp, index) => (
+                  <div
+                    key={wp.id}
+                    className="p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high hover:border-primary/40 transition-all flex items-center justify-between gap-3 text-[11px]"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary font-bold text-[10px] flex items-center justify-center shrink-0">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <div className="font-bold text-on-surface">{wp.name}</div>
+                        <div className="text-[10px] text-outline">
+                          {wp.exitNumber} • MM {wp.mileMarker} • {wp.corridor}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <span className="font-bold text-primary block leading-none">
+                          {wp.distanceMiles} MI
+                        </span>
+                        <span className="text-[9px] text-outline">~{wp.etaMinutes} min</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveWaypoint(wp.id, wp.name)}
+                        className="text-outline hover:text-red-400 p-1 rounded hover:bg-surface-container-high transition-colors"
+                        title="Remove stop"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Add Waypoint Modal */}
       {showAddModal && (
@@ -523,11 +1052,13 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
 
             <form onSubmit={handleAddWaypointSubmit} className="space-y-3 text-[11px]">
               <div>
-                <label className="block text-[10px] text-outline uppercase font-bold mb-1">Waypoint Name</label>
+                <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+                  Waypoint Name
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. TA Express Exit 188 / Customer Receiver Dock B"
+                  placeholder="e.g. TA Express Exit 188 / Receiver Dock B"
                   value={wpName}
                   onChange={(e) => setWpName(e.target.value)}
                   className="w-full bg-surface-container-lowest border border-surface-container-high rounded-xl p-2.5 text-on-surface focus:outline-none focus:border-primary"
@@ -536,7 +1067,9 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">Category</label>
+                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+                    Category
+                  </label>
                   <select
                     value={wpCategory}
                     onChange={(e) => setWpCategory(e.target.value as WaypointCategory)}
@@ -549,7 +1082,9 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">Exit Number</label>
+                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+                    Exit Number
+                  </label>
                   <input
                     type="text"
                     value={wpExit}
@@ -561,7 +1096,9 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">Corridor</label>
+                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+                    Corridor
+                  </label>
                   <input
                     type="text"
                     value={wpCorridor}
@@ -571,7 +1108,9 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">Mile Marker</label>
+                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+                    Mile Marker
+                  </label>
                   <input
                     type="number"
                     step="0.1"
@@ -582,7 +1121,9 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">Latitude (°N)</label>
+                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+                    Latitude (°N)
+                  </label>
                   <input
                     type="number"
                     step="0.001"
@@ -595,7 +1136,9 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
 
               {wpCategory === 'FUEL_STATION' && (
                 <div>
-                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">Diesel Price ($/gal)</label>
+                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+                    Diesel Price ($/gal)
+                  </label>
                   <input
                     type="number"
                     step="0.001"
@@ -608,7 +1151,9 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
 
               {wpCategory === 'REST_STOP' && (
                 <div>
-                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">Est. Parking Spots</label>
+                  <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+                    Est. Parking Spots
+                  </label>
                   <input
                     type="number"
                     value={wpParking}
@@ -619,7 +1164,9 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
               )}
 
               <div>
-                <label className="block text-[10px] text-outline uppercase font-bold mb-1">Notes / Instructions</label>
+                <label className="block text-[10px] text-outline uppercase font-bold mb-1">
+                  Notes / Instructions
+                </label>
                 <textarea
                   rows={2}
                   value={wpNotes}

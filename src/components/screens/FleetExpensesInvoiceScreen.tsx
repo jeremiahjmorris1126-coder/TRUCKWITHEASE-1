@@ -32,6 +32,7 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    fleetInvoicesService.fetchServerInvoices();
     const unsubscribe = fleetInvoicesService.subscribe((data) => {
       setInvoices(data);
     });
@@ -78,58 +79,37 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       setCapturedImage(dataUrl);
-      setIsOcrProcessing(true);
-
-      setTimeout(() => {
-        setIsOcrProcessing(false);
-        onShowToast('OCR INVOICE EXTRACTED • MATCHED RECORD', 'receipt');
-      }, 800);
+      setIsOcrProcessing(false);
+      onShowToast('Receipt image attached — enter amount and vendor to record expense', 'receipt');
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSaveInvoice = (e: React.FormEvent) => {
+  const handleSaveInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newInv = fleetInvoicesService.addInvoice({
-      orderNumber: scanOrderNum || `ORD-${Date.now().toString().substring(5)}`,
-      userId: 'US-89021',
-      dateOrdered: new Date().toLocaleDateString('en-US') + ' at 12:17 AM',
-      vendorName: scanVendor,
-      vendorAddress: '100 Logistics Way, Enterprise, MO 63011',
-      vendorPhone: '800-555-0199',
-      vendorContactEmail: 'support@fleetsuppliesdirect.com',
-      billToName: scanBillTo,
-      billToAddress: '100 Logistics Center Dr, Suite 400, St. Louis, MO 63101',
-      shipToName: scanShipTo,
-      shipToAddress: '100 Logistics Center Dr, Suite 400, St. Louis, MO 63101',
-      shippingMethod: 'Ground',
-      customerPhone: '800-555-0100',
-      category: scanCategory,
-      items: [
-        {
-          itemNumber: 'MEM-PLUS-2026',
-          description: scanItemDesc,
-          unitPrice: Number(scanAmount),
-          qty: 1,
-          estTax: 0,
-          total: Number(scanAmount),
-        },
-      ],
-      subtotal: Number(scanAmount),
-      shippingAndHandling: 0,
-      estimatedTax: 0,
-      totalAmount: Number(scanAmount),
-      balanceDue: 0,
-      paymentMethod: scanPayment,
-      notes: scanNotes,
-      taxDeductible: true,
-      status: 'PAID',
-      capturedViaCamera: true,
-    });
-
-    onShowToast(`INVOICE RECORDED: ${newInv.vendorName} #${newInv.orderNumber}`, 'verified');
-    setShowScannerModal(false);
-    setSelectedInvoice(newInv);
+    try {
+      if (scanCategory === 'FREIGHT_HAUL_REVENUE') {
+        const inv = await fleetInvoicesService.createServerInvoice({
+          invoiceNumber: scanOrderNum || `INV-${Date.now().toString().substring(5)}`,
+          brokerCarrierName: scanVendor,
+          amountUsd: Number(scanAmount),
+          notes: scanNotes,
+        });
+        onShowToast(`CARRIER INVOICE CREATED: ${inv.brokerCarrierName} #${inv.invoiceNumber}`, 'verified');
+      } else {
+        const exp = await fleetInvoicesService.createServerExpense({
+          vendor: scanVendor,
+          amount: Number(scanAmount),
+          category: scanCategory,
+          description: scanNotes || scanItemDesc,
+          date: new Date().toISOString().substring(0, 10),
+        });
+        onShowToast(`EXPENSE SAVED TO SERVER: ${exp.vendor} ${exp.amount.toFixed(2)}`, 'verified');
+      }
+      setShowScannerModal(false);
+    } catch (err: any) {
+      onShowToast(err.message || 'Error recording entry', 'warning');
+    }
   };
 
   const handleExportCsv = () => {

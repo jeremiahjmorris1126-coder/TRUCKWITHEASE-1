@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 import { getDb } from '../firestore';
@@ -7,9 +8,29 @@ export type UserRole = 'driver' | 'fleet_admin' | 'owner';
 
 export interface UserProfile {
   uid: string;
+  name?: string;
   email: string;
   role: UserRole;
   fleetId: string | null;
+  carrierName?: string;
+  usdotNumber?: string;
+  mcNumber?: string;
+  tierId?: string;
+  tierName?: string;
+  permissions?: string[];
+  enabledModules?: Record<string, boolean>;
+  subscriptionStatus?: 'ACTIVE' | 'TRIAL_ACTIVE' | 'PAST_DUE' | 'CANCELED';
+  paymentMethodSummary?: {
+    brand: string;
+    last4: string;
+    expiry: string;
+    cardholderName: string;
+    token: string;
+  };
+  invoiceId?: string;
+  confirmationEmailId?: string;
+  emailVerified?: boolean;
+  provisionedPhoneNumbers?: string[];
   createdAt: string;
   disabled: boolean;
 }
@@ -21,8 +42,40 @@ export interface CallerIdentity {
   fleetId: string | null;
 }
 
+const SESSION_HMAC_SECRET: string =
+  (globalThis as any).__TWE_SESSION_HMAC_SECRET__ ||
+  ((globalThis as any).__TWE_SESSION_HMAC_SECRET__ =
+    process.env.TWE_SESSION_HMAC_SECRET ||
+    crypto.randomBytes(32).toString('hex'));
+
+/**
+ * Issues a server-signed HMAC-SHA256 session token for verified subscribers.
+ * Carries only uid, email, iat, and exp — role and fleetId are ALWAYS loaded from users/{uid}.
+ */
+export function issueSignedSessionToken(uid: string, email: string): string {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const payload = Buffer.from(
+    JSON.stringify({
+      uid,
+      sub: uid,
+      email,
+      iat: nowSec,
+      exp: nowSec + 86400,
+    })
+  ).toString('base64url');
+
+  const signature = crypto
+    .createHmac('sha256', SESSION_HMAC_SECRET)
+    .update(`twe_jwt_sig_v1.${payload}`)
+    .digest('base64url');
+
+  return `twe_jwt_sig_v1.${payload}.${signature}`;
+}
+
 // In-memory cache & fallback for fast lookups and unit testing
-const inMemoryUsers = new Map<string, UserProfile>();
+const inMemoryUsers: Map<string, UserProfile> =
+  (globalThis as any).__TWE_IN_MEMORY_USERS__ ||
+  ((globalThis as any).__TWE_IN_MEMORY_USERS__ = new Map<string, UserProfile>());
 
 export function getFirebaseAdminApp(): App | null {
   const apps = getApps();
@@ -58,6 +111,84 @@ export async function verifyFirebaseIdToken(
   const cleanedToken = token.trim().replace(/^Bearer\s*/i, '');
   if (!cleanedToken || cleanedToken.length === 0) {
     return { valid: false, status: 401, message: 'Empty or malformed Authorization token.' };
+  }
+
+  if (cleanedToken.startsWith('twe_jwt_sig_v1.')) {
+    const parts = cleanedToken.split('.');
+    if (parts.length !== 3) {
+      return { valid: false, status: 403, message: 'Malformed signed session token.' };
+    }
+    const [, payloadB64, providedSig] = parts;
+    const expectedSig = crypto
+      .createHmac('sha256', SESSION_HMAC_SECRET)
+      .update(`twe_jwt_sig_v1.${payloadB64}`)
+      .digest('base64url');
+
+    const sigBufA = Buffer.from(providedSig);
+    const sigBufB = Buffer.from(expectedSig);
+    if (sigBufA.length !== sigBufB.length || !crypto.timingSafeEqual(sigBufA, sigBufB)) {
+      return { valid: false, status: 403, message: 'Invalid cryptographic signature on session token.' };
+    }
+
+    try {
+      const parsed = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (parsed.exp && parsed.exp < nowSec) {
+        return { valid: false, status: 401, message: 'Signed session token has expired.' };
+      }
+      return {
+        valid: true,
+        status: 200,
+        decoded: {
+          uid: parsed.uid,
+          sub: parsed.sub || parsed.uid,
+          email: parsed.email,
+          iat: parsed.iat,
+          exp: parsed.exp,
+          aud: 'project-f0634118-be01-44f7-b36',
+          iss: 'https://securetoken.google.com/project-f0634118-be01-44f7-b36',
+          auth_time: parsed.iat,
+          firebase: { identities: {}, sign_in_provider: 'custom' },
+        } as DecodedIdToken,
+      };
+    } catch {
+      return { valid: false, status: 403, message: 'Corrupted signed session token payload.' };
+    }
+  }
+
+  // Support for Firebase Auth Emulator in development and automated testing
+  if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    try {
+      const parts = cleanedToken.split('.');
+      if (parts.length >= 2) {
+        const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+        if (header.alg === 'none') {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+          const nowSec = Math.floor(Date.now() / 1000);
+          if (payload.exp && payload.exp < nowSec) {
+            return { valid: false, status: 401, message: 'Firebase ID token has expired. Please refresh your session.' };
+          }
+          const uid = payload.user_id || payload.sub;
+          return {
+            valid: true,
+            status: 200,
+            decoded: {
+              uid,
+              sub: uid,
+              email: payload.email,
+              iat: payload.iat,
+              exp: payload.exp,
+              aud: payload.aud,
+              iss: payload.iss,
+              auth_time: payload.auth_time || payload.iat,
+              firebase: { identities: {}, sign_in_provider: 'custom' },
+            } as DecodedIdToken,
+          };
+        }
+      }
+    } catch {
+      // Fall through to standard verifyIdToken
+    }
   }
 
   try {

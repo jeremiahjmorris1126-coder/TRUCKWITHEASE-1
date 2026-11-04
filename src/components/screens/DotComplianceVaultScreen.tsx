@@ -4,6 +4,9 @@ import { dotDocumentsService } from '../../services/dotDocumentsService';
 import { CARRIER_INFO, DRIVER_INFO, EQUIPMENT_INFO } from '../../data/mockData';
 import { fleetFederalVaultService } from '../../services/fleetFederalVaultService';
 import { FleetVehicleRecord } from '../../data/mockFleetDqfData';
+import { CheckrBackgroundCheckModal } from '../CheckrBackgroundCheckModal';
+import { checkrClientService } from '../../services/checkrClientService';
+import { CheckrScreeningRecord } from '../../../server/checkr/types';
 
 interface DotComplianceVaultScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -11,7 +14,7 @@ interface DotComplianceVaultScreenProps {
   onGenerateNewPdf?: (source?: InspectionTriggerSource, notes?: string) => void;
 }
 
-type VaultSubModule = 'DRIVER_DQF' | 'VEHICLE_FLEET' | 'ELD_HOS_LOGS' | 'ALL_RECORDS' | 'FEDERAL_CUSTODY';
+type VaultSubModule = 'CHECKR_BACKGROUND' | 'DRIVER_DQF' | 'VEHICLE_FLEET' | 'ELD_HOS_LOGS' | 'ALL_RECORDS' | 'FEDERAL_CUSTODY';
 
 export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> = ({
   onShowToast,
@@ -39,9 +42,20 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
   const [selectedDocForRenew, setSelectedDocForRenew] = useState<DotDocumentRecord | null>(null);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showCustodySignModal, setShowCustodySignModal] = useState<boolean>(false);
+  const [showCheckrModal, setShowCheckrModal] = useState<boolean>(false);
+  const [checkrScreenings, setCheckrScreenings] = useState<CheckrScreeningRecord[]>(() =>
+    checkrClientService.getScreenings()
+  );
+
+  useEffect(() => {
+    const unsub = checkrClientService.subscribe((list) => setCheckrScreenings(list));
+    return () => unsub();
+  }, []);
 
   // Sign custody form
-  const [custodianNameInput, setCustodianNameInput] = useState<string>(DRIVER_INFO.name);
+  const [custodianNameInput, setCustodianNameInput] = useState<string>(
+    () => fleetFederalVaultService.getAttestation().certifiedCustodianName || DRIVER_INFO.name
+  );
   const [custodianTitleInput, setCustodianTitleInput] = useState<string>('Director of Fleet Safety & Compliance Custodian');
 
   // Renewal form state
@@ -129,8 +143,8 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
       status: 'VALID',
       issuingAuthority: newAuthority || 'Certified DOT Compliance Agent',
       documentNumber: newDocNum || `REC-${Date.now().toString().substring(6)}`,
-      driverName: DRIVER_INFO.name,
-      unitNumber: 'TRK-904',
+      driverName: driverFiles[0]?.driverName || DRIVER_INFO.name,
+      unitNumber: vehicleFiles[0]?.unitNumber || 'TRK-904',
       fileSizeBytes: Math.floor(250000 + Math.random() * 500000),
       fileFormat: 'PDF / Digital SHA-256 Sealed',
       notes: newNotes || 'Added to fleet compliance records ledger.',
@@ -159,7 +173,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `FMCSA_DOT_Certified_Audit_Dossier_USDOT_${CARRIER_INFO.usdot}_${new Date().toISOString().substring(0, 10)}.json`;
+    a.download = `FMCSA_DOT_Certified_Audit_Dossier_USDOT_${attestation.usdotNumber}_${new Date().toISOString().substring(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
 
@@ -179,7 +193,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
       onRecordInspectionLog(
         'ROADSIDE_AUDIT',
         'QUANTUM_INDEX_AUDIT',
-        `EXECUTED FORMAL FEDERAL CUSTODY ATTESTATION: ${custodianNameInput} (${custodianTitleInput}) // USDOT #${CARRIER_INFO.usdot} // Hash: ${updated.digitalSignatureSha256.substring(0, 16)}...`
+        `EXECUTED FORMAL FEDERAL CUSTODY ATTESTATION: ${custodianNameInput} (${custodianTitleInput}) // USDOT #${attestation.usdotNumber} // Hash: ${updated.digitalSignatureSha256.substring(0, 16)}...`
       );
     }
   };
@@ -198,7 +212,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-black text-primary uppercase tracking-wider">
-                  UNITED STATES DOT &amp; FMCSA CERTIFIED FLEET CUSTODY VAULT
+                  UNITED STATES DOT &amp; FMCSA COMPLIANCE FLEET VAULT
                 </span>
                 <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold border border-emerald-500/40">
                   49 CFR § 390.31 COMPLIANT
@@ -212,6 +226,14 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
 
           {/* Major One-Click Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <button
+              onClick={() => setShowCheckrModal(true)}
+              className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(255,229,0,0.45)] flex items-center gap-1.5 cursor-pointer border-2 border-black"
+            >
+              <span className="material-symbols-outlined text-[16px]">verified_user</span>
+              <span>Checkr Class A Screening</span>
+            </button>
+
             <button
               onClick={() => setShowCustodySignModal(true)}
               className="px-3 py-2 rounded-xl bg-surface-container-high text-primary border border-primary/40 font-bold text-[11px] uppercase tracking-wider hover:bg-surface-container-highest transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
@@ -275,7 +297,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
               <span className="text-2xl font-bold text-sky-400">{vehicleFiles.length} Units</span>
               <span className="text-[10px] text-slate-400">Annual Insp PASS</span>
             </div>
-            <span className="text-[10px] text-slate-500 block">49 CFR Part 396 Certified</span>
+            <span className="text-[10px] text-slate-500 block">49 CFR Part 396 Compliant</span>
           </div>
 
           <div className="p-3 rounded-xl bg-[#070B12] border border-[#1E2532] space-y-0.5">
@@ -295,7 +317,19 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
       {/* 2. SUB-MODULE TABS FOR STREAMLINED FLEET MANAGEMENT                  */}
       {/* ==================================================================== */}
       <div className="bg-[#0A0F14] p-1.5 rounded-2xl border border-[#1E2532] shadow-xl">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5 text-xs">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-1.5 text-xs">
+          <button
+            onClick={() => setActiveSubModule('CHECKR_BACKGROUND')}
+            className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeSubModule === 'CHECKR_BACKGROUND'
+                ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.4)]'
+                : 'text-amber-300 hover:text-white bg-amber-500/10 border border-amber-500/30'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">verified_user</span>
+            <span className="truncate">1. Checkr Screening</span>
+          </button>
+
           <button
             onClick={() => setActiveSubModule('DRIVER_DQF')}
             className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
@@ -357,6 +391,92 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
           </button>
         </div>
       </div>
+
+      {/* ==================================================================== */}
+      {/* TOP PRIORITY MODULE: CHECKR CLASS A DRIVER SCREENING & MVR          */}
+      {/* ==================================================================== */}
+      {activeSubModule === 'CHECKR_BACKGROUND' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0A0F14] p-4 rounded-2xl border-2 border-primary/40 shadow-xl">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-primary text-black font-black text-[9px] uppercase tracking-wider">
+                  TOP PRIORITY #1
+                </span>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  Checkr Class A Commercial Driver Screening &amp; Continuous MVR
+                </h3>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Connected background checks &bull; 49 CFR Part 391 &amp; Part 382 &bull; Pre-employment &amp; Continuous MVR
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCheckrModal(true)}
+              className="px-4 py-2 rounded-xl btn-tactical-yellow font-black text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-[0_0_20px_rgba(255,229,0,0.4)]"
+            >
+              <span className="material-symbols-outlined text-[16px]">person_add</span>
+              <span>Launch Checkr Screening Radar</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {checkrScreenings.map((scr) => (
+              <div
+                key={scr.id}
+                className="p-4 rounded-2xl bg-[#0A0F14] border border-[#1E2532] shadow-xl space-y-3"
+              >
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div>
+                    <h4 className="text-sm font-bold text-white">
+                      {scr.firstName} {scr.lastName}
+                    </h4>
+                    <span className="text-[10px] text-slate-400">
+                      CDL: {scr.cdlNumber} ({scr.cdlState}) &bull; Class {scr.cdlClass}
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                    scr.status === 'CLEAR'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                      : scr.status === 'CONSIDER'
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                      : 'bg-primary/20 text-primary border border-primary/40'
+                  }`}>
+                    {scr.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[10px]">
+                  <div className="p-2 rounded-lg bg-[#05080E] border border-slate-800">
+                    <span className="text-slate-500 uppercase block font-bold">PHYSICAL ADDRESS</span>
+                    <strong className="text-white block truncate">{scr.currentAddress.street}</strong>
+                    <span className="text-slate-400 text-[9px] block">{scr.currentAddress.city}, {scr.currentAddress.state}</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-[#05080E] border border-slate-800">
+                    <span className="text-slate-500 uppercase block font-bold">PORTAL REDIRECT</span>
+                    <strong className="text-primary block truncate">Hosted FCRA Consent</strong>
+                    <span className="text-slate-400 text-[9px] block">Checkr Candidate URL</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-[#05080E] border border-slate-800/80 flex items-center justify-between text-[9px]">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="material-symbols-outlined text-emerald-400 text-[12px]">verified</span>
+                    <span className="text-slate-500 uppercase font-bold">SHA-256 SEAL:</span>
+                    <span className="text-emerald-400 font-mono font-bold truncate">{scr.merkleProofSha256}</span>
+                  </div>
+                  <button
+                    onClick={() => setShowCheckrModal(true)}
+                    className="text-primary hover:underline font-bold uppercase shrink-0 cursor-pointer ml-2"
+                  >
+                    View Details &rarr;
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ==================================================================== */}
       {/* MODULE 1: DRIVER QUALIFICATION FILES (DQF 49 CFR PART 391)           */}
@@ -544,7 +664,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Certified ELD Hours of Service Records (8-Day FMCSA Packages)
+                Hours of Service Records (8-Day FMCSA Packages)
               </h3>
               <p className="text-[11px] text-slate-400">
                 Statutory 6-Month Retention Mandate under 49 CFR § 395.8 &bull; Cryptographically Verified Duty Grids
@@ -555,7 +675,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
           <div className="p-4 rounded-2xl bg-[#0A0F14] border border-[#1E2532] shadow-xl space-y-3">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <span className="text-xs font-bold text-white">
-                CURRENT 8-DAY CYCLE LEDGER // {DRIVER_INFO.name} ({EQUIPMENT_INFO.powerUnit})
+                CURRENT 8-DAY CYCLE LEDGER // {driverFiles[0]?.driverName || DRIVER_INFO.name} ({vehicleFiles[0]?.unitNumber || EQUIPMENT_INFO.powerUnit})
               </span>
               <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold">
                 0 HOS VIOLATIONS DETECTED
@@ -1144,6 +1264,14 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
           </div>
         </div>
       )}
+
+      {/* Checkr Class A Screening Modal */}
+      <CheckrBackgroundCheckModal
+        isOpen={showCheckrModal}
+        onClose={() => setShowCheckrModal(false)}
+        onShowToast={onShowToast}
+        initialDriverId={selectedDriverId}
+      />
     </div>
   );
 };

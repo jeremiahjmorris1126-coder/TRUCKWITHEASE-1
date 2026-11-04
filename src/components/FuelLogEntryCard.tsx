@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { fuelLogService } from '../services/fuelLogService';
-import { FuelLogEntry } from '../types';
+import { fuelLogService, FuelLogEntry } from '../services/fuelLogService';
 
 interface FuelLogEntryCardProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -41,7 +40,7 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
     return fuelLogService.getAverageFleetMpg();
   }, [logs]);
 
-  const handleSaveFuelLog = (e: React.FormEvent) => {
+  const handleSaveFuelLog = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (gallons <= 0) {
@@ -55,7 +54,7 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
     }
 
     try {
-      const entry = fuelLogService.addFuelLog({
+      const entry = await fuelLogService.addFuelLog({
         gallons,
         pricePerGallon,
         currentOdometer,
@@ -65,7 +64,7 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
         notes: `Driver Odo ${currentOdometer} mi // ${gallons} Gal // Calculated ${metrics.mpg} MPG`,
       });
 
-      onShowToast(`FUEL LOGGED: ${entry.mpg} MPG • $${entry.totalCost.toFixed(2)} RECORDED`, 'local_gas_station');
+      onShowToast(`FUEL LOGGED: ${entry.mpg ?? metrics.mpg} MPG • $${entry.totalCost.toFixed(2)} RECORDED`, 'local_gas_station');
 
       // Update baseline for next fill-up
       setPreviousOdometer(entry.currentOdometer);
@@ -457,21 +456,21 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
                   <div className="flex items-center gap-2">
                     <span className="text-white font-bold">{log.stationName || 'Commercial Fuel'}</span>
                     <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-amber-500/20 text-amber-400">
-                      {log.fuelType}
+                      {log.fuelType ?? 'DIESEL'}
                     </span>
                     <span className="text-outline text-[10px]">{log.date}</span>
                   </div>
                   <div className="text-[10px] text-outline flex items-center gap-3">
                     <span>Odo: <strong className="text-white">{log.currentOdometer.toLocaleString()} mi</strong></span>
-                    <span>Driven: <strong className="text-sky-300">+{log.milesDriven} mi</strong></span>
+                    <span>Driven: <strong className="text-sky-300">+{log.milesDriven ?? 0} mi</strong></span>
                     <span>Fuel: <strong className="text-white">{log.gallons} Gal @ ${log.pricePerGallon.toFixed(2)}</strong></span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 self-end sm:self-center">
                   <div className="text-right">
-                    <span className="text-[14px] font-bold text-emerald-400 block">{log.mpg.toFixed(2)} MPG</span>
-                    <span className="text-[9px] text-outline block">${log.totalCost.toFixed(2)} (${log.costPerMile}/mi)</span>
+                    <span className="text-[14px] font-bold text-emerald-400 block">{(log.mpg ?? 0).toFixed(2)} MPG</span>
+                    <span className="text-[9px] text-outline block">${log.totalCost.toFixed(2)} (${log.costPerMile ?? '—'}/mi)</span>
                   </div>
                   <button
                     type="button"

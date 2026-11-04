@@ -1,4 +1,5 @@
 import { fleetStore, type CallerIdentity } from '../data/fleetStore';
+import { issueSignedSessionToken } from './firebaseAuthService';
 
 export type UserRole = 'driver' | 'fleet_admin' | 'owner';
 
@@ -9,6 +10,15 @@ export interface UserAccount {
   role: UserRole;
   fleetId: string | null;
   carrierTenantId?: string;
+  carrierName?: string;
+  usdotNumber?: string;
+  mcNumber?: string;
+  tierId?: string;
+  tierName?: string;
+  enabledModules?: Record<string, boolean>;
+  subscriptionStatus?: string;
+  emailVerified?: boolean;
+  provisionedPhoneNumbers?: string[];
   avatarUrl?: string;
   permissions: string[];
 }
@@ -31,6 +41,15 @@ export async function listUsers(caller?: { role: string; fleetId: string | null;
     email: u.email || '',
     role: u.role || 'driver',
     fleetId: u.fleetId || null,
+    carrierName: u.carrierName,
+    usdotNumber: u.usdotNumber,
+    mcNumber: u.mcNumber,
+    tierId: u.tierId,
+    tierName: u.tierName,
+    enabledModules: u.enabledModules,
+    subscriptionStatus: u.subscriptionStatus,
+    emailVerified: u.emailVerified,
+    provisionedPhoneNumbers: u.provisionedPhoneNumbers,
     avatarUrl: u.avatarUrl,
     permissions: u.permissions || (
       u.role === 'owner'
@@ -54,6 +73,15 @@ export async function getUserById(caller: CallerIdentity, id: string): Promise<U
     email: u.email || '',
     role: u.role || 'driver',
     fleetId: u.fleetId || null,
+    carrierName: u.carrierName,
+    usdotNumber: u.usdotNumber,
+    mcNumber: u.mcNumber,
+    tierId: u.tierId,
+    tierName: u.tierName,
+    enabledModules: u.enabledModules,
+    subscriptionStatus: u.subscriptionStatus,
+    emailVerified: u.emailVerified,
+    provisionedPhoneNumbers: u.provisionedPhoneNumbers,
     avatarUrl: u.avatarUrl,
     permissions: u.permissions || [],
   };
@@ -71,7 +99,7 @@ export function authenticateUser(email: string, role?: UserRole): { token: strin
   };
 
   return {
-    token: `twe_jwt_${Buffer.from(JSON.stringify({ userId: user.id, role: user.role })).toString('base64')}`,
+    token: issueSignedSessionToken(user.id, user.email),
     user,
   };
 }

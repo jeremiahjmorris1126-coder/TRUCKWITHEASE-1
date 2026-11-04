@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TabId, FleetCustomizationSettings } from '../types';
 import { quantumPredictiveService, QuantumFunctionsCatalog } from '../services/quantumPredictiveService';
+import { authenticatedFetch } from '../services/firebaseClientAuth';
 
 interface FleetModuleCustomizerProps {
   settings: FleetCustomizationSettings;
@@ -57,7 +58,7 @@ export const FleetModuleCustomizer: React.FC<FleetModuleCustomizerProps> = ({
   const handleRunFleetAnnealing = async () => {
     setIsRunningAnnealing(true);
     try {
-      const res = await fetch('/api/predictive/anneal', {
+      const res = await authenticatedFetch('/api/predictive/anneal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ numStops: 4, maxAxleWeightLbs: 34000 }),
@@ -168,11 +169,10 @@ export const FleetModuleCustomizer: React.FC<FleetModuleCustomizerProps> = ({
                 <div
                   key={mod.id}
                   onClick={() => handleToggleModule(mod.id)}
-                  className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                    isEnabled
+                  className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isEnabled
                       ? 'bg-primary/10 border-primary/40 text-on-surface'
                       : 'bg-surface-container-lowest border-surface-container-high text-outline opacity-60'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2.5 truncate">
                     <span className={`material-symbols-outlined text-[20px] ${isEnabled ? 'text-primary' : 'text-outline'}`}>
@@ -183,9 +183,8 @@ export const FleetModuleCustomizer: React.FC<FleetModuleCustomizerProps> = ({
                       <span className="text-[9px] text-outline block truncate">{mod.desc}</span>
                     </div>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold shrink-0 ${
-                    isEnabled ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-outline'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold shrink-0 ${isEnabled ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-outline'
+                    }`}>
                     {isEnabled ? 'ACTIVE' : 'OFF'}
                   </span>
                 </div>

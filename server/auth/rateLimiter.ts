@@ -62,6 +62,11 @@ export function createDualRateLimiter(options: DualRateLimitOptions = {}) {
   const maxIpRequests = options.maxIpRequests || (options.maxRequests ? options.maxRequests * 2 : 240);
 
   return (req: Request, res: Response, next: NextFunction) => {
+    // Serve static files and non-API assets before rate limiter
+    if (req.path && !req.path.startsWith('/api') && !req.path.startsWith('/v1') && req.path !== '/token' && req.path !== '/voice') {
+      return next();
+    }
+
     const now = Date.now();
 
     // 1. Per-IP Limiter (Using sanitized client IP derived from trusted proxy hop)
@@ -79,7 +84,7 @@ export function createDualRateLimiter(options: DualRateLimitOptions = {}) {
       res.setHeader('Retry-After', resetSeconds);
       return res.status(429).json({
         error: 'Too Many Requests',
-        message: `IP rate limit of ${maxIpRequests} requests per minute exceeded.`,
+        message: `Slow down, try again in ${resetSeconds} seconds.`,
         retryAfterSeconds: resetSeconds,
       });
     }
@@ -112,7 +117,7 @@ export function createDualRateLimiter(options: DualRateLimitOptions = {}) {
       res.setHeader('Retry-After', resetSeconds);
       return res.status(429).json({
         error: 'Too Many Requests',
-        message: `User rate limit of ${maxUserRequests} requests per minute exceeded.`,
+        message: `Slow down, try again in ${resetSeconds} seconds.`,
         retryAfterSeconds: resetSeconds,
       });
     }

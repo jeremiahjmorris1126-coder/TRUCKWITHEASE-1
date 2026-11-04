@@ -59,6 +59,7 @@ import {
 } from '../services/telematicsSafetyService';
 import { TacticalNotification } from '../types';
 import { triggerHapticFeedback } from '../services/haptics';
+import { authenticatedFetch, getSubscriberSession } from '../services/firebaseClientAuth';
 
 interface TelematicsSafetySuiteProps {
   onNavigateToTab?: (tab: string) => void;
@@ -548,12 +549,13 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
 
     let smsDispatched = false;
     try {
-      const res = await fetch('/api/telematics/idle-alert', {
+      const session = getSubscriberSession();
+      const res = await authenticatedFetch('/api/telematics/idle-alert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           vehicleUnit: 'UNIT #104-E',
-          driverName: 'Marcus Kowalski',
+          driverName: session?.user?.name || 'Assigned Commercial Driver',
           idleDurationMinutes: idleMinutes,
           idleDurationSeconds: idleSecs,
           engineRpm: telematics.engineRpm || 650,

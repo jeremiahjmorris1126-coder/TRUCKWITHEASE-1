@@ -1,17 +1,86 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CARRIER_INFO, DRIVER_INFO, EQUIPMENT_INFO, HISTORICAL_LOGS, ACTIVE_HASH } from '../data/mockData';
+import { getSubscriberSession, authenticatedFetch } from '../services/firebaseClientAuth';
+import { computeSha256 } from '../services/cryptoService';
 
 interface InspectionPdfModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPrinted: () => void;
+  carrierInfo?: Partial<typeof CARRIER_INFO>;
+  driverInfo?: Partial<typeof DRIVER_INFO>;
+  equipmentInfo?: Partial<typeof EQUIPMENT_INFO>;
 }
 
 export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
   isOpen,
   onClose,
   onPrinted,
+  carrierInfo: customCarrier,
+  driverInfo: customDriver,
+  equipmentInfo: customEquipment,
 }) => {
+  const [activeCarrier, setActiveCarrier] = useState({ ...CARRIER_INFO, ...customCarrier });
+  const [activeDriver, setActiveDriver] = useState({ ...DRIVER_INFO, ...customDriver });
+  const [activeEquipment, setActiveEquipment] = useState({ ...EQUIPMENT_INFO, ...customEquipment });
+  const [dynamicHash, setDynamicHash] = useState<string>(ACTIVE_HASH);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const session = getSubscriberSession();
+    if (session?.user) {
+      setActiveCarrier((prev) => ({
+        ...prev,
+        name: session.user.carrierName || prev.name,
+        usdot: session.user.usdotNumber || prev.usdot,
+        mc: session.user.mcNumber || prev.mc,
+        ...customCarrier,
+      }));
+      setActiveDriver((prev) => ({
+        ...prev,
+        name: session.user.name || prev.name,
+        ...customDriver,
+      }));
+    }
+
+    // Fetch backend driver profile if available
+    authenticatedFetch('/api/driver/profile')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.profile) {
+          setActiveDriver((prev) => ({
+            ...prev,
+            name: data.profile.name || prev.name,
+            cdlNumber: data.profile.cdlNumber || prev.cdlNumber,
+            medicalCertExp: data.profile.medicalCardExpiration || prev.medicalCertExp,
+            ...customDriver,
+          }));
+        }
+      })
+      .catch(() => {});
+
+    // Fetch backend vehicle profile if available
+    authenticatedFetch('/v1/routing/vehicle-profile')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.profile) {
+          setActiveEquipment((prev) => ({
+            ...prev,
+            powerUnit: data.profile.unitNumber ? `Tractor #${data.profile.unitNumber}` : prev.powerUnit,
+            vin: data.profile.vin || prev.vin,
+            ...customEquipment,
+          }));
+        }
+      })
+      .catch(() => {});
+
+    const payload = `${session?.user?.carrierName || CARRIER_INFO.name}::${session?.user?.name || DRIVER_INFO.name}::DVIR-396.11::${new Date().toISOString().substring(0, 10)}`;
+    computeSha256(payload)
+      .then((hex) => setDynamicHash(hex))
+      .catch(() => {});
+  }, [isOpen, customCarrier, customDriver, customEquipment]);
+
   if (!isOpen) return null;
 
   return (
@@ -41,13 +110,13 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
             <div className="flex justify-between items-start border-b border-outline/20 pb-3">
               <div>
                 <h3 className="font-headline-sm text-primary font-bold">
-                  {CARRIER_INFO.name}
+                  {activeCarrier.name}
                 </h3>
                 <p className="text-[11px] text-outline">
-                  USDOT #{CARRIER_INFO.usdot} | MC #{CARRIER_INFO.mc}
+                  USDOT #{activeCarrier.usdot} | MC #{activeCarrier.mc}
                 </p>
                 <p className="text-[11px] text-outline">
-                  Terminal: {CARRIER_INFO.terminal}
+                  Terminal: {activeCarrier.terminal}
                 </p>
               </div>
               <div className="text-right">
@@ -64,13 +133,13 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
             <div className="grid grid-cols-2 gap-3 text-[11px] border-b border-outline/20 pb-3">
               <div>
                 <span className="text-outline uppercase text-[10px] block">Driver:</span>
-                <span className="font-bold text-on-surface">{DRIVER_INFO.name} ({DRIVER_INFO.cdlNumber})</span>
-                <span className="text-outline block">Medical Cert Exp: {DRIVER_INFO.medicalCertExp}</span>
+                <span className="font-bold text-on-surface">{activeDriver.name} ({activeDriver.cdlNumber})</span>
+                <span className="text-outline block">Medical Cert Exp: {activeDriver.medicalCertExp}</span>
               </div>
               <div>
                 <span className="text-outline uppercase text-[10px] block">Tractor & Trailer:</span>
-                <span className="font-bold text-on-surface">{EQUIPMENT_INFO.powerUnit}</span>
-                <span className="text-outline block">{EQUIPMENT_INFO.trailingUnit} | Gross: {EQUIPMENT_INFO.grossCombinedWeight}</span>
+                <span className="font-bold text-on-surface">{activeEquipment.powerUnit}</span>
+                <span className="text-outline block">{activeEquipment.trailingUnit} | Gross: {activeEquipment.grossCombinedWeight}</span>
               </div>
             </div>
 
@@ -136,15 +205,15 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
                 <span>Algorithm: SHA-256 (FIPS 180-4)</span>
               </div>
               <p className="font-mono text-[9px] text-primary break-all bg-surface-container-low p-1.5 rounded">
-                {ACTIVE_HASH}
+                {dynamicHash}
               </p>
               <div className="flex justify-between items-end pt-1">
                 <div>
                   <span className="text-outline block text-[9px]">DRIVER ELECTRONIC SIGNATURE:</span>
-                  <span className="font-headline-sm text-primary italic text-[14px]">Jeremiah J. Morris</span>
+                  <span className="font-headline-sm text-primary italic text-[14px]">{activeDriver.name}</span>
                 </div>
                 <div className="text-right text-[9px] text-outline">
-                  <span>ATTESTATION TIMESTAMP: 2025-03-13 15:00:00 CST</span>
+                  <span>ATTESTATION TIMESTAMP: {new Date().toISOString().substring(0, 10)} 15:00:00 CST</span>
                 </div>
               </div>
             </div>

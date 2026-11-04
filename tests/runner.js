@@ -1,8 +1,13 @@
 import { spawnSync } from 'child_process';
 
-const isBun = Boolean(process.versions && process.versions.bun);
-const cmd = isBun ? 'bun' : 'node';
-const args = isBun ? ['test'] : ['--test', 'tests/cockpit.test.js', 'tests/backend.test.js', 'tests/crossTenantIsolation.test.js'];
+const testFiles = [
+  'tests/cockpit.test.js',
+  'tests/backend.test.js',
+  'tests/crossTenantIsolation.test.js',
+  'tests/phase2UnifyCore.test.js',
+];
+const cmd = 'bun';
+const args = ['test', ...testFiles];
 
 const result = spawnSync(cmd, args, { stdio: 'inherit' });
 if (result.error) {

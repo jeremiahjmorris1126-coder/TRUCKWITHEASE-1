@@ -1,6 +1,11 @@
 import React from 'react';
 import { TabId } from '../types';
-import { DRIVER_INFO, CARRIER_INFO } from '../data/mockData';
+import {
+  ENABLE_TELEMETRY_10HZ,
+  ENABLE_HAPTICS_SCREEN,
+  ENABLE_QUANTUM_ALERTNESS_CARD,
+} from '../config/featureFlags';
+import { User } from 'firebase/auth';
 
 interface EnterpriseSidebarProps {
   activeTab: TabId;
@@ -18,6 +23,10 @@ interface EnterpriseSidebarProps {
   onCloseMobile: () => void;
   enabledModules?: Partial<Record<TabId, boolean>>;
   onOpenCustomizer?: () => void;
+  currentUser?: User | null;
+  driverName?: string;
+  tenantCarrierName?: string;
+  usdotNumber?: string;
 }
 
 interface CommandMenuItem {
@@ -92,6 +101,10 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
   onCloseMobile,
   enabledModules,
   onOpenCustomizer,
+  currentUser,
+  driverName,
+  tenantCarrierName,
+  usdotNumber,
 }) => {
   return (
     <>
@@ -141,23 +154,27 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
           <div
             onClick={onOpenProfile}
             className="p-2.5 rounded-xl bg-surface-container border border-surface-container-high/80 hover:border-primary/50 cursor-pointer transition-all flex items-center justify-between"
-            title="View Driver CDL Credentials & Profile"
+            title={currentUser ? "View Driver Profile" : "Click to Sign In"}
           >
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-primary font-bold text-[12px]">JM</div>
-              <div>
-                <span className="font-bold text-[12px] text-on-surface block leading-tight">
-                  {DRIVER_INFO.name}
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-primary font-bold text-[12px] shrink-0">
+                {currentUser ? (driverName ? driverName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : (currentUser.email ? currentUser.email.substring(0, 2).toUpperCase() : 'DR')) : '--'}
+              </div>
+              <div className="min-w-0 truncate">
+                <span className="font-bold text-[12px] text-on-surface block leading-tight truncate">
+                  {currentUser ? (driverName || currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Driver')) : 'Not Signed In'}
                 </span>
-                <span className="text-[9px] text-outline font-mono block">
-                  USDOT #{CARRIER_INFO.usdot} &bull; TRK-904
+                <span className="text-[9px] text-outline font-mono block truncate">
+                  {currentUser ? (tenantCarrierName ? `${tenantCarrierName} ${usdotNumber ? '• USDOT #' + usdotNumber : ''}` : 'Fleet Driver') : 'Tap to Authenticate'}
                 </span>
               </div>
             </div>
 
-            <div className="text-right font-mono">
+            <div className="text-right font-mono shrink-0 pl-1">
               <span className="text-[12px] font-bold text-primary block">{speed} MPH</span>
-              <span className="text-[8px] text-emerald-400 block font-bold">ECM 10Hz</span>
+              {ENABLE_TELEMETRY_10HZ && (
+                <span className="text-[8px] text-emerald-400 block font-bold">ECM 10Hz</span>
+              )}
             </div>
           </div>
         </div>

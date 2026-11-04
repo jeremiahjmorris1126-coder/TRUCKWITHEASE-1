@@ -1,0 +1,29 @@
+{
+  "appId": "com.truckwithease.app",
+  "appName": "Truck With Ease",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#040810",
+  "ios": {
+    "contentInset": "always",
+    "scheme": "TruckWithEase",
+    "preferredContentMode": "mobile"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#040810",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "dark",
+      "backgroundColor": "#040810"
+    }
+  }
+}
+

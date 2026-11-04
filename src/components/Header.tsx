@@ -1,6 +1,10 @@
 import React from 'react';
 import { TabId } from '../types';
-import { DRIVER_INFO } from '../data/mockData';
+import {
+  ENABLE_BLUETOOTH_ELD,
+  ENABLE_TELEMETRY_10HZ,
+  ENABLE_QUANTUM_ALERTNESS_CARD,
+} from '../config/featureFlags';
 
 interface HeaderProps {
   activeTab: TabId;
@@ -16,6 +20,7 @@ interface HeaderProps {
   isBluetoothConnected?: boolean;
   onOpenAuthLogin?: () => void;
   currentUser?: any;
+  driverName?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   isBluetoothConnected = false,
   onOpenAuthLogin,
   currentUser = null,
+  driverName,
 }) => {
   const getTabTitle = (tab: TabId) => {
     switch (tab) {
@@ -43,7 +49,6 @@ export const Header: React.FC<HeaderProps> = ({
       case 'radar-54b':
       case 'dispatch-eta':
       case 'master-mechanic':
-      case 'the-g-o-a-t-':
         return 'Route, Stops & Dispatch';
       case 'fleet-expenses':
       case 'vault':
@@ -62,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="fixed top-0 inset-x-0 lg:left-72 z-40 bg-surface-container-lowest/90 backdrop-blur-xl pt-safe shadow-[0_4px_20px_rgba(0,0,0,0.7)] border-b border-surface-container-low transition-all">
-      <div className="max-w-5xl mx-auto h-16 px-gutter-mobile flex items-center justify-between gap-space-xs">
+      <div className="max-w-5xl mx-auto h-16 px-2 sm:px-gutter-mobile flex items-center justify-between gap-1 sm:gap-space-xs">
         {/* Left: Mobile Sidebar Trigger & Title */}
         <div className="flex items-center gap-space-sm shrink-0">
           {onToggleMobileSidebar && (
@@ -80,11 +85,11 @@ export const Header: React.FC<HeaderProps> = ({
             className="h-8 w-auto object-contain hidden sm:block"
             src="/assets/logo.png"
           />
-          <div className="flex flex-col">
-            <span className="font-label-caps text-label-caps text-primary uppercase leading-tight font-bold tracking-wider">
-              TRUCKWITHEASE ENTERPRISE
+          <div className="flex flex-col min-w-0">
+            <span className="font-label-caps text-[9px] sm:text-label-caps text-primary uppercase leading-tight font-bold tracking-wider truncate max-w-[90px] sm:max-w-none">
+              TRUCKWITHEASE
             </span>
-            <span className="font-headline-sm text-headline-sm text-on-surface uppercase tracking-wide truncate max-w-[180px] sm:max-w-[240px]">
+            <span className="font-headline-sm text-[11px] sm:text-headline-sm text-on-surface uppercase tracking-wide truncate max-w-[85px] sm:max-w-[240px]">
               {getTabTitle(activeTab)}
             </span>
           </div>
@@ -93,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right Telemetry & Status Badges */}
         <div className="flex items-center gap-space-xs shrink-0">
           {/* Driver Alertness Index Pill */}
-          {onOpenAlertnessModal && (
+          {ENABLE_QUANTUM_ALERTNESS_CARD && onOpenAlertnessModal && (
             <button
               onClick={onOpenAlertnessModal}
               className={`flex items-center gap-space-2xs px-space-xs py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 ${
@@ -113,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Bluetooth ELD Telemetry Gateway Pill */}
-          {onOpenBluetoothModal && (
+          {ENABLE_BLUETOOTH_ELD && onOpenBluetoothModal && (
             <button
               onClick={onOpenBluetoothModal}
               className={`flex items-center gap-1 px-2.5 py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 text-xs font-mono font-bold ${
@@ -126,24 +131,26 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="material-symbols-outlined text-[15px] animate-pulse">
                 {isBluetoothConnected ? 'bluetooth_connected' : 'bluetooth'}
               </span>
-              <span className="hidden sm:inline font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
+              <span className="font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
                 {isBluetoothConnected ? 'ELD PAIRED' : 'PAIR ELD'}
               </span>
             </button>
           )}
 
           {/* GPS Rate Pill */}
-          <div
-            className="flex items-center gap-space-2xs bg-surface-container px-space-xs py-1 rounded border border-surface-container-high"
-            title="ECM J1939 CAN-Bus 10Hz High-Fidelity Telemetry"
-          >
-            <span className="material-symbols-outlined text-primary text-[14px] animate-pulse">
-              satellite_alt
-            </span>
-            <span className="font-telemetry-label text-telemetry-label text-on-surface">
-              10Hz
-            </span>
-          </div>
+          {ENABLE_TELEMETRY_10HZ && (
+            <div
+              className="flex items-center gap-space-2xs bg-surface-container px-space-xs py-1 rounded border border-surface-container-high"
+              title="ECM J1939 CAN-Bus 10Hz High-Fidelity Telemetry"
+            >
+              <span className="material-symbols-outlined text-primary text-[14px] animate-pulse">
+                satellite_alt
+              </span>
+              <span className="font-telemetry-label text-telemetry-label text-on-surface">
+                10Hz
+              </span>
+            </div>
+          )}
 
           {/* Speed Indicator */}
           <div
@@ -164,7 +171,7 @@ export const Header: React.FC<HeaderProps> = ({
               id="btn-hud-voice-control"
               aria-label="Voice Control HUD [V]"
               onClick={onToggleVoice}
-              className={`min-h-[40px] px-2.5 flex items-center justify-center gap-1 active:scale-95 transition-all rounded cursor-pointer shadow-md border ${
+              className={`hidden sm:flex min-h-[40px] px-2.5 items-center justify-center gap-1 active:scale-95 transition-all rounded cursor-pointer shadow-md border ${
                 isListening
                   ? 'bg-error text-on-error border-white animate-pulse'
                   : 'bg-surface-container hover:bg-surface-container-high text-primary border-surface-container-high hover:border-primary/50'
@@ -218,10 +225,10 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Profile Avatar Button */}
           <button
             id="btn-driver-profile"
-            aria-label={`Driver: ${DRIVER_INFO.name}`}
+            aria-label={currentUser ? `Driver: ${driverName || currentUser.displayName || currentUser.email}` : "Driver Profile (Sign-in required)"}
             onClick={onOpenProfile}
             className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 ml-space-2xs active:scale-95 transition-transform cursor-pointer shadow-sm hover:brightness-110"
-            title="Driver Profile & CDL Credentials"
+            title={currentUser ? `Signed in as ${driverName || currentUser.email}` : "Driver Profile (Sign-in required)"}
           >
             <span className="material-symbols-outlined text-on-primary text-[18px]">
               person

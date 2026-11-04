@@ -22,7 +22,9 @@ function canonicalCol(col: string): string {
   return col === 'freight_loads' ? 'loads' : col;
 }
 
-const scopedMockStore = new Map<string, Map<string, any>>();
+const scopedMockStore: Map<string, Map<string, any>> =
+  (globalThis as any).__TWE_SCOPED_MOCK_STORE__ ||
+  ((globalThis as any).__TWE_SCOPED_MOCK_STORE__ = new Map<string, Map<string, any>>());
 
 export class FleetStore {
   /**
@@ -115,6 +117,34 @@ export class FleetStore {
           return null;
         }
       }
+
+      // DVIR records: driver can only access their own DVIRs
+      if (collectionName === 'dvir') {
+        if (doc.driverId && doc.driverId !== caller.uid) {
+          return null;
+        }
+      }
+
+      // Fuel logs: driver can only access their own fuel logs
+      if (collectionName === 'fuel_logs') {
+        if (doc.driverId && doc.driverId !== caller.uid) {
+          return null;
+        }
+      }
+
+      // Expenses: driver can only access their own recorded expenses
+      if (collectionName === 'expenses') {
+        if (doc.driverId && doc.driverId !== caller.uid) {
+          return null;
+        }
+      }
+
+      // Checkr background screenings: driver can only access their own screenings
+      if (collectionName === 'checkr_screenings') {
+        if (doc.driverId && doc.driverId !== caller.uid) {
+          return null;
+        }
+      }
     }
 
     return doc as T;
@@ -156,7 +186,11 @@ export class FleetStore {
         }
 
         if (caller.role === 'driver') {
-          if (collectionName === 'driver_documents' || collectionName === 'driver_profiles') {
+          if (
+            collectionName === 'driver_documents' ||
+            collectionName === 'driver_profiles' ||
+            collectionName === 'checkr_screenings'
+          ) {
             query = query.where('driverId', '==', caller.uid);
           }
         }
@@ -203,6 +237,15 @@ export class FleetStore {
           }
           if ((collectionName === 'freight_loads' || collectionName === 'loads') &&
               item.assignedDriverId && item.assignedDriverId !== caller.uid && item.status !== 'AVAILABLE') {
+            continue;
+          }
+          if (collectionName === 'dvir' && item.driverId && item.driverId !== caller.uid) {
+            continue;
+          }
+          if (collectionName === 'fuel_logs' && item.driverId && item.driverId !== caller.uid) {
+            continue;
+          }
+          if (collectionName === 'expenses' && item.driverId && item.driverId !== caller.uid) {
             continue;
           }
         }

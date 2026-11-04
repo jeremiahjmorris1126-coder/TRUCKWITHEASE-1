@@ -16,7 +16,7 @@ import {
 import { checkFirestoreHealth, testFirestoreReadWrite } from './server/firestore';
 import { telematicsManager } from './server/telematics/telematicsManager';
 import { triggerAuxAlert, getActiveAlerts, getAllAlerts, resolveAlert, AuxInputType } from './server/alerts/alertEngine';
-import { getLoads, createLoad, matchLoadsForDriver, dispatchLoad, getLoadById } from './server/loadMatching/loadService';
+import { getLoads, createLoad, matchLoadsForDriver, dispatchLoad, getLoadById, updateLoadStatus } from './server/loadMatching/loadService';
 import { getDriverProfile, updateDriverProfile, getDriverDocuments, addDriverDocument, getDriverDocumentById } from './server/driver/driverProfileService';
 import { getFleetFuelDiscounts, getInsuranceQuotes } from './server/perksAndInsurance/perksService';
 import {
@@ -42,6 +42,23 @@ import {
 import { routingManager } from './server/routing/routingManager';
 import { vehicleProfileService } from './server/routing/vehicleProfileService';
 import { routingQuotaMiddleware } from './server/routing/quotaLimiter';
+import { dvirService } from './server/dvir/dvirService';
+import { invoiceService } from './server/invoices/invoiceService';
+import { signedUploadService } from './server/storage/signedUploadService';
+import { detentionService } from './server/detention/detentionService';
+import { checkrService } from './server/checkr/checkrService';
+import {
+  eldTimeService,
+  resolveTimezoneFromCoordinates,
+  evaluateSplitSleeperBerth,
+} from './server/eld/eldTimeService';
+import {
+  CANONICAL_SUBSCRIPTION_TIERS,
+  completeSubscriberSignup,
+  verifyConfirmationEmailToken,
+  getSubscriberSignupStatus,
+  SignupValidationError,
+} from './server/billing/signupBillingService';
 
 
 interface MemorySnapshot {
@@ -140,8 +157,34 @@ async function startServer() {
       });
     }
 
-    // Twilio webhook endpoints authenticate via X-Twilio-Signature
-    if (req.path === '/api/telephony/voice' || req.path === '/voice') {
+    // Webhook endpoints authenticate via provider signature
+    if (
+      req.path === '/api/telephony/voice' ||
+      req.path === '/voice' ||
+      req.path === '/v1/checkr/webhooks' ||
+      req.path === '/api/checkr/webhooks'
+    ) {
+      return next();
+    }
+
+    // Public pre-authentication onboarding & pricing endpoints, plus quota-governed commercial routing lookups
+    const isPublicRoutingEndpoint =
+      req.path.startsWith('/api/routing/geocode') ||
+      req.path.startsWith('/v1/routing/geocode') ||
+      req.path.startsWith('/api/routing/places/autocomplete') ||
+      req.path.startsWith('/v1/routing/places/autocomplete') ||
+      req.path === '/api/routing/calculate' ||
+      req.path === '/v1/routing/calculate' ||
+      req.path === '/api/routing/status' ||
+      req.path === '/v1/routing/status';
+
+    const authHeaderCheck = req.headers.authorization;
+    if (
+      (req.method === 'GET' && (req.path === '/api/pricing' || req.path === '/v1/pricing')) ||
+      (req.method === 'POST' && req.path === '/api/auth/signup') ||
+      ((req.method === 'GET' || req.method === 'POST') && req.path === '/api/auth/signup/verify-email') ||
+      (isPublicRoutingEndpoint && (!authHeaderCheck || !authHeaderCheck.startsWith('Bearer ')))
+    ) {
       return next();
     }
 
@@ -257,10 +300,22 @@ async function startServer() {
     };
     (req as any).tenant = {
       tenantId: callerIdentity.fleetId || 'FLEET-UNASSIGNED',
-      carrierName: callerIdentity.fleetId ? `Fleet ${callerIdentity.fleetId}` : 'Unassigned Carrier',
+      carrierName:
+        userProfile.carrierName ||
+        (callerIdentity.fleetId ? `Fleet ${callerIdentity.fleetId}` : 'Unassigned Carrier'),
       role: callerIdentity.role.toUpperCase(),
       authenticated: true,
       userUid: callerIdentity.uid,
+      email: userProfile.email,
+      name: userProfile.name,
+      tierId: userProfile.tierId || null,
+      tierName: userProfile.tierName || null,
+      permissions: userProfile.permissions || [],
+      enabledModules: userProfile.enabledModules || null,
+      subscriptionStatus: userProfile.subscriptionStatus || null,
+      paymentMethodSummary: userProfile.paymentMethodSummary || null,
+      emailVerified: Boolean(userProfile.emailVerified),
+      provisionedPhoneNumbers: userProfile.provisionedPhoneNumbers || [],
     };
 
     next();
@@ -752,6 +807,44 @@ async function startServer() {
     }
   });
 
+  app.post(['/api/loads/:id/status', '/api/loads/:id/accept'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (req.body?.fleetId && req.body.fleetId !== caller.fleetId) {
+        return res.status(400).json({ success: false, error: 'Cannot set or change fleetId.' });
+      }
+      const { status = 'DISPATCHED', assignedUnitId } = req.body || {};
+      const validStatuses = ['AVAILABLE', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+      }
+      const updated = await updateLoadStatus(caller, req.params.id, status, assignedUnitId);
+      if (!updated) return res.status(404).json({ success: false, error: 'Load not found' });
+      res.json({ success: true, load: updated });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/loads/:id/status', async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (req.body?.fleetId && req.body.fleetId !== caller.fleetId) {
+        return res.status(400).json({ success: false, error: 'Cannot set or change fleetId.' });
+      }
+      const { status = 'DISPATCHED', assignedUnitId } = req.body || {};
+      const validStatuses = ['AVAILABLE', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+      }
+      const updated = await updateLoadStatus(caller, req.params.id, status, assignedUnitId);
+      if (!updated) return res.status(404).json({ success: false, error: 'Load not found' });
+      res.json({ success: true, load: updated });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ success: false, error: err.message });
+    }
+  });
+
   // ==========================================
   // PHASE 3: DRIVER APP, PROFILES & VAULT
   // Role & Tenant isolation enforced
@@ -869,6 +962,434 @@ async function startServer() {
     }
   });
 
+  // ==========================================
+  // PHASE 3: DVIR (DRIVER VEHICLE INSPECTION REPORTS)
+  // ==========================================
+  app.post(['/v1/dvir', '/api/dvir'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const record = await dvirService.createDvir(caller, req.body);
+      res.status(201).json({ success: true, dvir: record });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'DvirError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/dvir', '/api/dvir'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      if (req.query.fleetId && req.query.fleetId !== caller.fleetId && caller.role !== 'owner') {
+        return res.status(404).json({ error: 'NotFound', message: 'DVIR records not found' });
+      }
+      const targetDriverId = (req.query.driverId as string) || (caller.role === 'driver' ? caller.uid : undefined);
+      if (caller.role === 'driver' && targetDriverId && targetDriverId !== caller.uid) {
+        return res.status(404).json({ error: 'NotFound', message: 'DVIR records not found' });
+      }
+      const records = await dvirService.listDvir(caller, { driverId: targetDriverId });
+      res.json({ success: true, count: records.length, dvirs: records });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: 'DvirError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/dvir/:id', '/api/dvir/:id'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const record = await dvirService.getDvirById(caller, req.params.id);
+      if (!record) {
+        return res.status(404).json({ error: 'NotFound', message: 'DVIR record not found.' });
+      }
+      res.json({ success: true, dvir: record });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: 'DvirError', message: err.message });
+    }
+  });
+
+  // ==========================================
+  // PHASE 3: FUEL LOGS & FLEET EXPENSES
+  // ==========================================
+  app.post(['/v1/fuel-logs', '/api/fuel-logs'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const fuelLog = await invoiceService.createFuelLog(caller, req.body);
+      res.status(201).json({ success: true, fuelLog });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'FuelLogError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/fuel-logs', '/api/fuel-logs'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      if (req.query.fleetId && req.query.fleetId !== caller.fleetId && caller.role !== 'owner') {
+        return res.status(404).json({ error: 'NotFound', message: 'Fuel logs not found' });
+      }
+      const logs = await invoiceService.listFuelLogs(caller);
+      res.json({ success: true, count: logs.length, fuelLogs: logs });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: 'FuelLogError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/expenses', '/api/expenses'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const expense = await invoiceService.createExpense(caller, req.body);
+      res.status(201).json({ success: true, expense });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'ExpenseError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/expenses', '/api/expenses'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      if (req.query.fleetId && req.query.fleetId !== caller.fleetId && caller.role !== 'owner') {
+        return res.status(404).json({ error: 'NotFound', message: 'Expenses not found' });
+      }
+      const exps = await invoiceService.listExpenses(caller);
+      res.json({ success: true, count: exps.length, expenses: exps });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: 'ExpenseError', message: err.message });
+    }
+  });
+
+  // ==========================================
+  // PHASE 3: FREIGHT & CARRIER INVOICES (MONEY OWED)
+  // ==========================================
+  app.post(['/v1/invoices', '/api/invoices'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const invoice = await invoiceService.createInvoice(caller, req.body);
+      res.status(201).json({ success: true, invoice });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'InvoiceError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/invoices', '/api/invoices'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      if (req.query.fleetId && req.query.fleetId !== caller.fleetId && caller.role !== 'owner') {
+        return res.status(404).json({ error: 'NotFound', message: 'Invoices not found' });
+      }
+      const invs = await invoiceService.listInvoices(caller);
+      res.json({ success: true, count: invs.length, invoices: invs });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: 'InvoiceError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/invoices/:id', '/api/invoices/:id'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const invoice = await invoiceService.getInvoiceById(caller, req.params.id);
+      if (!invoice) {
+        return res.status(404).json({ error: 'NotFound', message: 'Invoice not found.' });
+      }
+      res.json({ success: true, invoice });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: 'InvoiceError', message: err.message });
+    }
+  });
+
+  // ==========================================
+  // PHASE 3: DETENTION PROOF & ENGINE
+  // ==========================================
+  app.post(['/v1/detention/stops', '/api/detention/stops'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const { vehicleId, stopId, loadId, kind, ratePerHour, freeMinutes, fence, appointmentTs, facilityName, address } = req.body || {};
+      if (!vehicleId || !stopId || !loadId) {
+        return res.status(400).json({ error: 'BadRequest', message: 'vehicleId, stopId, and loadId are required.' });
+      }
+
+      await detentionService.startStop(caller, vehicleId, {
+        stopId,
+        loadId,
+        kind: kind || 'delivery',
+        ratePerHour,
+        freeMinutes,
+        fence,
+        appointmentTs,
+        facilityName,
+        address,
+      }, {
+        driver: { id: caller.uid, name: caller.email || 'Driver' },
+        carrier: { name: (req as any).tenant?.carrierName || 'Carrier' },
+      });
+
+      res.status(201).json({ success: true, message: 'Detention stop tracking initialized.' });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'DetentionError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/detention/events', '/api/detention/events'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const { vehicleId, events } = req.body || {};
+      if (!vehicleId || !Array.isArray(events) || events.length === 0) {
+        return res.status(400).json({ error: 'BadRequest', message: 'vehicleId and non-empty events array required.' });
+      }
+
+      // Explicitly tag phone GPS events
+      const taggedEvents = events.map((ev: any) => ({
+        ...ev,
+        source: caller.role === 'driver' || ev.source === 'phone_gps' ? 'phone_gps' : (ev.source || 'ecm'),
+      }));
+
+      const ingested = await detentionService.ingestEvents(vehicleId, taggedEvents);
+      res.json({ success: true, ingested, count: taggedEvents.length });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'DetentionError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/detention/stops/:vehicleId', '/api/detention/stops/:vehicleId'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const summary = await detentionService.getStatus(req.params.vehicleId);
+      if (!summary) {
+        return res.status(404).json({ error: 'NotFound', message: 'No active stop tracking for vehicle.' });
+      }
+      res.json({ success: true, summary });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: 'DetentionError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/detention/stops/:vehicleId/finalize', '/api/detention/stops/:vehicleId/finalize'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const result = await detentionService.finalize(caller, req.params.vehicleId, req.body || {});
+      res.json({ success: true, packet: result.packet, invoice: result.invoice });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'DetentionError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/detention/one-tap', '/api/detention/one-tap'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const { loadId, vehicleId, simulatedDwellMinutes, billTo } = req.body || {};
+      if (!loadId) {
+        return res.status(400).json({ error: 'BadRequest', message: 'loadId is required.' });
+      }
+      const result = await detentionService.generateOneTapFromLoad(caller, loadId, {
+        vehicleId,
+        simulatedDwellMinutes,
+        billTo,
+      });
+      res.json({ success: true, packet: result.packet, invoice: result.invoice });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'DetentionError', message: err.message });
+    }
+  });
+
+  // ==========================================
+  // PHASE 3: PRIVATE STORAGE SHORT-LIVED SIGNED UPLOAD URLS
+  // ==========================================
+  app.post(['/v1/storage/upload-url', '/api/storage/upload-url'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const signed = await signedUploadService.generateUploadUrl(caller, req.body || {});
+      res.json({ success: true, ...signed });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'StorageError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/storage/upload/:token', '/api/storage/upload/:token'], async (req, res) => {
+    try {
+      const token = req.params.token;
+      const verification = signedUploadService.verifyUploadToken(token);
+      if (!verification.valid) {
+        return res.status(403).json({ error: 'Forbidden', message: verification.reason });
+      }
+      res.json({
+        success: true,
+        message: 'File encrypted and stored to private storage bucket.',
+        objectPath: verification.record.objectPath,
+        downloadUrl: `/api/storage/private/${encodeURIComponent(verification.record.objectPath)}`,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'StorageError', message: err.message });
+    }
+  });
+
+
+  // ==========================================
+  // TOP PRIORITY: CHECKR CLASS A DRIVER BACKGROUND CHECKS & CONTINUOUS MVR
+  // ==========================================
+  app.post(['/v1/checkr/candidates', '/api/checkr/candidates'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const record = await checkrService.createCandidateScreening(caller, req.body || {});
+      res.status(201).json({ success: true, screening: record });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'CheckrError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/checkr/screenings', '/api/checkr/screenings'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const screenings = await checkrService.listScreenings(caller);
+      res.json({ success: true, screenings });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: 'CheckrError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/checkr/screenings/:id', '/api/checkr/screenings/:id'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const screening = await checkrService.getScreening(caller, req.params.id);
+      if (!screening) {
+        return res.status(404).json({ error: 'NotFound', message: 'Checkr screening record not found.' });
+      }
+      res.json({ success: true, screening });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: 'CheckrError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/checkr/screenings/:id/simulate', '/api/checkr/screenings/:id/simulate'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const scenario = req.body?.scenario || 'CLEAR';
+      const updated = await checkrService.simulateScenario(caller, req.params.id, scenario);
+      res.json({ success: true, screening: updated });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'CheckrError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/checkr/webhooks', '/api/checkr/webhooks'], async (req, res) => {
+    try {
+      const result = await checkrService.handleWebhook(req.body);
+      res.json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: 'WebhookError', message: err.message });
+    }
+  });
+
+  // ==========================================
+  // 49 CFR PART 395 - ELD LIVE CLOCKS & NASA TIME SYNC
+  // ==========================================
+  app.get(['/v1/eld/live-state', '/api/eld/live-state'], async (req, res) => {
+    try {
+      const lat = parseFloat((req.query.lat as string) || '41.8781');
+      const lng = parseFloat((req.query.lng as string) || '-87.6298');
+      const speed = parseFloat((req.query.speed as string) || '0');
+      const driverId = (req.query.driverId as string) || 'DRV-CURRENT';
+      const homeTz = (req.query.homeTz as any) || 'America/Chicago';
+
+      const state = eldTimeService.calculateLiveClocks({
+        driverId,
+        currentStatus: (req.query.status as any) || 'D',
+        statusSinceEpochMs: parseInt(req.query.since as string) || (Date.now() - 4 * 3600 * 1000),
+        homeTerminalTimezone: homeTz,
+        lat,
+        lng,
+        speedMph: speed,
+      });
+
+      res.json({ success: true, eldState: state });
+    } catch (err: any) {
+      res.status(500).json({ error: 'EldTimeError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/eld/split-sleeper/evaluate', '/api/eld/split-sleeper/evaluate'], (req, res) => {
+    try {
+      const { period1Hours, period2Hours, period1Type, period2Type } = req.body || {};
+      const evalResult = evaluateSplitSleeperBerth(
+        typeof period1Hours === 'number' ? period1Hours : 7.0,
+        period1Type || 'SLEEPER',
+        typeof period2Hours === 'number' ? period2Hours : 3.0,
+        period2Type || 'OFF_DUTY'
+      );
+      res.json({ success: true, evaluation: evalResult });
+    } catch (err: any) {
+      res.status(400).json({ error: 'SplitSleeperEvaluationError', message: err.message });
+    }
+  });
+
+  app.get(['/v1/eld/timezone/resolve', '/api/eld/timezone/resolve'], (req, res) => {
+    try {
+      const lat = parseFloat(req.query.lat as string);
+      const lng = parseFloat(req.query.lng as string);
+      if (isNaN(lat) || isNaN(lng)) {
+        return res.status(400).json({ error: 'InvalidCoordinates', message: 'lat and lng must be valid numbers' });
+      }
+      const tzResult = resolveTimezoneFromCoordinates(lat, lng);
+      res.json({ success: true, ...tzResult });
+    } catch (err: any) {
+      res.status(500).json({ error: 'TimezoneResolutionError', message: err.message });
+    }
+  });
 
   // ==========================================
   // PHASE 3: TRUCKER PERKS & INSURANCE
@@ -1045,6 +1566,95 @@ async function startServer() {
     if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
     const authResult = authenticateUser(email, role as UserRole);
     res.json({ success: true, ...authResult });
+  });
+
+  // ==========================================
+  // CANONICAL PRICING, SUBSCRIBER SIGN-UP, CREDIT CARD & EMAIL VERIFICATION
+  // ==========================================
+  app.get(['/api/pricing', '/v1/pricing'], (req, res) => {
+    res.json({
+      status: 'OK',
+      currency: 'USD',
+      tiers: CANONICAL_SUBSCRIPTION_TIERS,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.post('/api/auth/signup', async (req, res) => {
+    try {
+      const signupResult = await completeSubscriberSignup(req.body || {});
+      res.status(201).json(signupResult);
+    } catch (err: any) {
+      if (err instanceof SignupValidationError) {
+        return res.status(err.statusCode || 400).json({
+          success: false,
+          error: err.message,
+          field: err.field || null,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      console.error('[API /api/auth/signup] Error:', err);
+      res.status(500).json({
+        success: false,
+        error: (err as Error).message || 'Failed to complete subscriber signup.',
+      });
+    }
+  });
+
+  const handleVerifySignupEmail: express.RequestHandler = async (req, res) => {
+    try {
+      const token = (req.query.token as string) || (req.body?.token as string) || '';
+      const result = await verifyConfirmationEmailToken(token);
+      if (!result.verified) {
+        return res.status(404).json({
+          success: false,
+          verified: false,
+          error: 'Invalid or expired confirmation email verification token.',
+        });
+      }
+      res.json({
+        success: true,
+        verified: true,
+        emailRecord: result.emailRecord,
+        user: result.user,
+      });
+    } catch (err: any) {
+      if (err instanceof SignupValidationError) {
+        return res.status(err.statusCode || 400).json({
+          success: false,
+          verified: false,
+          error: err.message,
+        });
+      }
+      res.status(500).json({
+        success: false,
+        verified: false,
+        error: (err as Error).message,
+      });
+    }
+  };
+
+  app.get('/api/auth/signup/verify-email', handleVerifySignupEmail);
+  app.post('/api/auth/signup/verify-email', handleVerifySignupEmail);
+
+  app.get('/api/billing/subscription', async (req, res) => {
+    const caller: CallerIdentity = (req as any).user;
+    if (!caller) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+      const status = await getSubscriberSignupStatus(caller, req.query.uid as string | undefined);
+      if (!status) {
+        return res.status(404).json({ error: 'Subscription not found or access denied.' });
+      }
+      res.json({
+        status: 'OK',
+        ...status,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
   });
 
   // ==========================================

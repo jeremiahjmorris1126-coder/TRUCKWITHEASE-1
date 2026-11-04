@@ -221,7 +221,7 @@ export const SecurityVaultScreen: React.FC<SecurityVaultProps> = ({
           }`}
         >
           <span className="material-symbols-outlined text-[18px]">folder_special</span>
-          <span>DOT &amp; FMCSA Certified Vault</span>
+          <span>DOT &amp; FMCSA Compliance Vault</span>
         </button>
 
         <button
@@ -675,7 +675,7 @@ export const SecurityVaultScreen: React.FC<SecurityVaultProps> = ({
             type: 'LOAD_LOCK',
           },
           {
-            event: 'Driver Jeremiah J. Morris CDL Attested (IL-98104820)',
+            event: 'Driver CDL Attested (49 CFR § 383)',
             hash: '0x7c...54a901',
             time: '11:45 AM CDT',
             type: 'SIGNATURE',

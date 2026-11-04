@@ -29,6 +29,7 @@ export interface GpsEvent {
   lat: number;
   lng: number;
   speedMph?: number | null;
+  source?: 'ecm' | 'eld' | 'phone_gps';
 }
 
 export interface DoorEvent {
@@ -127,7 +128,7 @@ export interface EvidencePacket {
     dockWorkMinutes: number | null;
   };
   doorEvents: Array<{ at: string; state: 'open' | 'closed' }>;
-  gpsTrail: Array<{ at: string; lat: number; lng: number; speedMph: number | null }>;
+  gpsTrail: Array<{ at: string; lat: number; lng: number; speedMph: number | null; source?: string }>;
   callLog: Array<{ at: string; direction: string; durationSec: number; number: string }>;
   legalNotice: string;
   integrity: {
