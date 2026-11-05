@@ -24,6 +24,7 @@
   "dependencies": {
     "@capacitor/android": "^8.6.0",
     "@capacitor/core": "^8.6.0",
+    "@dataconnect/generated": "file:src/dataconnect-generated",
     "@google-cloud/firestore": "^9.4.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",

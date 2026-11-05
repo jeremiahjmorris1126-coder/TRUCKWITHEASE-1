@@ -17,3 +17,4 @@ coverage/
 *service-account*.json
 *credentials*.txt
 *credentials*.json
+.dataconnect/
