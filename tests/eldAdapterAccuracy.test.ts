@@ -680,3 +680,116 @@ test('Phase 2 - 4. Resilience on 401 / 429 / 503 Outage & Strict Multi-Tenant + 
   const fleet2List = await eldSyncService.listLogs(FLEET2_ADMIN);
   assert.equal(fleet2List.length, 0);
 });
+
+test('Phase 3 - 5. 6-Month (184-Day) Record Retention (49 CFR § 395.8(k)(1) & § 395.30(f)) and Customer Offboarding Deletion', async () => {
+  fleetStore.clearMockStore();
+
+  await eldSyncService.upsertConnection(FLEET1_ADMIN, {
+    provider: 'samsara',
+    secretManagerRef: 'projects/project-f0634118-be01-44f7-b36/secrets/fleet-1-samsara/versions/1',
+  });
+
+  const nowMs = Date.parse('2026-11-06T12:00:00Z');
+  const expiredIso = new Date(nowMs - 200 * 24 * 60 * 60 * 1000).toISOString(); // 200 days old (> 184 days)
+  const recentIso = new Date(nowMs - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days old (< 184 days)
+
+  await eldSyncService.appendRawEvent('FLEET-ELD-1', 'samsara', '/fleet/hos/logs', { old: 1 }, expiredIso);
+  await eldSyncService.appendRawEvent('FLEET-ELD-1', 'samsara', '/fleet/hos/logs', { recent: 1 }, recentIso);
+
+  await eldSyncService.ingestNormalizedLogs('FLEET-ELD-1', [
+    {
+      provider: 'samsara',
+      providerLogId: 'old-log-200d',
+      driverId: 'sam-drv-101',
+      providerDriverId: 'sam-drv-101',
+      driverName: 'Driver Alpha',
+      vehicleId: 'veh-1',
+      providerVehicleId: 'veh-1',
+      coDriverIds: [],
+      carrierName: 'Fleet One LLC',
+      carrierUsdotNumber: 'TEST-USDOT-0001',
+      dutyStatus: 'OFF_DUTY',
+      rawDutyStatus: 'offDuty',
+      flaggedForReview: false,
+      startTimeUtc: expiredIso,
+      endTimeUtc: expiredIso,
+      durationMs: 0,
+      homeTerminalTimeZone: 'America/Chicago',
+      localDateInHomeTz: '2026-04-20',
+      dstTransitionInfo: {
+        startOffsetMinutes: -300,
+        endOffsetMinutes: -300,
+        crossesDstChange: false,
+        crossesLocalMidnight: false,
+      },
+      location: { latitude: 35.1, longitude: -90.0, description: null, precision: 'PRIVACY_1_DEC_10_MILE' },
+      odometerRaw: null,
+      odometerMiles: null,
+      engineHoursRaw: null,
+      engineHours: null,
+      origin: 'AUTOMATIC',
+      annotations: [],
+      certified: true,
+      certifiedAtUtc: expiredIso,
+      malfunctionOrDiagnosticCode: null,
+      ruleset: 'US Property 70-hour / 8-day',
+      rawEventId: 'raw-old',
+    },
+    {
+      provider: 'samsara',
+      providerLogId: 'recent-log-30d',
+      driverId: 'sam-drv-101',
+      providerDriverId: 'sam-drv-101',
+      driverName: 'Driver Alpha',
+      vehicleId: 'veh-1',
+      providerVehicleId: 'veh-1',
+      coDriverIds: [],
+      carrierName: 'Fleet One LLC',
+      carrierUsdotNumber: 'TEST-USDOT-0001',
+      dutyStatus: 'DRIVING',
+      rawDutyStatus: 'driving',
+      flaggedForReview: false,
+      startTimeUtc: recentIso,
+      endTimeUtc: recentIso,
+      durationMs: 0,
+      homeTerminalTimeZone: 'America/Chicago',
+      localDateInHomeTz: '2026-10-07',
+      dstTransitionInfo: {
+        startOffsetMinutes: -300,
+        endOffsetMinutes: -300,
+        crossesDstChange: false,
+        crossesLocalMidnight: false,
+      },
+      location: { latitude: 35.15, longitude: -90.05, description: 'Memphis, TN', precision: 'STANDARD_2_DEC' },
+      odometerRaw: { value: 160934.4, unit: 'm' },
+      odometerMiles: 100,
+      engineHoursRaw: { value: 3600, unit: 'seconds' },
+      engineHours: 1,
+      origin: 'AUTOMATIC',
+      annotations: [],
+      certified: true,
+      certifiedAtUtc: recentIso,
+      malfunctionOrDiagnosticCode: null,
+      ruleset: 'US Property 70-hour / 8-day',
+      rawEventId: 'raw-recent',
+    },
+  ]);
+
+  // 1. Purge expired (> 184 days) records
+  const purgeRes = await eldSyncService.purgeExpiredRecords('FLEET-ELD-1', 184, nowMs);
+  assert.equal(purgeRes.logsPurged, 1);
+  assert.equal(purgeRes.rawEventsPurged, 1);
+
+  const remainingLogs = await eldSyncService.listLogs(FLEET1_ADMIN);
+  assert.equal(remainingLogs.length, 1);
+  assert.equal(remainingLogs[0].providerLogId, 'recent-log-30d');
+
+  // 2. Customer leaves / disconnects ELD: all fleet ELD data is purged
+  const offboardRes = await eldSyncService.disconnectAndPurgeFleetEld(FLEET1_ADMIN);
+  assert.equal(offboardRes.connectionsPurged, 1);
+  assert.equal(offboardRes.logsPurged, 1);
+  assert.equal(offboardRes.rawEventsPurged, 1);
+
+  const logsAfterOffboard = await eldSyncService.listLogs(FLEET1_ADMIN);
+  assert.equal(logsAfterOffboard.length, 0);
+});

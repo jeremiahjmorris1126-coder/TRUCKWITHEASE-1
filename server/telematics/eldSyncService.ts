@@ -657,6 +657,104 @@ export class EldSyncService {
   async getClocksForDriver(caller: CallerIdentity, driverId: string): Promise<EldClocksRecord | null> {
     return fleetStore.getScopedDocument<EldClocksRecord>(caller, 'eld_clocks', driverId);
   }
+
+  /**
+   * Enforces the 6-month (184-day) retention rule under 49 CFR § 395.8(k)(1) and § 395.30(f).
+   * Purges `eld_logs` and `eld_raw_events` older than `retentionDays` (default 184 days).
+   */
+  async purgeExpiredRecords(
+    fleetId: string,
+    retentionDays = 184,
+    nowMs = Date.now()
+  ): Promise<{ logsPurged: number; rawEventsPurged: number }> {
+    const scopedCaller: CallerIdentity = {
+      uid: SYSTEM_OWNER.uid,
+      role: 'owner',
+      fleetId,
+    };
+    const cutoffMs = nowMs - retentionDays * 24 * 60 * 60 * 1000;
+    let logsPurged = 0;
+    let rawEventsPurged = 0;
+
+    const allLogs = await fleetStore.listScopedCollection<EldNormalizedLogRecord>(
+      scopedCaller,
+      'eld_logs',
+      { limit: 10000 }
+    );
+    for (const log of allLogs) {
+      if (log.fleetId !== fleetId) continue;
+      const logTimeMs = new Date(log.endTimeUtc || log.startTimeUtc).getTime();
+      if (Number.isFinite(logTimeMs) && logTimeMs < cutoffMs) {
+        await fleetStore.deleteScopedDocument(scopedCaller, 'eld_logs', log.id);
+        logsPurged += 1;
+      }
+    }
+
+    const allRaw = await fleetStore.listScopedCollection<EldRawEventRecord>(
+      scopedCaller,
+      'eld_raw_events',
+      { limit: 10000 }
+    );
+    for (const evt of allRaw) {
+      if (evt.fleetId !== fleetId) continue;
+      const evtTimeMs = new Date(evt.receivedAtUtc).getTime();
+      if (Number.isFinite(evtTimeMs) && evtTimeMs < cutoffMs) {
+        await fleetStore.deleteScopedDocument(scopedCaller, 'eld_raw_events', evt.id);
+        rawEventsPurged += 1;
+      }
+    }
+
+    return { logsPurged, rawEventsPurged };
+  }
+
+  /**
+   * Customer offboarding / ELD disconnect: marks connection DISCONNECTED and purges all stored
+   * `eld_connections`, `eld_raw_events`, `eld_logs`, and `eld_clocks` for that fleet.
+   */
+  async disconnectAndPurgeFleetEld(
+    caller: CallerIdentity
+  ): Promise<{ connectionsPurged: number; logsPurged: number; clocksPurged: number; rawEventsPurged: number }> {
+    if (caller.role === 'driver' || !caller.fleetId) {
+      throw new TenantAccessError('Only fleet_admin or owner can disconnect and purge fleet ELD data.', 403);
+    }
+    const fleetId = caller.fleetId;
+    const scopedCaller: CallerIdentity = {
+      uid: SYSTEM_OWNER.uid,
+      role: 'owner',
+      fleetId,
+    };
+
+    const conns = (await fleetStore.listScopedCollection<EldConnectionRecord>(scopedCaller, 'eld_connections', { limit: 1000 }))
+      .filter((c) => c.fleetId === fleetId);
+    for (const c of conns) {
+      await fleetStore.deleteScopedDocument(scopedCaller, 'eld_connections', c.id);
+    }
+
+    const logs = (await fleetStore.listScopedCollection<EldNormalizedLogRecord>(scopedCaller, 'eld_logs', { limit: 10000 }))
+      .filter((l) => l.fleetId === fleetId);
+    for (const l of logs) {
+      await fleetStore.deleteScopedDocument(scopedCaller, 'eld_logs', l.id);
+    }
+
+    const clocks = (await fleetStore.listScopedCollection<EldClocksRecord>(scopedCaller, 'eld_clocks', { limit: 1000 }))
+      .filter((c) => c.fleetId === fleetId);
+    for (const c of clocks) {
+      await fleetStore.deleteScopedDocument(scopedCaller, 'eld_clocks', c.id);
+    }
+
+    const rawEvents = (await fleetStore.listScopedCollection<EldRawEventRecord>(scopedCaller, 'eld_raw_events', { limit: 10000 }))
+      .filter((r) => r.fleetId === fleetId);
+    for (const r of rawEvents) {
+      await fleetStore.deleteScopedDocument(scopedCaller, 'eld_raw_events', r.id);
+    }
+
+    return {
+      connectionsPurged: conns.length,
+      logsPurged: logs.length,
+      clocksPurged: clocks.length,
+      rawEventsPurged: rawEvents.length,
+    };
+  }
 }
 
 export const eldSyncService = new EldSyncService();
