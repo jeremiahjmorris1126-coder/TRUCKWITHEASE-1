@@ -138,6 +138,18 @@ export class FleetStore {
           return null;
         }
       }
+
+      // ELD logs and clocks: driver can only access their own ELD logs and clocks
+      if (collectionName === 'eld_logs' || collectionName === 'eld_clocks') {
+        if (doc.driverId !== caller.uid && doc.id !== caller.uid) {
+          return null;
+        }
+      }
+
+      // ELD connections and raw events: only fleet_admin / owner may inspect
+      if (collectionName === 'eld_connections' || collectionName === 'eld_raw_events') {
+        return null;
+      }
     }
 
     return doc as T;
@@ -238,6 +250,13 @@ export class FleetStore {
             continue;
           }
           if (collectionName === 'expenses' && item.driverId && item.driverId !== caller.uid) {
+            continue;
+          }
+          if ((collectionName === 'eld_logs' || collectionName === 'eld_clocks') &&
+              item.driverId !== caller.uid && item.id !== caller.uid) {
+            continue;
+          }
+          if (collectionName === 'eld_connections' || collectionName === 'eld_raw_events') {
             continue;
           }
         }
