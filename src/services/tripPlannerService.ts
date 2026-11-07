@@ -291,8 +291,9 @@ class TripPlannerService {
       routingEngine: routeData.provider,
       mock: routeData.mock === true || routeData.provider === 'mock',
       fallbackTriggered: routeData.fallbackTriggered || false,
-      tollDistanceMiles: routeData.tollDistanceMiles || 0,
-      estimatedTollCostUsd: routeData.estimatedTollCostUsd || 0,
+      // null = provider did not report; shown as "not reported", never $0.
+      tollDistanceMiles: typeof routeData.tollDistanceMiles === 'number' ? routeData.tollDistanceMiles : null,
+      estimatedTollCostUsd: typeof routeData.estimatedTollCostUsd === 'number' ? routeData.estimatedTollCostUsd : null,
       bridgeWarningsCount: routeData.bridgeClearanceWarnings?.length || 0,
       bridgeClearanceWarnings: routeData.bridgeClearanceWarnings || [],
       turnByTurnSteps: routeData.turnByTurnSteps || [],

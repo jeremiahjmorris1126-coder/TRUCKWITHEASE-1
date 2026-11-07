@@ -309,8 +309,8 @@ export interface TripRoutePlan {
   routingEngine?: 'trimble' | 'tomtom' | 'mock';
   mock?: boolean;
   fallbackTriggered?: boolean;
-  tollDistanceMiles?: number;
-  estimatedTollCostUsd?: number;
+  tollDistanceMiles?: number | null;
+  estimatedTollCostUsd?: number | null;
   bridgeWarningsCount?: number;
   bridgeClearanceWarnings?: Array<{
     warningId?: string;

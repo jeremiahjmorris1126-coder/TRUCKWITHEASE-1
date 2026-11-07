@@ -64,7 +64,7 @@ export interface RouteLegSummary {
   legIndex: number;
   distanceMiles: number;
   driveTimeMinutes: number;
-  tollDistanceMiles?: number;
+  tollDistanceMiles?: number | null;
 }
 
 export interface BridgeClearanceWarning {
@@ -93,8 +93,10 @@ export interface NormalizedRouteResult {
   cached: boolean;
   totalDistanceMiles: number;
   totalTimeMinutes: number;
-  tollDistanceMiles: number;
-  estimatedTollCostUsd: number;
+  /** Toll-road miles reported by the provider; null when the provider did not report them. */
+  tollDistanceMiles: number | null;
+  /** Toll cost reported by the provider (PC*MILER); null when not reported. Never estimated. */
+  estimatedTollCostUsd: number | null;
   summaryPathCoords: [number, number][]; // [lat, lon][]
   legs: RouteLegSummary[];
   turnByTurnSteps: TurnByTurnStep[];
@@ -109,7 +111,7 @@ export interface MileageResult {
   destination: string;
   distanceMiles: number;
   durationMinutes: number;
-  tollMiles?: number;
+  tollMiles?: number | null;
   provider: RoutingProviderType;
   mock: boolean;
   calculatedAt: string;

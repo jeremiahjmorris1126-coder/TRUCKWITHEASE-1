@@ -20,6 +20,23 @@ import {
 } from './types';
 
 const ROUTING_CACHE_COLLECTION = 'routing_cache';
+
+/**
+ * The simulator draws an approximate route with NO truck restrictions (bridges,
+ * weight, hazmat). It must never be handed to a driver as a truck route in
+ * production. Allowed only outside production, or if explicitly enabled.
+ */
+export function simulatedRoutesAllowed(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.ROUTING_ALLOW_SIMULATED === 'true';
+}
+
+export class RoutingUnavailableError extends Error {
+  statusCode = 503;
+  constructor(what: string) {
+    super(`Truck ${what} is unavailable right now: TomTom and PC*MILER could not be reached or are not configured.`);
+    this.name = 'RoutingUnavailableError';
+  }
+}
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes TTL (Complies with Trimble 24-hr limit and TomTom live traffic terms)
 
 interface CacheEntry {
@@ -69,9 +86,9 @@ export class RoutingManager {
         mode: this.googlePlacesProvider.isConfigured() ? 'LIVE_PLACES_GEOCODE_REST' : 'NOT_CONFIGURED',
         purpose: 'ADDRESS_SEARCH_ONLY',
       },
-      mock: {
-        available: true,
-        mode: 'DETERMINISTIC_COMMERCIAL_SIMULATOR',
+      simulator: {
+        available: simulatedRoutesAllowed(),
+        mode: simulatedRoutesAllowed() ? 'SIMULATED_ESTIMATES_ALLOWED (not truck-verified)' : 'DISABLED_IN_PRODUCTION',
       },
     };
   }
@@ -231,6 +248,7 @@ export class RoutingManager {
 
     // Fallback: Safe Mock Commercial Simulator
     if (!result) {
+      if (!simulatedRoutesAllowed()) throw new RoutingUnavailableError('routing');
       result = await this.mockProvider.calculateRoute(origin, destination, waypoints, vehicleProfile, options);
       const hadConfiguredLive = this.trimbleProvider.isConfigured() || this.tomtomProvider.isConfigured();
       result.fallbackTriggered = hadConfiguredLive;
@@ -281,6 +299,7 @@ export class RoutingManager {
       }
     }
 
+    if (!simulatedRoutesAllowed()) throw new RoutingUnavailableError('mileage');
     const res = await this.mockProvider.getMileage(origin, destination, waypoints, vehicleProfile);
     console.log(`[RoutingManager] Mileage served by [mock] (${res.distanceMiles} mi)`);
     return res;
@@ -325,7 +344,8 @@ export class RoutingManager {
       }
     }
 
-    // 4. Mock geocoding fallback
+    // 4. Simulated geocoding (non-production only)
+    if (!simulatedRoutesAllowed()) throw new RoutingUnavailableError('address lookup');
     return this.mockProvider.geocode(query);
   }
 

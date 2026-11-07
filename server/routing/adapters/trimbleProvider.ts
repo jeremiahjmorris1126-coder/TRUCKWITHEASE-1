@@ -30,6 +30,7 @@ export class TrimbleRoutingProvider implements RoutingProvider {
     switch (hazmatClass) {
       case 'General': return 1;
       case 'Caustic': return 2;
+      case 'Corrosive': return 2; // previously unmapped → routed as non-hazmat
       case 'Explosive': return 3;
       case 'Flammable': return 4;
       case 'Inhalant': return 5;
@@ -170,15 +171,6 @@ export class TrimbleRoutingProvider implements RoutingProvider {
     }
     const v = validation.sanitized;
 
-    // Convert height and width to feet-inches format expected by PC*Miler REST (e.g. 13.5 -> "13-6")
-    const heightFeet = Math.floor(v.heightFt);
-    const heightInches = Math.round((v.heightFt - heightFeet) * 12);
-    const vehHeight = `${heightFeet}-${heightInches}`;
-
-    const widthFeet = Math.floor(v.widthFt);
-    const widthInches = Math.round((v.widthFt - widthFeet) * 12);
-    const vehWidth = `${widthFeet}-${widthInches}`;
-
     // Step 3: Optional stop sequencing / waypoint optimization while keeping final destination fixed
     let finalWaypoints = resolvedWaypoints;
     if (options?.optimizeWaypoints && resolvedWaypoints.length > 1) {
@@ -198,94 +190,19 @@ export class TrimbleRoutingProvider implements RoutingProvider {
       { Coords: { Lat: resolvedDestination.coords.lat.toString(), Lon: resolvedDestination.coords.lon.toString() }, Label: resolvedDestination.label },
     ];
 
-    // Build one stateless route request (PC*MILER REST Web Services)
-    const bodyPayload = [
-      {
-        Stops: stops,
-        Options: {
-          RoutingType: options?.routingPreference === 'SHORTEST' ? 'Shortest' : 'Practical',
-          DistUnits: 'Miles',
-          HighwayOnly: false,
-          TollDiscourage: Boolean(options?.avoidTolls ?? v.avoidTolls),
-          HazMatType: this.mapHazmatToCode(v.hazmatClass).toString(),
-          TruckStyle: 'Semi',
-          VehicleDimensions: {
-            Units: 'English',
-            Height: vehHeight,
-            Weight: v.weightLbs.toString(),
-            Width: vehWidth,
-            Length: v.lengthFt.toString(),
-            Axles: v.axles,
-          },
-          OptimizeStops: Boolean(options?.optimizeWaypoints),
-          KeepFinalStopFixed: Boolean(options?.optimizeWaypoints),
-        },
-        ReportTypes: [
-          { ReportType: 'Mileage' },
-          { ReportType: 'Directions' },
-          { ReportType: 'RoutePath' },
-        ],
-      },
-    ];
-
-    const res = await fetchWithRetryOn5xx(
-      'https://pcmiler.alk.com/apis/rest/v1.0/Service.svc/route/routeReports',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: apiKey,
-        },
-        body: JSON.stringify(bodyPayload),
-      },
-      { providerName: 'Trimble Maps', timeoutMs: 6000 }
-    );
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      throw new Error(`Trimble PC*Miler API error (${res.status}): ${maskSecrets(errText || res.statusText)}`);
+    const report = await this.postRouteReports(apiKey, stops, v, options, ['Mileage', 'Directions', 'GeoTunnel']);
+    const parsed = parsePcmilerReports(report);
+    if (parsed.totalMiles === null) {
+      throw new Error('PC*MILER returned no mileage for this route.');
     }
+    const totalMiles = parsed.totalMiles;
+    const totalMinutes = parsed.totalMinutes ?? 0;
 
-    const data = await res.json() as any;
-    const report = Array.isArray(data) ? data[0] : data;
-    if (!report) {
-      throw new Error('Trimble returned empty route report payload');
-    }
+    const summaryPathCoords: [number, number][] =
+      parsed.path.length > 0
+        ? parsed.path
+        : [[resolvedOrigin.coords.lat, resolvedOrigin.coords.lon], [resolvedDestination.coords.lat, resolvedDestination.coords.lon]];
 
-    const totalMiles = parseFloat(report?.TMiles || report?.TotalMiles || '0');
-    const totalMinutes = Math.round(parseFloat(report?.Hours || '0') * 60) || Math.round((totalMiles / 55) * 60);
-    const tollCost = parseFloat(report?.Tolls || '0');
-
-    // Parse turn-by-turn steps
-    const turnByTurnSteps: TurnByTurnStep[] = [];
-    if (Array.isArray(report?.Directions)) {
-      report.Directions.forEach((dir: any, idx: number) => {
-        turnByTurnSteps.push({
-          stepIndex: idx + 1,
-          instruction: dir?.Instruction || dir?.Text || `Proceed along ${dir?.Street || 'route'}`,
-          distanceMiles: parseFloat(dir?.Dist || '0'),
-          durationMinutes: Math.round(parseFloat(dir?.Time || '0')),
-          streetName: dir?.Street,
-        });
-      });
-    }
-
-    // Parse geometry path
-    const summaryPathCoords: [number, number][] = [];
-    if (Array.isArray(report?.RoutePath)) {
-      for (const pt of report.RoutePath) {
-        if (pt?.Lat && pt?.Lon) {
-          summaryPathCoords.push([parseFloat(pt.Lat), parseFloat(pt.Lon)]);
-        }
-      }
-    }
-    if (summaryPathCoords.length === 0) {
-      summaryPathCoords.push([resolvedOrigin.coords.lat, resolvedOrigin.coords.lon], [resolvedDestination.coords.lat, resolvedDestination.coords.lon]);
-    }
-
-    const tollDist = options?.avoidTolls || v.avoidTolls ? 0 : parseFloat((totalMiles * 0.22).toFixed(1));
-
-    // Step 4: Return normalized output
     return {
       routeId: `rt-trimble-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       provider: 'trimble',
@@ -294,24 +211,75 @@ export class TrimbleRoutingProvider implements RoutingProvider {
       cached: false,
       totalDistanceMiles: parseFloat(totalMiles.toFixed(1)),
       totalTimeMinutes: totalMinutes,
-      tollDistanceMiles: tollDist,
-      estimatedTollCostUsd: tollCost,
+      tollDistanceMiles: parsed.tollMiles,
+      estimatedTollCostUsd: parsed.tollCostUsd,
       summaryPathCoords,
-      legs: [
-        {
-          legIndex: 0,
-          distanceMiles: parseFloat(totalMiles.toFixed(1)),
-          driveTimeMinutes: totalMinutes,
-          tollDistanceMiles: tollDist,
-        },
-      ],
-      turnByTurnSteps: turnByTurnSteps.length > 0 ? turnByTurnSteps : [
-        { stepIndex: 1, instruction: `Commercial corridor departure from ${resolvedOrigin.label}`, distanceMiles: totalMiles, durationMinutes: totalMinutes },
+      legs: parsed.legs.length
+        ? parsed.legs
+        : [{ legIndex: 0, distanceMiles: parseFloat(totalMiles.toFixed(1)), driveTimeMinutes: totalMinutes, tollDistanceMiles: parsed.tollMiles }],
+      turnByTurnSteps: parsed.steps.length > 0 ? parsed.steps : [
+        { stepIndex: 1, instruction: `Depart ${resolvedOrigin.label}`, distanceMiles: totalMiles, durationMinutes: totalMinutes },
       ],
       bridgeClearanceWarnings: [],
       truckRestrictionsApplied: true,
       calculatedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * POST /route/routeReports in the documented shape:
+   *   { ReportRoutes: [{ RouteId, Stops, Options: {..., TruckCfg}, ReportTypes: [{ __type: "<X>ReportType:http://pcmiler.alk.com/APIs/v1.0" }] }] }
+   */
+  private async postRouteReports(
+    apiKey: string,
+    stops: { Coords: { Lat: string; Lon: string }; Label: string }[],
+    v: CommercialVehicleProfile,
+    options: RouteOptions | undefined,
+    reportTypes: ('Mileage' | 'Directions' | 'GeoTunnel')[]
+  ): Promise<any> {
+    const ns = 'http://pcmiler.alk.com/APIs/v1.0';
+    const body = {
+      ReportRoutes: [
+        {
+          RouteId: `twe-${Date.now()}`,
+          Stops: stops.map((s) => ({ Coords: s.Coords, Label: s.Label })),
+          Options: {
+            VehicleType: 0, // Truck
+            RoutingType: options?.routingPreference === 'SHORTEST' ? 1 : 0, // 0 Practical, 1 Shortest
+            DistUnits: 0, // Miles
+            HighwayOnly: false,
+            TollDiscourage: Boolean(options?.avoidTolls ?? v.avoidTolls),
+            HazMatTypes: [this.mapHazmatToCode(isHazmatLoad(v) ? (v.hazmatClass && v.hazmatClass !== 'None' ? v.hazmatClass : 'General') : 'None')],
+            TruckCfg: {
+              Units: 0, // English
+              Height: feetInches(v.heightFt),
+              Width: `${Math.round(v.widthFt * 12)}"`,
+              Length: feetInches(v.lengthFt),
+              Weight: String(Math.round(v.weightLbs)),
+              Axles: v.axles,
+              LCV: false,
+            },
+          },
+          ReportTypes: reportTypes.map((t) => ({ __type: `${t}ReportType:${ns}` })),
+        },
+      ],
+    };
+    const dataVersion = process.env.TRIMBLE_DATA_VERSION || 'Current';
+    const base = (process.env.TRIMBLE_API_BASE || 'https://pcmiler.alk.com/apis/rest/v1.0/Service.svc').replace(/\/$/, '');
+    const res = await fetchWithRetryOn5xx(
+      `${base}/route/routeReports?dataVersion=${encodeURIComponent(dataVersion)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: apiKey },
+        body: JSON.stringify(body),
+      },
+      { providerName: 'Trimble PC*MILER', timeoutMs: 8000 }
+    );
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Trimble PC*MILER API error (${res.status}): ${maskSecrets(errText || res.statusText).slice(0, 300)}`);
+    }
+    return res.json();
   }
 
   async getMileage(
@@ -333,37 +301,18 @@ export class TrimbleRoutingProvider implements RoutingProvider {
 
     const apiKey = this.getApiKey()!;
     const v = (vehicleProfile && validateVehicleProfile(vehicleProfile).sanitized) || DEFAULT_COMMERCIAL_PROFILE;
-
-    const stopsParam = [
-      `${resolvedOrigin.coords.lat},${resolvedOrigin.coords.lon}`,
-      ...resolvedWaypoints.map((w) => `${w.coords.lat},${w.coords.lon}`),
-      `${resolvedDestination.coords.lat},${resolvedDestination.coords.lon}`,
-    ].join(';');
-
-    const url = `https://pcmiler.alk.com/apis/rest/v1.0/Service.svc/mileage?stops=${stopsParam}&vehType=Truck&vehHeight=${v.heightFt}&vehWeight=${v.weightLbs}&hazMat=${this.mapHazmatToCode(v.hazmatClass)}&distUnits=Miles&routingType=Practical`;
-
-    const res = await fetchWithRetryOn5xx(
-      url,
-      {
-        headers: { Authorization: apiKey, Accept: 'application/json' },
-      },
-      { providerName: 'Trimble Maps', timeoutMs: 5000 }
-    );
-
-    if (!res.ok) {
-      throw new Error(`Trimble Mileage API returned status ${res.status}`);
-    }
-
-    const data = await res.json() as any;
-    const distanceMiles = parseFloat(data?.TMiles || data?.Distance || '0');
-    const durationMinutes = Math.round((distanceMiles / 55) * 60);
-
+    const stops = [resolvedOrigin, ...resolvedWaypoints, resolvedDestination].map((s) => ({
+      Coords: { Lat: s.coords.lat.toString(), Lon: s.coords.lon.toString() },
+      Label: s.label,
+    }));
+    const parsed = parsePcmilerReports(await this.postRouteReports(apiKey, stops, v, undefined, ['Mileage']));
+    if (parsed.totalMiles === null) throw new Error('PC*MILER returned no mileage for this route.');
     return {
       origin: resolvedOrigin.label,
       destination: resolvedDestination.label,
-      distanceMiles: parseFloat(distanceMiles.toFixed(1)),
-      durationMinutes,
-      tollMiles: v.avoidTolls ? 0 : parseFloat((distanceMiles * 0.2).toFixed(1)),
+      distanceMiles: parseFloat(parsed.totalMiles.toFixed(1)),
+      durationMinutes: parsed.totalMinutes ?? 0,
+      tollMiles: parsed.tollMiles,
       provider: 'trimble',
       mock: false,
       calculatedAt: new Date().toISOString(),
@@ -404,4 +353,98 @@ export class TrimbleRoutingProvider implements RoutingProvider {
       provider: 'trimble',
     };
   }
+}
+
+
+/** A load is hazmat if flagged OR a hazmat class is set (either alone must not route as non-hazmat). */
+export function isHazmatLoad(v: { isHazmat?: boolean; hazmatClass?: string }): boolean {
+  return Boolean(v.isHazmat) || Boolean(v.hazmatClass && v.hazmatClass !== 'None');
+}
+
+/** 13.5 → `13'6"` (PC*MILER English TruckCfg format). */
+export function feetInches(ft: number): string {
+  let feet = Math.floor(ft);
+  let inches = Math.round((ft - feet) * 12);
+  if (inches === 12) {
+    feet += 1;
+    inches = 0;
+  }
+  return `${feet}'${inches}"`;
+}
+
+const toNum = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v.replace(/[$,\s]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+};
+
+/** "12:30" (h:mm) or decimal hours → minutes. */
+export function hoursToMinutes(v: unknown): number | null {
+  if (typeof v === 'string' && /^\d+:\d{1,2}$/.test(v.trim())) {
+    const [h, m] = v.trim().split(':').map(Number);
+    return h * 60 + m;
+  }
+  const n = toNum(v);
+  return n === null ? null : Math.round(n * 60);
+}
+
+const typeOf = (r: any): string => String(r?.__type || '').split(':')[0];
+
+/**
+ * Parses a PC*MILER routeReports response (array of reports, each with __type).
+ * Totals come from the last Mileage ReportLine (cumulative T* fields); legs from L* fields.
+ * Missing values stay null — nothing is estimated.
+ */
+export function parsePcmilerReports(data: any) {
+  const reports: any[] = Array.isArray(data) ? data : Array.isArray(data?.Reports) ? data.Reports : data ? [data] : [];
+  const mileage = reports.find((r) => typeOf(r) === 'MileageReport' || Array.isArray(r?.ReportLines));
+  const lines: any[] = Array.isArray(mileage?.ReportLines) ? mileage.ReportLines : [];
+  const last = lines[lines.length - 1];
+
+  const legs = lines.slice(1).map((l, i) => ({
+    legIndex: i,
+    distanceMiles: toNum(l.LMiles) ?? 0,
+    driveTimeMinutes: hoursToMinutes(l.LHours) ?? 0,
+    tollDistanceMiles: toNum(l.LTollMiles ?? l.LToll),
+  }));
+
+  const directions = reports.find((r) => typeOf(r) === 'DirectionsReport');
+  const steps: TurnByTurnStep[] = [];
+  const dirLines: any[] = [];
+  for (const seg of Array.isArray(directions?.ReportLines) ? directions.ReportLines : []) {
+    if (Array.isArray(seg?.Segments)) dirLines.push(...seg.Segments);
+    else dirLines.push(seg);
+  }
+  dirLines.forEach((d) => {
+    const text = d?.Direction || d?.Instruction || d?.Text;
+    if (!text) return;
+    steps.push({
+      stepIndex: steps.length + 1,
+      instruction: String(text),
+      distanceMiles: toNum(d.Dist ?? d.Distance) ?? 0,
+      durationMinutes: hoursToMinutes(d.Time) ?? 0,
+      streetName: d.Street || undefined,
+    });
+  });
+
+  const geo = reports.find((r) => typeOf(r) === 'GeoTunnelReport' || Array.isArray(r?.GeoTunnelPoints));
+  const path: [number, number][] = [];
+  for (const pt of Array.isArray(geo?.GeoTunnelPoints) ? geo.GeoTunnelPoints : []) {
+    const lat = toNum(pt?.Lat);
+    const lon = toNum(pt?.Lon);
+    if (lat !== null && lon !== null) path.push([lat, lon]);
+  }
+
+  return {
+    totalMiles: last ? toNum(last.TMiles) : null,
+    totalMinutes: last ? hoursToMinutes(last.THours) : null,
+    tollCostUsd: last ? toNum(last.TTolls) : null,
+    tollMiles: last ? toNum(last.TTollMiles ?? last.TollMiles) : null,
+    legs,
+    steps,
+    path,
+  };
 }

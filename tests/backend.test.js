@@ -792,9 +792,11 @@ test('26. RoutingManager: Primary Trimble -> Fallback TomTom -> Mock Failover Hi
   const status = routingManager.getProviderStatus();
   assert.ok(status.trimble);
   assert.ok(status.tomtom);
-  assert.ok(status.mock);
+  assert.ok(status.simulator);
+  assert.equal(status.simulator.available, true); // tests run outside production
 
-  // When live providers are unconfigured or fail, routing cleanly falls back to Mock commercial engine
+  // Outside production, when live providers are unconfigured or fail, routing falls back to the
+  // simulator (flagged mock:true). In production this throws 503 instead (tests/truckRouting.test.ts).
   const route = await routingManager.calculateRoute(
     { coords: { lat: 38.627, lon: -90.199 }, label: 'St. Louis, MO' },
     { coords: { lat: 39.768, lon: -86.158 }, label: 'Indianapolis, IN' }

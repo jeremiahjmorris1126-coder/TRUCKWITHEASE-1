@@ -842,13 +842,17 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
             </div>
 
             <div className="bg-surface-container p-3 rounded-2xl border border-surface-container-high shadow-lg">
-              <span className="text-[9px] text-outline uppercase block font-bold">ESTIMATED TOLLS</span>
+              <span className="text-[9px] text-outline uppercase block font-bold">TOLLS</span>
               <div className="flex items-baseline justify-between mt-1">
                 <span className="text-[22px] font-bold text-emerald-400">
-                  ${(tripPlan.estimatedTollCostUsd || 0).toFixed(2)}
+                  {typeof tripPlan.estimatedTollCostUsd === 'number' ? `$${tripPlan.estimatedTollCostUsd.toFixed(2)}` : 'Not reported'}
                 </span>
                 <span className="text-[10px] text-emerald-300">
-                  {tripPlan.tollDistanceMiles ? `${tripPlan.tollDistanceMiles} mi toll` : 'No Tolls'}
+                  {typeof tripPlan.tollDistanceMiles === 'number'
+                    ? tripPlan.tollDistanceMiles > 0
+                      ? `${tripPlan.tollDistanceMiles} mi toll`
+                      : 'No toll roads'
+                    : ''}
                 </span>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { fetchWithRetryOn5xx, maskSecrets } from '../httpUtils';
+import { isHazmatLoad } from './trimbleProvider';
 import {
   BridgeClearanceWarning,
   CommercialVehicleProfile,
@@ -67,14 +68,18 @@ export class TomTomRoutingProvider implements RoutingProvider {
       vehicleNumberOfAxles: v.axles.toString(),
       traffic: 'true',
       instructionsType: 'text',
+      language: 'en-US',
+      // Ask TomTom which stretches are toll roads instead of guessing.
+      sectionType: 'tollRoad',
     });
 
     if (options?.avoidTolls || v.avoidTolls) {
       params.append('avoid', 'tollRoads');
     }
 
-    if (v.isHazmat) {
-      params.append('vehicleLoadType', 'otherHazmat');
+    if (isHazmatLoad(v)) {
+      // Send the specific US hazmat classes so class-specific tunnel/road bans apply.
+      for (const loadType of tomtomLoadTypes(v.hazmatClass)) params.append('vehicleLoadType', loadType);
     }
 
     const url = `https://api.tomtom.com/routing/1/calculateRoute/${locationsPath}/json?${params.toString()}`;
@@ -105,7 +110,7 @@ export class TomTomRoutingProvider implements RoutingProvider {
       legIndex: idx,
       distanceMiles: parseFloat(((leg.summary?.lengthInMeters || 0) / 1609.344).toFixed(1)),
       driveTimeMinutes: Math.round((leg.summary?.travelTimeInSeconds || 0) / 60),
-      tollDistanceMiles: options?.avoidTolls || v.avoidTolls ? 0 : parseFloat((((leg.summary?.lengthInMeters || 0) / 1609.344) * 0.2).toFixed(1)),
+      tollDistanceMiles: null,
     }));
 
     // Extract geometry coordinates
@@ -120,21 +125,27 @@ export class TomTomRoutingProvider implements RoutingProvider {
     }
 
     // Extract turn-by-turn guidance steps
+    // routeOffsetInMeters / travelTimeInSeconds are cumulative from the start of the
+    // route, so each step's length is the difference to the next instruction.
     const turnByTurnSteps: TurnByTurnStep[] = [];
-    if (Array.isArray(route.guidance?.instructions)) {
-      route.guidance.instructions.forEach((inst: any, idx: number) => {
-        turnByTurnSteps.push({
-          stepIndex: idx + 1,
-          instruction: inst.message || `Maneuver ${inst.maneuver || ''}`,
-          distanceMiles: parseFloat(((inst.routeOffsetInMeters || 0) / 1609.344).toFixed(1)),
-          durationMinutes: Math.round((inst.travelTimeInSeconds || 0) / 60),
-          streetName: inst.street,
-        });
+    const instructions: any[] = Array.isArray(route.guidance?.instructions) ? route.guidance.instructions : [];
+    instructions.forEach((inst: any, idx: number) => {
+      const next = instructions[idx + 1];
+      const stepMeters = next ? (next.routeOffsetInMeters || 0) - (inst.routeOffsetInMeters || 0) : 0;
+      const stepSeconds = next ? (next.travelTimeInSeconds || 0) - (inst.travelTimeInSeconds || 0) : 0;
+      turnByTurnSteps.push({
+        stepIndex: idx + 1,
+        instruction: inst.message || `Maneuver ${inst.maneuver || ''}`,
+        distanceMiles: parseFloat((Math.max(0, stepMeters) / 1609.344).toFixed(1)),
+        durationMinutes: Math.round(Math.max(0, stepSeconds) / 60),
+        streetName: inst.street,
       });
-    }
+    });
 
-    const tollDist = options?.avoidTolls || v.avoidTolls ? 0 : parseFloat((totalDistanceMiles * 0.22).toFixed(1));
-    const estimatedTollCost = options?.avoidTolls || v.avoidTolls ? 0 : parseFloat((tollDist * 0.38).toFixed(2));
+    // Toll-road miles from TomTom's tollRoad sections (point index ranges on the route polyline).
+    const tollDist = tollMilesFromSections(route.sections, summaryPathCoords);
+    // TomTom does not price tolls; cost is reported only by PC*MILER.
+    const estimatedTollCost: number | null = null;
 
     return {
       routeId: `rt-tomtom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -211,4 +222,50 @@ export class TomTomRoutingProvider implements RoutingProvider {
       provider: 'tomtom',
     };
   }
+}
+
+
+/** Maps the app's hazmat categories to TomTom vehicleLoadType values (US classes). */
+export function tomtomLoadTypes(hazmatClass?: string): string[] {
+  switch (hazmatClass) {
+    case 'Explosive':
+      return ['USHazmatClass1'];
+    case 'General':
+    case undefined:
+    case 'None':
+      return ['otherHazmat'];
+    case 'Flammable':
+      return ['USHazmatClass3', 'USHazmatClass4'];
+    case 'Inhalant':
+      return ['USHazmatClass2', 'USHazmatClass6'];
+    case 'Radioactive':
+      return ['USHazmatClass7'];
+    case 'Corrosive':
+    case 'Caustic':
+      return ['USHazmatClass8'];
+    default:
+      return ['otherHazmat'];
+  }
+}
+
+function haversineMi(a: [number, number], b: [number, number]): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLon = toRad(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLon / 2) ** 2;
+  return 3958.8 * 2 * Math.asin(Math.sqrt(h));
+}
+
+/** Sums polyline distance across tollRoad sections; null if TomTom returned no section data. */
+export function tollMilesFromSections(sections: any, path: [number, number][]): number | null {
+  if (!Array.isArray(sections)) return null;
+  let miles = 0;
+  for (const sec of sections) {
+    if (sec?.sectionType !== 'TOLL_ROAD' && sec?.sectionType !== 'TOLL_VIGNETTE') continue;
+    const start = Number(sec.startPointIndex);
+    const end = Number(sec.endPointIndex);
+    if (!Number.isInteger(start) || !Number.isInteger(end)) continue;
+    for (let i = Math.max(0, start); i < Math.min(end, path.length - 1); i++) miles += haversineMi(path[i], path[i + 1]);
+  }
+  return parseFloat(miles.toFixed(1));
 }
