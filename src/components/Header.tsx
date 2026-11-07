@@ -91,10 +91,10 @@ export const Header: React.FC<HeaderProps> = ({
             src="/assets/logo.png"
           />
           <div className="flex flex-col min-w-0">
-            <span className="font-label-caps text-[9px] sm:text-label-caps text-primary uppercase leading-tight font-bold tracking-wider truncate max-w-[90px] sm:max-w-none">
+            <span className="font-label-caps text-[9px] sm:text-label-caps text-primary uppercase leading-tight font-bold tracking-wider truncate max-w-[160px] sm:max-w-none">
               TRUCKWITHEASE
             </span>
-            <span className="font-headline-sm text-[11px] sm:text-headline-sm text-on-surface uppercase tracking-wide truncate max-w-[85px] sm:max-w-[240px]">
+            <span className="font-headline-sm text-[11px] sm:text-headline-sm text-on-surface uppercase tracking-wide truncate max-w-[180px] sm:max-w-[240px]">
               {getTabTitle(activeTab)}
             </span>
           </div>
@@ -102,76 +102,20 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Telemetry & Status Badges */}
         <div className="flex items-center gap-space-xs shrink-0">
-          {/* Offline Sync Status Indicator (Phase 4 Guaranteed Persistence) */}
-          <button
-            onClick={() => offlineSyncService.processQueue()}
-            title={
-              !syncState.isOnline
-                ? 'Offline mode: All DVIRs, receipts & detention events saved locally.'
-                : syncState.pendingCount > 0
-                ? `${syncState.pendingCount} records waiting to sync. Click to retry now.`
-                : 'All records synced to server.'
-            }
-            className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-mono font-bold transition-all cursor-pointer ${
-              !syncState.isOnline
-                ? 'bg-amber-950/60 text-amber-300 border-amber-500/50'
-                : syncState.pendingCount > 0
-                ? 'bg-sky-950/60 text-sky-300 border-sky-500/50 animate-pulse'
-                : 'bg-surface-container text-emerald-400 border-surface-container-high'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[13px]">
-              {!syncState.isOnline
-                ? 'cloud_off'
-                : syncState.isSyncing
-                ? 'sync'
-                : syncState.pendingCount > 0
-                ? 'cloud_upload'
-                : 'cloud_done'}
-            </span>
-            <span className="font-bold">
-              {!syncState.isOnline
-                ? syncState.pendingCount > 0 ? `Offline (${syncState.pendingCount})` : 'Offline'
-                : syncState.isSyncing
-                ? `Syncing (${syncState.pendingCount})...`
-                : syncState.pendingCount > 0
-                ? `Waiting to sync (${syncState.pendingCount})`
-                : 'Synced'}
-            </span>
-          </button>
-
-          {/* Driver Alertness Index Pill */}
-          {onOpenAlertnessModal && (
+          {/* Sync status: only shown when something needs attention (offline or waiting to upload). */}
+          {(!syncState.isOnline || syncState.pendingCount > 0) && (
             <button
-              onClick={onOpenAlertnessModal}
-              className={`flex items-center gap-space-2xs px-space-xs py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 ${
-                alertnessScore < 75
-                  ? 'bg-error/20 text-error border-error/50 animate-pulse'
-                  : 'bg-surface-container text-emerald-400 border-surface-container-high'
-              }`}
-              title="Driver Alertness Index & Rest Area Advisory"
+              onClick={() => offlineSyncService.processQueue()}
+              title={!syncState.isOnline ? 'Offline: records are saved on this device.' : `${syncState.pendingCount} records waiting to sync. Tap to retry.`}
+              aria-label={!syncState.isOnline ? 'Offline' : 'Waiting to sync'}
+              className="flex items-center gap-1 px-2 py-1 rounded border border-primary/50 text-primary text-[10px] font-bold cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[14px]">
-                {alertnessScore < 75 ? 'bed' : 'psychology'}
+              <span className="material-symbols-outlined text-[15px]">
+                {!syncState.isOnline ? 'cloud_off' : syncState.isSyncing ? 'sync' : 'cloud_upload'}
               </span>
-              <span className="font-telemetry-label text-telemetry-label font-bold">
-                {alertnessScore}%
-              </span>
+              {syncState.pendingCount > 0 && <span>{syncState.pendingCount}</span>}
             </button>
           )}
-
-          {/* Speed Indicator */}
-          <div
-            className="flex items-center gap-space-2xs bg-surface-container px-space-xs py-1 rounded border border-surface-container-high"
-            title="Current Speed (MPH)"
-          >
-            <span className="material-symbols-outlined text-secondary-fixed-dim text-[14px]">
-              speed
-            </span>
-            <span className="font-telemetry-label text-telemetry-label text-primary-fixed font-bold">
-              {speed}
-            </span>
-          </div>
 
           {/* Voice Control HUD Button */}
           {onToggleVoice && (
@@ -203,32 +147,10 @@ export const Header: React.FC<HeaderProps> = ({
             className="min-h-[40px] min-w-[40px] flex items-center justify-center bg-error-container text-on-error-container active:scale-95 transition-transform rounded cursor-pointer shadow-md hover:bg-error-container/90"
             title="24/7 Roadside Assistance & DOT Hotline"
           >
-            <span className="material-symbols-outlined text-[20px] animate-bounce text-error">
+            <span className="material-symbols-outlined text-[20px] text-error">
               e911_emergency
             </span>
           </button>
-
-          {/* Firebase Auth Login Button */}
-          {onOpenAuthLogin && (
-            <button
-              id="btn-auth-login"
-              aria-label="Fleet Authenticator"
-              onClick={onOpenAuthLogin}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 text-xs font-mono font-bold ${
-                currentUser
-                  ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/50'
-                  : 'bg-[#FFE500] text-black border-[#FFE500] shadow-[0_0_12px_rgba(255,229,0,0.35)]'
-              }`}
-              title="Firebase Driver & Fleet Admin Login"
-            >
-              <span className="material-symbols-outlined text-[15px]">
-                {currentUser ? 'verified_user' : 'lock'}
-              </span>
-              <span className="hidden sm:inline font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
-                {currentUser ? (currentUser.email ? currentUser.email.split('@')[0] : 'AUTHENTICATED') : 'SIGN IN'}
-              </span>
-            </button>
-          )}
 
           {/* Profile Avatar Button */}
           <button

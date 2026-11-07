@@ -35,7 +35,7 @@ export const MinimalistCruisingOverlay: React.FC<MinimalistCruisingOverlayProps>
   return (
     <div className="flex flex-col gap-4 font-mono animate-fade-in">
       {/* JUMBO HEADS-UP COCKPIT GAUGE PANEL */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-black border-2 border-emerald-400/60 shadow-[0_0_30px_rgba(52,211,153,0.15)] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+      <div className="p-6 sm:p-8 rounded-3xl bg-black border-2 border-emerald-400/60 shadow-[0_0_30px_rgba(255,229,0,0.15)] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
         {/* Subtle background radar ring */}
         <div className="absolute -right-16 -top-16 w-64 h-64 border border-emerald-500/10 rounded-full pointer-events-none" />
         <div className="absolute -right-8 -top-8 w-48 h-48 border border-emerald-500/20 rounded-full pointer-events-none" />
@@ -47,7 +47,7 @@ export const MinimalistCruisingOverlay: React.FC<MinimalistCruisingOverlayProps>
               CURRENT VELOCITY
             </span>
             <div className="flex items-baseline gap-1 my-1">
-              <span className="text-[72px] sm:text-[84px] font-black text-white tracking-tighter leading-none drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+              <span className="text-[72px] sm:text-[84px] font-black text-white tracking-tighter leading-none drop-shadow-[0_0_15px_rgba(255,229,0,0.3)]">
                 64
               </span>
               <span className="text-[16px] font-bold text-emerald-400">MPH</span>
@@ -120,7 +120,7 @@ export const MinimalistCruisingOverlay: React.FC<MinimalistCruisingOverlayProps>
           className={`p-3.5 rounded-2xl border flex items-center justify-between transition-all ${
             topHazard
               ? topHazard.severity === 'CRITICAL'
-                ? 'bg-rose-950/70 border-rose-500 cursor-pointer shadow-[0_0_15px_rgba(244,63,94,0.3)] hover:brightness-110'
+                ? 'bg-rose-950/70 border-rose-500 cursor-pointer shadow-[0_0_15px_rgba(255,229,0,0.3)] hover:brightness-110'
                 : 'bg-amber-950/60 border-amber-500 cursor-pointer hover:brightness-110'
               : 'bg-neutral-950 border-neutral-800'
           }`}

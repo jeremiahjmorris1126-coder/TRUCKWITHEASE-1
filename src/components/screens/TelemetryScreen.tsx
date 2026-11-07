@@ -14,7 +14,7 @@ export const TelemetryScreen: React.FC<TelemetryScreenProps> = () => {
 
   return (
     <div className="flex flex-col w-full max-w-2xl mx-auto px-gutter-mobile pb-space-2xl space-y-space-md">
-      <div className="bg-[#0A0F14] p-6 rounded-xl border border-[#1E2532] text-center font-mono text-xs text-slate-400">
+      <div className="bg-black p-6 rounded-xl border border-[#FFE500]/20 text-center font-mono text-xs text-slate-400">
         Telemetry requires an active ELD connection.
       </div>
     </div>

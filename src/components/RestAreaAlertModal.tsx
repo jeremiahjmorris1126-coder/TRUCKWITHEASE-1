@@ -57,7 +57,7 @@ export const RestAreaAlertModal: React.FC<RestAreaAlertModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-space-md bg-slate-950/85 backdrop-blur-md animate-fade-in">
-      <div className="bg-gradient-to-b from-surface-container via-surface-container-high to-surface-container w-full max-w-lg rounded-2xl border-2 border-error/80 shadow-[0_0_40px_rgba(239,68,68,0.4)] p-space-md space-y-space-md text-on-surface relative overflow-hidden select-none">
+      <div className="bg-gradient-to-b from-surface-container via-surface-container-high to-surface-container w-full max-w-lg rounded-2xl border-2 border-error/80 shadow-[0_0_40px_rgba(255,229,0,0.4)] p-space-md space-y-space-md text-on-surface relative overflow-hidden select-none">
         {/* Glow Header Accent */}
         <div className="absolute top-0 inset-x-0 h-2 bg-error animate-pulse" />
 

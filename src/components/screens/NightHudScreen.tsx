@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { HudVisionProfile, DriverAlertnessData, TabId } from '../../types';
-import { ComplianceDocumentArchive } from '../ComplianceDocumentArchive';
 import { authenticatedFetch } from '../../services/firebaseClientAuth';
 
 interface NightHudScreenProps {
@@ -102,7 +101,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                   onClick={() => onVisionProfileChange(mode.id)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
                     active
-                      ? 'bg-primary text-on-primary shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                      ? 'bg-primary text-on-primary shadow-[0_0_12px_rgba(255,229,0,0.4)]'
                       : 'bg-surface-container text-on-surface-variant hover:text-white border border-surface-container-high'
                   }`}
                 >
@@ -116,7 +115,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
       )}
 
       {/* ELD Read-Only HOS Notice */}
-      <div className="bg-[#0A0F14] p-6 rounded-xl border border-[#1E2532] shadow-2xl text-center space-y-3">
+      <div className="bg-black p-6 rounded-xl border border-[#FFE500]/20 shadow-2xl text-center space-y-3">
         <span className="material-symbols-outlined text-[#FFE500] text-[36px]">
           schedule
         </span>
@@ -134,15 +133,9 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
                 verified_user
               </span>
               <h3 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
-                Driver &amp; Equipment Profile (/api/driver/profile)
+                Driver &amp; Equipment
               </h3>
             </div>
-            <button
-              onClick={onExportInspection || onOpenPdfModal}
-              className="px-3 py-1 rounded bg-primary/20 text-primary border border-primary/40 text-[10px] font-mono font-bold uppercase cursor-pointer"
-            >
-              View Summary
-            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
@@ -201,8 +194,7 @@ export const NightHudScreen: React.FC<NightHudScreenProps> = ({
         </div>
       ) : null}
 
-      {/* Full DOT / FMCSA Compliance Document Archive (Hidden in Minimalist or Route Priority mode) */}
-      {!isMinimalist && !isRouteFocused && <ComplianceDocumentArchive onShowToast={onShowToast} />}
+      {/* The DOT document vault lives under Fleet & Vault; it is not repeated on the home screen. */}
     </div>
   );
 };

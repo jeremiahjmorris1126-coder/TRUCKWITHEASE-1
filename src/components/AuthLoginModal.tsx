@@ -117,7 +117,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4">
-      <div className="relative w-full max-w-[360px] sm:max-w-md rounded-2xl bg-[#0A0F14] border border-[#FFE500]/30 p-4 sm:p-6 text-white shadow-[0_0_50px_rgba(255,229,0,0.15)] font-mono">
+      <div className="relative w-full max-w-[360px] sm:max-w-md rounded-2xl bg-black border border-[#FFE500]/30 p-4 sm:p-6 text-white shadow-[0_0_50px_rgba(255,229,0,0.15)] font-mono">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-3 mb-3">
           <div className="flex items-center gap-2.5">
@@ -179,7 +179,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
         ) : (
           /* Login / Sign Up Tabs and Form */
           <div>
-            <div className="flex rounded-xl bg-[#05080E] p-1 border border-gray-800 mb-3.5">
+            <div className="flex rounded-xl bg-black p-1 border border-gray-800 mb-3.5">
               <button
                 type="button"
                 onClick={() => {
@@ -232,7 +232,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="driver@truckwithease.com"
                     required
-                    className="w-full min-h-[42px] rounded-xl bg-[#05080E] border border-gray-800 pl-9 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:border-[#FFE500] focus:outline-none"
+                    className="w-full min-h-[42px] rounded-xl bg-black border border-gray-800 pl-9 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:border-[#FFE500] focus:outline-none"
                   />
                 </div>
               </div>
@@ -249,7 +249,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
                     required
-                    className="w-full min-h-[42px] rounded-xl bg-[#05080E] border border-gray-800 pl-9 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:border-[#FFE500] focus:outline-none"
+                    className="w-full min-h-[42px] rounded-xl bg-black border border-gray-800 pl-9 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:border-[#FFE500] focus:outline-none"
                   />
                 </div>
               </div>
@@ -267,7 +267,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••••••"
                       required
-                      className="w-full min-h-[42px] rounded-xl bg-[#05080E] border border-gray-800 pl-9 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:border-[#FFE500] focus:outline-none"
+                      className="w-full min-h-[42px] rounded-xl bg-black border border-gray-800 pl-9 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:border-[#FFE500] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -277,7 +277,7 @@ export const AuthLoginModal: React.FC<AuthLoginModalProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full min-h-[44px] flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#FFE500] text-black font-black uppercase text-xs tracking-wider shadow-[0_0_20px_rgba(255,229,0,0.35)] hover:bg-[#FFDF00] transition-colors disabled:opacity-50 cursor-pointer"
+                  className="w-full min-h-[44px] flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#FFE500] text-black font-black uppercase text-xs tracking-wider shadow-[0_0_20px_rgba(255,229,0,0.35)] hover:bg-[#FFE500] transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {loading
                     ? mode === 'signup'

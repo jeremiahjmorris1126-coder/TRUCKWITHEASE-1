@@ -17,7 +17,7 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
 
   // New Invoice Form State for Manual/OCR Capture
   const [scanVendor, setScanVendor] = useState<string>('Fleet Equipment & Supplies Direct');
-  const [scanOrderNum, setScanOrderNum] = useState<string>('SUP-904812');
+  const [scanOrderNum, setScanOrderNum] = useState<string>('');
   const [scanCategory, setScanCategory] = useState<InvoiceCategory>('FLEET_MEMBERSHIPS_SUPPLIES');
   const [scanItemDesc, setScanItemDesc] = useState<string>('Commercial Fleet Membership & Delivery Support');
   const [scanAmount, setScanAmount] = useState<number>(99.0);
@@ -61,15 +61,6 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
     });
   }, [invoices, activeCategory, searchQuery]);
 
-  // Open the primary invoice by default if user clicks
-  const openPrimaryInvoice = () => {
-    const primaryInv = invoices.find((inv) => inv.orderNumber === 'SUP-904812');
-    if (primaryInv) {
-      setSelectedInvoice(primaryInv);
-    } else if (invoices.length > 0) {
-      setSelectedInvoice(invoices[0]);
-    }
-  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -152,9 +143,6 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
                 <span className="font-label-caps text-primary uppercase font-bold tracking-wider text-[12px]">
                   FLEET INVOICES &amp; EXPENSE ACCOUNTING
                 </span>
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold border border-emerald-500/30">
-                  TAX DEDUCTIBLE VERIFIED
-                </span>
               </div>
               <p className="text-[11px] text-outline mt-0.5">
                 Centralized invoice ledger for fleet purchases, fuel receipts, vehicle maintenance, and equipment supplies.
@@ -163,26 +151,6 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
           </div>
 
           <div className="flex items-center gap-2 flex-wrap shrink-0">
-            <button
-              onClick={() => setShowFuelLogCard((prev) => !prev)}
-              className={`px-3 py-2 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-md ${
-                showFuelLogCard
-                  ? 'bg-amber-500 text-on-primary ring-2 ring-amber-400/50'
-                  : 'bg-surface-container-high text-amber-400 border border-amber-500/40 hover:bg-surface-container-highest'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">local_gas_station</span>
-              <span>{showFuelLogCard ? 'Fuel & MPG Log Active' : '+ Log Fuel & MPG'}</span>
-            </button>
-
-            <button
-              onClick={openPrimaryInvoice}
-              className="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-bold text-[11px] uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-lg flex items-center gap-1.5 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">receipt</span>
-              <span>View Supply Invoice (#SUP-904812)</span>
-            </button>
-
             <button
               onClick={() => setShowScannerModal(true)}
               className="px-3 py-2 rounded-xl bg-surface-container-high text-primary border border-primary/40 font-bold text-[11px] uppercase tracking-wider hover:bg-surface-container-highest transition-all flex items-center gap-1.5 cursor-pointer"
@@ -215,7 +183,6 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
             <span className="text-[9px] text-outline uppercase block font-bold">TAX DEDUCTIBLE TOTAL</span>
             <div className="flex items-baseline justify-between">
               <span className="text-[20px] font-bold text-emerald-400">${stats.taxDeductibleTotal.toFixed(2)}</span>
-              <span className="text-[9px] text-emerald-400 font-bold">100% AUDIT CLEAR</span>
             </div>
           </div>
 
@@ -287,7 +254,7 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
           </span>
           <input
             type="text"
-            placeholder="Search order number (e.g. SUP-904812), vendor name, bill to, item description..."
+            placeholder="Search invoices"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-surface-container-lowest border border-surface-container-high rounded-xl pl-9 pr-4 py-2 text-[11px] text-on-surface focus:outline-none focus:border-primary"
@@ -302,9 +269,7 @@ export const FleetExpensesInvoiceScreen: React.FC<FleetExpensesInvoiceScreenProp
             key={inv.id}
             onClick={() => setSelectedInvoice(inv)}
             className={`bg-surface-container p-4 rounded-2xl border transition-all cursor-pointer shadow-lg space-y-3 group ${
-              inv.orderNumber === 'SUP-904812'
-                ? 'border-primary/80 ring-2 ring-primary/30 bg-surface-container-high/40'
-                : 'border-surface-container-high hover:border-primary/50'
+              'border-surface-container-high hover:border-primary/50'
             }`}
           >
             <div className="flex items-center justify-between border-b border-surface-container-high pb-2">

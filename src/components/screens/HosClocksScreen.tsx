@@ -123,7 +123,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
   return (
     <div className="flex flex-col w-full max-w-4xl mx-auto px-gutter-mobile pb-space-2xl space-y-space-md">
       {/* Cockpit Header */}
-      <div className="bg-[#0A0F14] p-space-md rounded-xl border border-surface-container-high/60 shadow-xl flex items-center justify-between gap-space-sm">
+      <div className="bg-black p-space-md rounded-xl border border-surface-container-high/60 shadow-xl flex items-center justify-between gap-space-sm">
         <div className="flex items-center gap-space-sm">
           <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/50 flex items-center justify-center text-primary shrink-0 shadow-[0_0_16px_rgba(255,229,0,0.3)]">
             <span className="material-symbols-outlined text-[28px]">schedule</span>
@@ -147,7 +147,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
       </div>
 
       {/* Main Requirement & Coming Soon Notice */}
-      <div className="bg-[#0A0F14] p-8 rounded-xl border border-primary/30 shadow-[0_0_30px_rgba(0,0,0,0.7)] flex flex-col items-center justify-center text-center space-y-6">
+      <div className="bg-black p-8 rounded-xl border border-primary/30 shadow-[0_0_30px_rgba(0,0,0,0.7)] flex flex-col items-center justify-center text-center space-y-6">
         <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/40 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(255,229,0,0.25)]">
           <span className="material-symbols-outlined text-[36px]">sync_alt</span>
         </div>
@@ -162,7 +162,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
         </div>
 
         {/* ELD Connections Coming Soon + Provider Survey Picker */}
-        <div className="w-full max-w-md bg-[#05080E] p-5 rounded-xl border border-surface-container-highest/80 text-left space-y-4">
+        <div className="w-full max-w-md bg-black p-5 rounded-xl border border-surface-container-highest/80 text-left space-y-4">
           <div className="border-b border-surface-container-highest pb-2">
             <span className="text-xs font-black uppercase text-primary tracking-wider flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px]">cable</span>
@@ -209,7 +209,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
                   placeholder="Type ELD provider name..."
                   value={otherProviderName}
                   onChange={(e) => setOtherProviderName(e.target.value)}
-                  className="w-full bg-[#0A0F14] border border-primary/50 text-on-surface font-sans px-3 py-2 rounded-lg text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  className="w-full bg-black border border-primary/50 text-on-surface font-sans px-3 py-2 rounded-lg text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
             )}
@@ -228,7 +228,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
             </button>
 
             {isSaved && (
-              <span className="text-[11px] font-mono text-[#10B981] flex items-center gap-1 font-bold">
+              <span className="text-[11px] font-mono text-[#FFE500] flex items-center gap-1 font-bold">
                 <span className="material-symbols-outlined text-[16px]">check_circle</span>
                 Saved: {savedProviderLabel}
               </span>
@@ -237,7 +237,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
         </div>
 
         {/* Order GPSTab directly from GPSTab's store */}
-        <div className="w-full max-w-md bg-[#05080E] p-5 rounded-xl border border-primary/40 text-left space-y-3">
+        <div className="w-full max-w-md bg-black p-5 rounded-xl border border-primary/40 text-left space-y-3">
           <span className="text-xs font-black uppercase text-primary tracking-wider flex items-center gap-1.5">
             <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
             Need an ELD? Order GPSTab

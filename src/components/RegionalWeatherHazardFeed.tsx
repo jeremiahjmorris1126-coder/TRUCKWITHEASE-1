@@ -400,7 +400,7 @@ export const RegionalWeatherHazardFeed: React.FC<RegionalWeatherHazardFeedProps>
                 key={hazard.id}
                 className={`rounded-xl border transition-all ${
                   hazard.severity === 'CRITICAL'
-                    ? 'bg-neutral-950/90 border-rose-500/80 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
+                    ? 'bg-neutral-950/90 border-rose-500/80 shadow-[0_0_15px_rgba(255,229,0,0.15)]'
                     : hazard.severity === 'WARNING'
                     ? 'bg-neutral-950/80 border-amber-500/80'
                     : 'bg-surface-container-low border-surface-container-highest'

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/apiClient';
-import { clientAuth } from '../services/firebaseClientAuth';
+import { clientAuth, signOut } from '../services/firebaseClientAuth';
 
 interface DriverProfileModalProps {
   isOpen: boolean;
@@ -288,12 +288,23 @@ export const DriverProfileModal: React.FC<DriverProfileModalProps> = ({
           </form>
         )}
 
-        <button
-          onClick={onClose}
-          className="w-full py-2 bg-surface-container-low hover:bg-surface-container-high text-on-surface font-label-caps text-[11px] uppercase font-bold rounded-lg cursor-pointer transition-all"
-        >
-          Close
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 bg-surface-container-low hover:bg-surface-container-high text-on-surface font-label-caps text-[11px] uppercase font-bold rounded-lg cursor-pointer transition-all"
+          >
+            Close
+          </button>
+          <button
+            onClick={() => {
+              onClose();
+              signOut(clientAuth).catch(() => {});
+            }}
+            className="flex-1 py-2 border border-primary/40 text-primary font-label-caps text-[11px] uppercase font-bold rounded-lg cursor-pointer"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
     </div>
   );

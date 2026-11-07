@@ -404,17 +404,6 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={requestGpsSync}
-            disabled={isLocating}
-            className="px-3 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest border border-primary/30 text-primary font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <span className={`material-symbols-outlined text-[16px] ${isLocating ? 'animate-spin' : ''}`}>
-              {isLocating ? 'autorenew' : 'my_location'}
-            </span>
-            <span>{isLocating ? 'Locating...' : 'Sync GPS'}</span>
-          </button>
-
           {hasActiveRoute && (
             <button
               onClick={handleResetTrip}

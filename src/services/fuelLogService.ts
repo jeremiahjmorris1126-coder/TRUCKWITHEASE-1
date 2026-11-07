@@ -179,7 +179,7 @@ class FuelLogService {
 
   public getAverageFleetMpg(): number {
     const valid = this.logs.filter((l) => (l.mpg ?? 0) > 0);
-    if (valid.length === 0) return 6.8;
+    if (valid.length === 0) return 0; // no fill-ups yet: no average (was a hardcoded 6.8)
     const sum = valid.reduce((acc, l) => acc + (l.mpg ?? 0), 0);
     return Number((sum / valid.length).toFixed(2));
   }

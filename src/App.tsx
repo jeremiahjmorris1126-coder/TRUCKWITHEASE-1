@@ -484,16 +484,13 @@ export default function App() {
       />
 
       {/* Main Content Area (Adjusted for Side Commands Console) */}
-      <main className="lg:pl-72 pt-20 pb-20 min-h-screen w-full transition-all">
-        <div
-          role="status"
-          className="mx-4 mb-4 rounded-lg border border-amber-500/60 bg-[#0A0F14] px-4 py-3 text-sm font-semibold text-amber-300"
-        >
-          Demo data may be shown. Vehicle hardware connections and external regulatory feeds are not connected unless explicitly configured. Do not use this app as an official ELD or safety authority.
-        </div>
+      <main className="lg:pl-72 pt-20 pb-40 min-h-screen w-full transition-all">
+        <p role="note" className="mx-4 mb-3 text-[11px] text-on-surface-variant">
+          Not an ELD or safety authority. Some screens show sample data until your services are connected.
+        </p>
         <Suspense
           fallback={
-            <div className="flex min-h-[50vh] items-center justify-center bg-[#05080E] font-mono text-sm font-bold uppercase tracking-widest text-[#FFE500]">
+            <div className="flex min-h-[50vh] items-center justify-center bg-black font-mono text-sm font-bold uppercase tracking-widest text-[#FFE500]">
               Loading cockpit module…
             </div>
           }

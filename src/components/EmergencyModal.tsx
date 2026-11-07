@@ -49,7 +49,7 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-surface-container border-2 border-error/60 rounded-xl shadow-[0_0_40px_rgba(239,68,68,0.3)] overflow-hidden"
+        className="w-full max-w-md bg-surface-container border-2 border-error/60 rounded-xl shadow-[0_0_40px_rgba(255,229,0,0.3)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}

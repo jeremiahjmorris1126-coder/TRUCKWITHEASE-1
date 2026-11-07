@@ -147,7 +147,7 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-5 overflow-y-auto space-y-5 bg-[#0e131d] text-slate-200 font-mono text-xs">
+        <div className="p-5 overflow-y-auto space-y-5 bg-black text-slate-200 font-mono text-xs">
           {!driverProfile ? (
             <div className="p-6 rounded-lg bg-surface-container-lowest border border-slate-700 text-center text-slate-400">
               Sign in to view your driver profile from /api/driver/profile.

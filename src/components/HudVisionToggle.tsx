@@ -27,7 +27,7 @@ export const VISION_PROFILES: ProfileMetadata[] = [
     desc: 'Deep jet blacks, neon amber accents & max legible contrast for direct sunlight glare or dense night fog.',
     accentColor: 'text-amber-400',
     borderColor: 'border-amber-400',
-    activeBg: 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.3)]',
+    activeBg: 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-[0_0_12px_rgba(255,229,0,0.3)]',
   },
   {
     id: 'MINIMALIST',
@@ -37,7 +37,7 @@ export const VISION_PROFILES: ProfileMetadata[] = [
     desc: 'Distraction-free heads-up display. Jumbo speedometer, drive clock countdown & essential safety alerts.',
     accentColor: 'text-emerald-400',
     borderColor: 'border-emerald-400',
-    activeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.3)]',
+    activeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400 shadow-[0_0_12px_rgba(255,229,0,0.3)]',
   },
   {
     id: 'ROUTE_FOCUSED',
@@ -47,7 +47,7 @@ export const VISION_PROFILES: ProfileMetadata[] = [
     desc: 'Prioritizes highway corridor, upcoming weigh bypasses, real-time severe weather radar & diesel stops.',
     accentColor: 'text-sky-400',
     borderColor: 'border-sky-400',
-    activeBg: 'bg-sky-500/20 text-sky-300 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.3)]',
+    activeBg: 'bg-sky-500/20 text-sky-300 border-sky-400 shadow-[0_0_12px_rgba(255,229,0,0.3)]',
   },
 ];
 
@@ -68,7 +68,7 @@ export const HudVisionToggle: React.FC<HudVisionToggleProps> = ({
     <div
       className={`rounded-2xl border transition-all duration-300 font-mono ${
         currentProfile === 'HIGH_CONTRAST'
-          ? 'bg-black/95 border-amber-400/80 shadow-[0_0_16px_rgba(245,158,11,0.25)]'
+          ? 'bg-black/95 border-amber-400/80 shadow-[0_0_16px_rgba(255,229,0,0.25)]'
           : currentProfile === 'MINIMALIST'
           ? 'bg-surface-container-lowest border-emerald-500/40 shadow-md'
           : 'bg-surface-container-low border-sky-500/40 shadow-md'

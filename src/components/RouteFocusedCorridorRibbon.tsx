@@ -30,9 +30,9 @@ export const RouteFocusedCorridorRibbon: React.FC<RouteFocusedCorridorRibbonProp
   const primaryHazard = activeHazards[0];
 
   return (
-    <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0A0F14] border-2 border-[#1E2532] shadow-[0_0_30px_rgba(0,0,0,0.85)] font-mono space-y-3 animate-fade-in select-none">
+    <div className="p-3.5 sm:p-4 rounded-2xl bg-black border-2 border-[#FFE500]/20 shadow-[0_0_30px_rgba(0,0,0,0.85)] font-mono space-y-3 animate-fade-in select-none">
       {/* HEADER: ACTIVE HIGHWAY CORRIDOR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1E2532] pb-2.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#FFE500]/20 pb-2.5">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-[#FFE500]/15 border border-[#FFE500]/40 text-[#FFE500] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-[20px]">alt_route</span>
@@ -67,7 +67,7 @@ export const RouteFocusedCorridorRibbon: React.FC<RouteFocusedCorridorRibbonProp
       {/* 4 HIGHWAY TELEMETRY CARDS (Obsidian & Tactical Yellow) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
         {/* Card 1: Next Scale */}
-        <div className="p-2.5 rounded-xl bg-[#05080E] border border-[#1E2532] space-y-1">
+        <div className="p-2.5 rounded-xl bg-black border border-[#FFE500]/20 space-y-1">
           <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase font-bold">
             <span>Next Scale</span>
             <span className="text-emerald-400 font-bold">BYPASS</span>
@@ -77,7 +77,7 @@ export const RouteFocusedCorridorRibbon: React.FC<RouteFocusedCorridorRibbonProp
         </div>
 
         {/* Card 2: Next Diesel Stop */}
-        <div className="p-2.5 rounded-xl bg-[#05080E] border border-[#1E2532] space-y-1">
+        <div className="p-2.5 rounded-xl bg-black border border-[#FFE500]/20 space-y-1">
           <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase font-bold">
             <span>Cheapest Diesel</span>
             <span className="text-[#FFE500] font-bold">$3.89</span>
@@ -87,7 +87,7 @@ export const RouteFocusedCorridorRibbon: React.FC<RouteFocusedCorridorRibbonProp
         </div>
 
         {/* Card 3: Next Rest & Parking */}
-        <div className="p-2.5 rounded-xl bg-[#05080E] border border-[#1E2532] space-y-1">
+        <div className="p-2.5 rounded-xl bg-black border border-[#FFE500]/20 space-y-1">
           <div className="flex items-center justify-between text-[9px] text-slate-400 uppercase font-bold">
             <span>Truck Parking</span>
             <span className="text-emerald-400 font-bold">28 OPEN</span>
@@ -102,9 +102,9 @@ export const RouteFocusedCorridorRibbon: React.FC<RouteFocusedCorridorRibbonProp
           className={`p-2.5 rounded-xl border space-y-1 transition-all ${
             primaryHazard
               ? primaryHazard.severity === 'CRITICAL'
-                ? 'bg-rose-950/70 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)] cursor-pointer hover:brightness-110'
+                ? 'bg-rose-950/70 border-rose-500 shadow-[0_0_15px_rgba(255,229,0,0.3)] cursor-pointer hover:brightness-110'
                 : 'bg-amber-950/60 border-amber-500 cursor-pointer hover:brightness-110'
-              : 'bg-[#05080E] border-[#1E2532]'
+              : 'bg-black border-[#FFE500]/20'
           }`}
           title={primaryHazard ? 'Click to inspect Regional Weather Hazards' : undefined}
         >

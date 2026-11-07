@@ -48,7 +48,7 @@ export const WeighBypassScreen: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full max-w-3xl mx-auto px-gutter-mobile pb-space-2xl space-y-4">
-      <div className="bg-[#0A0F14] p-5 rounded-xl border border-surface-container-high/60 flex items-center gap-3">
+      <div className="bg-black p-5 rounded-xl border border-surface-container-high/60 flex items-center gap-3">
         <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/50 flex items-center justify-center text-primary shrink-0">
           <span className="material-symbols-outlined text-[28px]">scale</span>
         </div>
@@ -68,7 +68,7 @@ export const WeighBypassScreen: React.FC = () => {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {programs.map((p) => (
-          <div key={p.id} className="bg-[#05080E] p-5 rounded-xl border border-primary/40 flex flex-col gap-3">
+          <div key={p.id} className="bg-black p-5 rounded-xl border border-primary/40 flex flex-col gap-3">
             <span className="text-sm font-black uppercase text-primary tracking-wider">{p.name}</span>
             <p className="text-[12px] text-on-surface leading-relaxed">{p.summary}</p>
             <p className="text-[11px] text-on-surface-variant leading-relaxed">{p.howToUse}</p>

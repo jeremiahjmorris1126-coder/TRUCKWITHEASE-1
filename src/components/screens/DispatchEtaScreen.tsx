@@ -74,7 +74,7 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
         {/* Header */}
         <div className="flex items-center justify-between pt-1 pb-1">
           <div>
-            <h1 className="font-['Space_Grotesk'] text-2xl sm:text-3xl font-black text-white tracking-wider uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+            <h1 className="font-['Space_Grotesk'] text-2xl sm:text-3xl font-black text-white tracking-wider uppercase drop-shadow-[0_0_15px_rgba(255,229,0,0.2)]">
               DISPATCH LOADS
             </h1>
             <p className="text-sm font-medium text-slate-300 tracking-wide mt-1">
@@ -93,7 +93,7 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
 
         {/* Loading State */}
         {isLoadingLoads && (
-          <div className="bg-[#0A0F14] p-8 rounded-2xl border border-[#1E2532] text-center space-y-3 font-mono">
+          <div className="bg-black p-8 rounded-2xl border border-[#FFE500]/20 text-center space-y-3 font-mono">
             <span className="material-symbols-outlined text-[#FFE500] text-[36px] animate-spin">
               progress_activity
             </span>
@@ -122,7 +122,7 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
 
         {/* Empty State */}
         {!isLoadingLoads && !loadsError && realLoads.length === 0 && (
-          <div className="bg-[#0A0F14] p-8 rounded-2xl border border-[#1E2532] text-center space-y-2 font-mono">
+          <div className="bg-black p-8 rounded-2xl border border-[#FFE500]/20 text-center space-y-2 font-mono">
             <span className="material-symbols-outlined text-slate-500 text-[40px]">
               local_shipping
             </span>
@@ -151,12 +151,12 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
               return (
                 <div
                   key={load.id}
-                  className="bg-[#0A0F14] p-4 rounded-2xl border border-[#1E2532] shadow-xl space-y-3 relative overflow-hidden font-mono"
+                  className="bg-black p-4 rounded-2xl border border-[#FFE500]/20 shadow-xl space-y-3 relative overflow-hidden font-mono"
                 >
                   {/* Top Row: Load #, Server-Verified Badge (only if verified by server), & Status */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[#F59E0B] tracking-wider uppercase">
+                      <span className="text-xs font-bold text-[#FFE500] tracking-wider uppercase">
                         LOAD #{load.loadNumber}
                       </span>
                       {load.equipmentType && (
@@ -165,7 +165,7 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
                         </span>
                       )}
                       {isServerVerified && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FFE500]/20 text-[#FFE500] border border-[#FFE500]/40">
                           VERIFIED
                         </span>
                       )}
@@ -193,7 +193,7 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
                   </div>
 
                   {/* Pickup & Delivery Addresses */}
-                  <div className="p-3 rounded-xl bg-[#05080E] border border-[#1E2532] space-y-2 text-xs">
+                  <div className="p-3 rounded-xl bg-black border border-[#FFE500]/20 space-y-2 text-xs">
                     <div>
                       <div className="flex items-center gap-1.5 text-white font-bold">
                         <span className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -207,7 +207,7 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
                       )}
                     </div>
 
-                    <div className="border-t border-[#1E2532] pt-2">
+                    <div className="border-t border-[#FFE500]/20 pt-2">
                       <div className="flex items-center gap-1.5 text-white font-bold">
                         <span className="w-2 h-2 rounded-full bg-amber-400" />
                         <span>DELIVERY: {load.deliveryFacilityName || load.destination}</span>
@@ -244,7 +244,7 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
                       <button
                         onClick={() => handleUpdateLoadStatus(load.id, 'IN_TRANSIT')}
                         disabled={isUpdating}
-                        className="w-full py-3 px-4 rounded-xl font-['Space_Grotesk'] font-bold text-xs uppercase tracking-wider bg-emerald-500 text-black hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(16,185,129,0.3)] disabled:opacity-50"
+                        className="w-full py-3 px-4 rounded-xl font-['Space_Grotesk'] font-bold text-xs uppercase tracking-wider bg-emerald-500 text-black hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(255,229,0,0.3)] disabled:opacity-50"
                       >
                         <span className="material-symbols-outlined text-[18px]">navigation</span>
                         <span>{isUpdating ? 'Updating...' : 'Start Trip (Mark In-Transit)'}</span>
@@ -255,7 +255,7 @@ export const DispatchEtaScreen: React.FC<DispatchEtaProps> = ({ onShowToast }) =
                       <button
                         onClick={() => handleUpdateLoadStatus(load.id, 'COMPLETED')}
                         disabled={isUpdating}
-                        className="w-full py-3 px-4 rounded-xl font-['Space_Grotesk'] font-bold text-xs uppercase tracking-wider bg-purple-500 text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(168,85,247,0.3)] disabled:opacity-50"
+                        className="w-full py-3 px-4 rounded-xl font-['Space_Grotesk'] font-bold text-xs uppercase tracking-wider bg-purple-500 text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(255,229,0,0.3)] disabled:opacity-50"
                       >
                         <span className="material-symbols-outlined text-[18px]">task_alt</span>
                         <span>{isUpdating ? 'Updating...' : 'Complete Delivery'}</span>

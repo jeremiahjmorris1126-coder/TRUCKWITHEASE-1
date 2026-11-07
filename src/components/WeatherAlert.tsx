@@ -54,29 +54,29 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
   const isSevere = alert?.type === 'SEVERE';
   const isWind = alert?.type === 'WIND';
 
-  let containerBg = 'bg-[#1b1912]';
-  let borderColor = 'border-[#e5a91e]/50';
-  let accentColor = 'text-[#e5a91e]';
-  let badgeBg = 'bg-[#e5a91e]/15 text-[#e5a91e] border-[#e5a91e]/40';
+  let containerBg = 'bg-black';
+  let borderColor = 'border-[#FFE500]/50';
+  let accentColor = 'text-[#FFE500]';
+  let badgeBg = 'bg-[#FFE500]/15 text-[#FFE500] border-[#FFE500]/40';
   let mainIcon = 'air';
 
   if (isFog) {
-    containerBg = 'bg-[#260e12]';
-    borderColor = 'border-[#ef4444]/60';
-    accentColor = 'text-[#ef4444]';
-    badgeBg = 'bg-[#ef4444]/20 text-[#fca5a5] border-[#ef4444]/40';
+    containerBg = 'bg-black';
+    borderColor = 'border-[#FFE500]/60';
+    accentColor = 'text-[#FFE500]';
+    badgeBg = 'bg-[#FFE500]/20 text-[#FFE500] border-[#FFE500]/40';
     mainIcon = 'foggy';
   } else if (isSevere) {
-    containerBg = 'bg-[#291307]';
-    borderColor = 'border-[#f97316]/60';
-    accentColor = 'text-[#f97316]';
-    badgeBg = 'bg-[#f97316]/20 text-[#fdba74] border-[#f97316]/40';
+    containerBg = 'bg-black';
+    borderColor = 'border-[#FFE500]/60';
+    accentColor = 'text-[#FFE500]';
+    badgeBg = 'bg-[#FFE500]/20 text-[#FFE500] border-[#FFE500]/40';
     mainIcon = 'ac_unit';
   } else if (isWind) {
-    containerBg = 'bg-[#1f1a07]';
-    borderColor = 'border-[#eab308]/70';
-    accentColor = 'text-[#facc15]';
-    badgeBg = 'bg-[#eab308]/20 text-[#fde047] border-[#eab308]/40';
+    containerBg = 'bg-black';
+    borderColor = 'border-[#FFE500]/70';
+    accentColor = 'text-[#FFE500]';
+    badgeBg = 'bg-[#FFE500]/20 text-[#FFE500] border-[#FFE500]/40';
     mainIcon = 'air';
   }
 
@@ -178,7 +178,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
               </div>
 
               {/* Advisory message */}
-              <p className="font-body-sm text-[13px] leading-relaxed text-on-surface font-medium border-l-2 pl-3 border-current" style={{ borderColor: isFog || isSevere ? '#ef4444' : '#e5a91e' }}>
+              <p className="font-body-sm text-[13px] leading-relaxed text-on-surface font-medium border-l-2 pl-3 border-current" style={{ borderColor: '#FFE500' }}>
                 {alert.message}
               </p>
 
@@ -322,7 +322,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
                   setIsDismissed(false);
                   onShowToast?.('TRIGGERED HIGH-WIND ADVISORY SIMULATION (42 MPH)');
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#2a220b] border border-[#eab308]/40 text-yellow-300 hover:border-yellow-300 font-mono text-[10px] transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-black border border-[#FFE500]/40 text-yellow-300 hover:border-yellow-300 font-mono text-[10px] transition-colors"
               >
                 <span className="material-symbols-outlined text-[14px]">air</span>
                 Simulate High Wind (42 MPH)
@@ -334,7 +334,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
                   setIsDismissed(false);
                   onShowToast?.('TRIGGERED ZERO-VISIBILITY TULE FOG SIMULATION');
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#280c10] border border-[#ef4444]/40 text-red-300 hover:border-red-300 font-mono text-[10px] transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-black border border-[#FFE500]/40 text-red-300 hover:border-red-300 font-mono text-[10px] transition-colors"
               >
                 <span className="material-symbols-outlined text-[14px]">foggy</span>
                 Simulate Dense Fog (0.3 mi)
@@ -346,7 +346,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
                   setIsDismissed(false);
                   onShowToast?.('TRIGGERED BLACK ICE ROAD ADVISORY');
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#2e1305] border border-[#f97316]/40 text-orange-300 hover:border-orange-300 font-mono text-[10px] transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-black border border-[#FFE500]/40 text-orange-300 hover:border-orange-300 font-mono text-[10px] transition-colors"
               >
                 <span className="material-symbols-outlined text-[14px]">ac_unit</span>
                 Simulate Black Ice (29°F)

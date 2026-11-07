@@ -101,7 +101,7 @@ export const TruckParkingScreen: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full max-w-3xl mx-auto px-gutter-mobile pb-space-2xl space-y-4">
-      <div className="bg-[#0A0F14] p-5 rounded-xl border border-surface-container-high/60 flex items-center justify-between gap-3">
+      <div className="bg-black p-5 rounded-xl border border-surface-container-high/60 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/50 flex items-center justify-center text-primary shrink-0">
             <span className="material-symbols-outlined text-[28px]">local_parking</span>
@@ -135,7 +135,7 @@ export const TruckParkingScreen: React.FC = () => {
       )}
 
       {state === 'ready' && !configured && (
-        <div className="bg-[#05080E] border border-surface-container-highest rounded-xl p-5 text-[12px] text-on-surface-variant leading-relaxed">
+        <div className="bg-black border border-surface-container-highest rounded-xl p-5 text-[12px] text-on-surface-variant leading-relaxed">
           Real-time truck parking isn&apos;t connected yet. When it is, open-space counts appear here for rest areas
           in states that publish them.
         </div>
@@ -155,7 +155,7 @@ export const TruckParkingScreen: React.FC = () => {
         {sites.map((s) => {
           const badge = availabilityBadge(s);
           return (
-            <div key={s.siteId} className="bg-[#05080E] p-4 rounded-xl border border-surface-container-highest flex items-start justify-between gap-3">
+            <div key={s.siteId} className="bg-black p-4 rounded-xl border border-surface-container-highest flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <span className="block text-[13px] font-bold text-on-surface truncate">{s.name}</span>
                 <span className="block text-[11px] font-mono text-on-surface-variant">

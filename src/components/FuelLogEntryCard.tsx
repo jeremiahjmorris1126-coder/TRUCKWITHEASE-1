@@ -8,12 +8,14 @@ interface FuelLogEntryCardProps {
 
 export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast, className = '' }) => {
   const [logs, setLogs] = useState<FuelLogEntry[]>([]);
-  const [gallons, setGallons] = useState<number>(95);
-  const [pricePerGallon, setPricePerGallon] = useState<number>(3.89);
-  const [currentOdometer, setCurrentOdometer] = useState<number>(143840);
-  const [previousOdometer, setPreviousOdometer] = useState<number>(143180);
-  const [isEditingPrevOdo, setIsEditingPrevOdo] = useState<boolean>(false);
-  const [stationName, setStationName] = useState<string>("Love's Travel Stop #402 (I-44 MM 184)");
+  // Fields start empty: the driver enters real numbers; nothing is pre-filled or guessed.
+  const [gallons, setGallons] = useState<number>(0);
+  const [pricePerGallon, setPricePerGallon] = useState<number>(0);
+  const [currentOdometer, setCurrentOdometer] = useState<number>(0);
+  const [previousOdometer, setPreviousOdometer] = useState<number>(0);
+  // With no earlier fill-up on record, the previous odometer must be typed in.
+  const [isEditingPrevOdo, setIsEditingPrevOdo] = useState<boolean>(true);
+  const [stationName, setStationName] = useState<string>('');
   const [fuelType, setFuelType] = useState<'DIESEL' | 'DEF' | 'REEFER'>('DIESEL');
   const [showRecentLogs, setShowRecentLogs] = useState<boolean>(false);
 
@@ -24,8 +26,7 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
       if (updatedLogs.length > 0) {
         const latest = updatedLogs[0];
         setPreviousOdometer(latest.currentOdometer);
-        // Default current odometer to previous + standard single-shift distance (~650 miles)
-        setCurrentOdometer((prev) => (prev <= latest.currentOdometer ? latest.currentOdometer + 660 : prev));
+        setIsEditingPrevOdo(false);
       }
     });
     return () => unsubscribe();
@@ -45,6 +46,11 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
 
     if (gallons <= 0) {
       onShowToast('PLEASE ENTER A VALID FUEL QUANTITY (GALLONS)', 'warning');
+      return;
+    }
+
+    if (previousOdometer <= 0) {
+      onShowToast('ENTER YOUR ODOMETER AT THE LAST FILL-UP', 'warning');
       return;
     }
 
@@ -68,16 +74,15 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
 
       // Update baseline for next fill-up
       setPreviousOdometer(entry.currentOdometer);
-      setCurrentOdometer(entry.currentOdometer + 650);
+      setCurrentOdometer(0);
+      setGallons(0);
       setIsEditingPrevOdo(false);
     } catch (err) {
       onShowToast('FAILED TO RECORD FUEL LOG', 'error');
     }
   };
 
-  const handlePresetGallons = (amount: number) => {
-    setGallons(amount);
-  };
+
 
   return (
     <div className={`bg-surface-container rounded-2xl border border-amber-500/40 shadow-2xl p-4 sm:p-5 font-mono space-y-4 ${className}`}>
@@ -103,10 +108,12 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-center">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-low border border-surface-container-high text-[10px]">
-            <span className="text-outline">Fleet Average:</span>
-            <span className="text-emerald-400 font-bold">{avgFleetMpg} MPG</span>
-          </div>
+          {logs.some((l) => (l.mpg ?? 0) > 0) && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-low border border-surface-container-high text-[10px]">
+              <span className="text-outline">Your average:</span>
+              <span className="text-emerald-400 font-bold">{avgFleetMpg} MPG</span>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => setShowRecentLogs(!showRecentLogs)}
@@ -129,52 +136,7 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
                 <span className="material-symbols-outlined text-[16px]">oil_barrel</span>
                 <span>Fuel Quantity (Gallons)</span>
               </label>
-              <div className="flex items-center gap-1 text-[10px]">
-                <button
-                  type="button"
-                  onClick={() => handlePresetGallons(50)}
-                  className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
-                    gallons === 50
-                      ? 'bg-amber-500 text-on-primary font-bold'
-                      : 'bg-surface-container-high text-outline hover:text-white'
-                  }`}
-                >
-                  50 Gal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePresetGallons(95)}
-                  className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
-                    gallons === 95
-                      ? 'bg-amber-500 text-on-primary font-bold'
-                      : 'bg-surface-container-high text-outline hover:text-white'
-                  }`}
-                >
-                  95 Gal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePresetGallons(120)}
-                  className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
-                    gallons === 120
-                      ? 'bg-amber-500 text-on-primary font-bold'
-                      : 'bg-surface-container-high text-outline hover:text-white'
-                  }`}
-                >
-                  120 Gal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePresetGallons(150)}
-                  className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
-                    gallons === 150
-                      ? 'bg-amber-500 text-on-primary font-bold'
-                      : 'bg-surface-container-high text-outline hover:text-white'
-                  }`}
-                >
-                  150 Gal
-                </button>
-              </div>
+
             </div>
 
             <div className="flex items-center gap-2">
@@ -237,7 +199,7 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
                   max="10.00"
                   value={pricePerGallon || ''}
                   onChange={(e) => setPricePerGallon(parseFloat(e.target.value) || 0)}
-                  placeholder="3.89"
+                  placeholder="0.00"
                   className="w-full bg-surface-container-lowest border border-surface-container-high rounded-xl pl-7 pr-3 py-2 text-[14px] text-white font-bold focus:outline-none focus:border-amber-500"
                   required
                 />
@@ -273,7 +235,7 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
                   min={previousOdometer}
                   value={currentOdometer || ''}
                   onChange={(e) => setCurrentOdometer(parseInt(e.target.value, 10) || 0)}
-                  placeholder="e.g. 143840"
+                  placeholder="Odometer now"
                   className="w-full bg-surface-container-lowest border border-surface-container-high rounded-xl px-3 py-2 text-[14px] text-white font-bold focus:outline-none focus:border-amber-500"
                   required
                 />
@@ -282,25 +244,7 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
                 </span>
               </div>
 
-              {/* Quick +500 / +650 Odometer Increment Helpers */}
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setCurrentOdometer(previousOdometer + 550)}
-                  className="px-2 py-2 rounded-lg bg-surface-container-lowest hover:bg-surface-container-high border border-surface-container-high text-[10px] font-bold text-outline hover:text-white cursor-pointer transition-all"
-                  title="Set to Previous + 550 miles"
-                >
-                  +550 mi
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentOdometer(previousOdometer + 650)}
-                  className="px-2 py-2 rounded-lg bg-surface-container-lowest hover:bg-surface-container-high border border-surface-container-high text-[10px] font-bold text-outline hover:text-white cursor-pointer transition-all"
-                  title="Set to Previous + 650 miles"
-                >
-                  +650 mi
-                </button>
-              </div>
+
             </div>
 
             {/* Previous Odometer Info & Edit Option */}
@@ -336,7 +280,7 @@ export const FuelLogEntryCard: React.FC<FuelLogEntryCardProps> = ({ onShowToast,
               value={stationName}
               onChange={(e) => setStationName(e.target.value)}
               className="w-full bg-surface-container-lowest border border-surface-container-high rounded-lg px-2 py-1 text-white text-[11px]"
-              placeholder="e.g. Love's #402, Pilot #118, TA Express"
+              placeholder="Optional"
             />
           </div>
 

@@ -175,7 +175,7 @@ export const TripPlannerHudOverlay: React.FC<TripPlannerHudOverlayProps> = ({
               <div className="pt-1 border-t border-surface-container-high/40 text-[10px] flex items-center justify-between">
                 {wp.category === 'FUEL_STATION' && (
                   <>
-                    <div className="flex items-center gap-2 text-[#00E676] font-bold">
+                    <div className="flex items-center gap-2 text-[#FFE500] font-bold">
                       <span>Diesel: ${wp.dieselPricePerGal?.toFixed(3)}/gal</span>
                       {wp.defAvailable && <span className="text-[8px] px-1 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">DEF</span>}
                     </div>

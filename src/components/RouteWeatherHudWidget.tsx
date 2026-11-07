@@ -463,8 +463,8 @@ export const RouteWeatherHudWidget: React.FC<RouteWeatherHudWidgetProps> = ({ on
                   const isExpanded = expandedAlertId === alertItem.id;
 
                   const containerClass = isCritical
-                    ? 'bg-[#280c10] border-red-500/60 shadow-[0_4px_24px_rgba(239,68,68,0.2)]'
-                    : 'bg-[#261805] border-amber-500/60 shadow-[0_4px_24px_rgba(245,158,11,0.15)]';
+                    ? 'bg-black border-red-500/60 shadow-[0_4px_24px_rgba(255,229,0,0.2)]'
+                    : 'bg-black border-amber-500/60 shadow-[0_4px_24px_rgba(255,229,0,0.15)]';
 
                   const badgeClass = isCritical
                     ? 'bg-red-500/20 text-red-300 border-red-500/40'

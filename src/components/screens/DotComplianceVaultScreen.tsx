@@ -65,7 +65,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
   return (
     <div className="flex flex-col w-full max-w-5xl mx-auto px-gutter-mobile pb-space-2xl space-y-space-md animate-fade-in">
       {/* Top Banner: DOT & FMCSA Compliance Vault */}
-      <div className="bg-gradient-to-r from-[#0A0F18] via-[#0F172A] to-[#0A0F18] p-5 rounded-2xl border-2 border-[#FFE500]/60 shadow-[0_0_30px_rgba(255,229,0,0.15)] flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono">
+      <div className="bg-gradient-to-r from-black via-black to-black p-5 rounded-2xl border-2 border-[#FFE500]/60 shadow-[0_0_30px_rgba(255,229,0,0.15)] flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono">
         <div className="flex items-start sm:items-center gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-[#FFE500] text-black flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(255,229,0,0.4)]">
             <span className="material-symbols-outlined text-[28px] font-black">
@@ -97,7 +97,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
       </div>
 
       {/* Sub-Navigation Selector */}
-      <div className="bg-[#0A0F14] p-1.5 rounded-2xl border border-[#1E2532] shadow-xl grid grid-cols-3 gap-1.5 font-mono">
+      <div className="bg-black p-1.5 rounded-2xl border border-[#FFE500]/20 shadow-xl grid grid-cols-3 gap-1.5 font-mono">
         <button
           onClick={() => setActiveVaultTab('DOCUMENT_ARCHIVE')}
           className={`py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
@@ -142,8 +142,8 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
 
       {/* TAB 2: DRIVER PROFILE (49 CFR § 391.51) */}
       {activeVaultTab === 'FLEET_DQF' && (
-        <div className="bg-[#0A0F14] p-5 rounded-2xl border border-[#1E2532] shadow-2xl space-y-4 font-mono">
-          <div className="border-b border-[#1E2532] pb-3">
+        <div className="bg-black p-5 rounded-2xl border border-[#FFE500]/20 shadow-2xl space-y-4 font-mono">
+          <div className="border-b border-[#FFE500]/20 pb-3">
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">
               Driver Qualification File (49 CFR § 391.51)
             </h2>
@@ -153,28 +153,28 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
           </div>
 
           {!driverProfile ? (
-            <div className="p-6 rounded-xl bg-[#05080E] border border-slate-800 text-center text-xs text-slate-400">
+            <div className="p-6 rounded-xl bg-black border border-slate-800 text-center text-xs text-slate-400">
               Not signed in. Sign in to view your Driver Qualification File from /api/driver/profile.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-[#05080E] border border-slate-800">
+              <div className="p-3 rounded-xl bg-black border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block font-bold">DRIVER NAME</span>
                 <span className="text-sm font-bold text-white block mt-1">{driverProfile.name || 'Not set'}</span>
               </div>
-              <div className="p-3 rounded-xl bg-[#05080E] border border-slate-800">
+              <div className="p-3 rounded-xl bg-black border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block font-bold">CDL LICENSE</span>
                 <span className="text-sm font-bold text-white block mt-1">
                   {driverProfile.cdlNumber ? `${driverProfile.cdlState} ${driverProfile.cdlNumber}` : 'Not set'}
                 </span>
               </div>
-              <div className="p-3 rounded-xl bg-[#05080E] border border-slate-800">
+              <div className="p-3 rounded-xl bg-black border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block font-bold">MEDICAL EXAMINER CERTIFICATE EXPIRY</span>
                 <span className="text-sm font-bold text-white block mt-1">
                   {driverProfile.medicalCardExpiry || 'Not set'}
                 </span>
               </div>
-              <div className="p-3 rounded-xl bg-[#05080E] border border-slate-800">
+              <div className="p-3 rounded-xl bg-black border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block font-bold">ASSIGNED UNIT</span>
                 <span className="text-sm font-bold text-white block mt-1">
                   {driverProfile.assignedUnitId || 'Not set'}
@@ -187,8 +187,8 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
 
       {/* TAB 3: VEHICLE PROFILE */}
       {activeVaultTab === 'VEHICLE_ASSETS' && (
-        <div className="bg-[#0A0F14] p-5 rounded-2xl border border-[#1E2532] shadow-2xl space-y-4 font-mono">
-          <div className="border-b border-[#1E2532] pb-3">
+        <div className="bg-black p-5 rounded-2xl border border-[#FFE500]/20 shadow-2xl space-y-4 font-mono">
+          <div className="border-b border-[#FFE500]/20 pb-3">
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">
               Commercial Vehicle Profile
             </h2>
@@ -198,24 +198,24 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
           </div>
 
           {!vehicleProfile ? (
-            <div className="p-6 rounded-xl bg-[#05080E] border border-slate-800 text-center text-xs text-slate-400">
+            <div className="p-6 rounded-xl bg-black border border-slate-800 text-center text-xs text-slate-400">
               Sign in and save your vehicle profile in Commercial Route Planner to view equipment dimensions here.
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-[#05080E] border border-slate-800">
+              <div className="p-3 rounded-xl bg-black border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block font-bold">UNIT NUMBER</span>
                 <span className="text-sm font-bold text-white block mt-1">{vehicleProfile.unitNumber || 'Not set'}</span>
               </div>
-              <div className="p-3 rounded-xl bg-[#05080E] border border-slate-800">
+              <div className="p-3 rounded-xl bg-black border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block font-bold">HEIGHT (FT)</span>
                 <span className="text-sm font-bold text-[#FFE500] block mt-1">{vehicleProfile.heightFt} ft</span>
               </div>
-              <div className="p-3 rounded-xl bg-[#05080E] border border-slate-800">
+              <div className="p-3 rounded-xl bg-black border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block font-bold">LENGTH (FT)</span>
                 <span className="text-sm font-bold text-white block mt-1">{vehicleProfile.lengthFt} ft</span>
               </div>
-              <div className="p-3 rounded-xl bg-[#05080E] border border-slate-800">
+              <div className="p-3 rounded-xl bg-black border border-slate-800">
                 <span className="text-[10px] text-slate-400 uppercase block font-bold">GROSS WEIGHT (LBS)</span>
                 <span className="text-sm font-bold text-white block mt-1">{vehicleProfile.weightLbs.toLocaleString()} lbs</span>
               </div>

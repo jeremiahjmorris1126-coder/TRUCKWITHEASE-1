@@ -83,7 +83,7 @@ export const VoiceCommandOverlay: React.FC<VoiceCommandOverlayProps> = ({ voice 
             aria-label="Toggle Voice Control HUD"
             className={`relative flex items-center justify-center w-12 h-12 rounded-full shadow-2xl transition-all cursor-pointer ${
               voice.isListening
-                ? 'bg-error text-on-error border-2 border-white scale-105 shadow-[0_0_24px_rgba(239,68,68,0.6)]'
+                ? 'bg-error text-on-error border-2 border-white scale-105 shadow-[0_0_24px_rgba(255,229,0,0.6)]'
                 : 'bg-surface-container-high hover:bg-surface-container-highest text-primary border border-primary/50 hover:border-primary'
             }`}
             title="Voice Control [V]: Say 'Show Inspection' or 'Emergency'"
@@ -115,7 +115,7 @@ export const VoiceCommandOverlay: React.FC<VoiceCommandOverlayProps> = ({ voice 
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.96 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed bottom-24 inset-x-4 sm:inset-x-auto sm:right-6 sm:w-[420px] z-50 bg-[#0e0f12]/95 backdrop-blur-xl border border-primary/40 rounded-2xl shadow-[0_12px_48px_rgba(0,0,0,0.85)] overflow-hidden"
+            className="fixed bottom-24 inset-x-4 sm:inset-x-auto sm:right-6 sm:w-[420px] z-50 bg-black/95 backdrop-blur-xl border border-primary/40 rounded-2xl shadow-[0_12px_48px_rgba(0,0,0,0.85)] overflow-hidden"
           >
             {/* Header / Acoustic Visualizer Bar */}
             <div className="flex items-center justify-between px-4 py-3 bg-surface-container-lowest/80 border-b border-surface-container-high">

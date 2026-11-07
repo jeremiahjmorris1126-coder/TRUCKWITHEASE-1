@@ -86,15 +86,6 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [dvirSigned, setDvirSigned] = useState<boolean>(false);
 
-  const handleClearCodes = () => {
-    setIsScanning(true);
-    setTimeout(() => {
-      setFaultCodes((prev) => prev.map((f) => ({ ...f, cleared: true })));
-      setIsScanning(false);
-      onShowToast('DIAGNOSTIC FAULT CODES CLEARED // ZERO ACTIVE FAULTS LOGGED', 'verified');
-    }, 900);
-  };
-
   const handleScanNow = () => {
     setIsScanning(true);
     setTimeout(() => {
@@ -127,7 +118,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
     <div className="flex flex-col w-full max-w-5xl mx-auto px-2 sm:px-4 pb-20 space-y-4 font-mono select-none">
       {/* 1. TOP HERO HEADER (Signature Black & Yellow Aesthetic) */}
       <div className="text-center pt-2 pb-1">
-        <h1 className="font-['Space_Grotesk'] text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-wider uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2">
+        <h1 className="font-['Space_Grotesk'] text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-wider uppercase drop-shadow-[0_0_15px_rgba(255,229,0,0.2)] flex items-center justify-center gap-2">
           <span className="material-symbols-outlined text-3xl sm:text-4xl text-[#FFE500]">build_circle</span>
           <span>THE MASTER MECHANIC</span>
         </h1>
@@ -137,7 +128,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
       </div>
 
       {/* 2. SUB-TAB SEGMENTED BAR */}
-      <div className="flex items-center justify-center gap-2 p-1 bg-[#0A0F14] rounded-xl border border-[#1E2532] shadow-xl max-w-xl mx-auto w-full">
+      <div className="flex items-center justify-center gap-2 p-1 bg-black rounded-xl border border-[#FFE500]/20 shadow-xl max-w-xl mx-auto w-full">
         <button
           onClick={() => setActiveTab('DIAGNOSTICS')}
           className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
@@ -181,7 +172,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
       {activeTab === 'DIAGNOSTICS' && (
         <div className="space-y-4">
           {/* Active ECU Status Card */}
-          <div className="bg-[#05080E] p-4 sm:p-5 rounded-2xl border border-[#1E2532] shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="bg-black p-4 sm:p-5 rounded-2xl border border-[#FFE500]/20 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-[#FFE500]/15 border border-[#FFE500]/40 flex items-center justify-center text-[#FFE500] shrink-0">
                 <span className="material-symbols-outlined text-[28px]">cable</span>
@@ -210,14 +201,6 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
                 <span className={`material-symbols-outlined text-[16px] ${isScanning ? 'animate-spin' : ''}`}>sync</span>
                 <span>{isScanning ? 'Checking...' : 'Check DTC List'}</span>
               </button>
-
-              <button
-                onClick={handleClearCodes}
-                className="px-3.5 py-2 rounded-xl bg-[#141C2B] hover:bg-[#1E293F] text-slate-200 border border-slate-700 text-xs font-bold uppercase transition flex items-center justify-center gap-1.5 flex-1 sm:flex-initial cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
-                <span>Heal DTCs</span>
-              </button>
             </div>
           </div>
 
@@ -233,7 +216,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             </div>
 
             {faultCodes.filter((f) => !f.cleared).length === 0 ? (
-              <div className="bg-[#0A0F14] p-8 rounded-2xl border border-emerald-500/40 text-center space-y-2">
+              <div className="bg-black p-8 rounded-2xl border border-emerald-500/40 text-center space-y-2">
                 <span className="material-symbols-outlined text-4xl text-emerald-400">verified</span>
                 <h4 className="font-['Space_Grotesk'] text-lg font-bold text-white uppercase">
                   All Powertrain Systems Clean
@@ -248,7 +231,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
                 .map((code) => (
                   <div
                     key={code.id}
-                    className="bg-[#0A0F14] p-4 rounded-2xl border border-[#1E2532] shadow-xl space-y-2 hover:border-[#2C384E] transition"
+                    className="bg-black p-4 rounded-2xl border border-[#FFE500]/20 shadow-xl space-y-2 hover:border-[#FFE500]/20 transition"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -269,7 +252,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
                       {code.description}
                     </h4>
 
-                    <div className="p-2.5 rounded-lg bg-[#05080E] border border-slate-800 text-xs text-slate-300 flex items-center gap-2">
+                    <div className="p-2.5 rounded-lg bg-black border border-slate-800 text-xs text-slate-300 flex items-center gap-2">
                       <span className="material-symbols-outlined text-[18px] text-[#FFE500] shrink-0">build</span>
                       <span>Remediation: {code.remediation}</span>
                     </div>
@@ -288,7 +271,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
           {/* Component Metrics Radar Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {/* Engine Oil */}
-            <div className="bg-[#0A0F14] p-3.5 rounded-xl border border-[#1E2532] space-y-1">
+            <div className="bg-black p-3.5 rounded-xl border border-[#FFE500]/20 space-y-1">
               <span className="text-[10px] text-slate-400 uppercase block">Engine Oil Temp &amp; Press</span>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold text-[#FFE500]">195&deg;F</span>
@@ -298,7 +281,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             </div>
 
             {/* Coolant */}
-            <div className="bg-[#0A0F14] p-3.5 rounded-xl border border-[#1E2532] space-y-1">
+            <div className="bg-black p-3.5 rounded-xl border border-[#FFE500]/20 space-y-1">
               <span className="text-[10px] text-slate-400 uppercase block">Coolant Temperature</span>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold text-emerald-400">188&deg;F</span>
@@ -308,7 +291,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             </div>
 
             {/* Turbo Boost */}
-            <div className="bg-[#0A0F14] p-3.5 rounded-xl border border-[#1E2532] space-y-1">
+            <div className="bg-black p-3.5 rounded-xl border border-[#FFE500]/20 space-y-1">
               <span className="text-[10px] text-slate-400 uppercase block">Turbo Boost &amp; VGT</span>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold text-[#FFE500]">32.4 PSI</span>
@@ -318,7 +301,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             </div>
 
             {/* Brake Lining */}
-            <div className="bg-[#0A0F14] p-3.5 rounded-xl border border-[#1E2532] space-y-1">
+            <div className="bg-black p-3.5 rounded-xl border border-[#FFE500]/20 space-y-1">
               <span className="text-[10px] text-slate-400 uppercase block">Brake Friction Lining</span>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold text-emerald-400">88%</span>
@@ -328,7 +311,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             </div>
 
             {/* Transmission */}
-            <div className="bg-[#0A0F14] p-3.5 rounded-xl border border-[#1E2532] space-y-1">
+            <div className="bg-black p-3.5 rounded-xl border border-[#FFE500]/20 space-y-1">
               <span className="text-[10px] text-slate-400 uppercase block">Eaton 12-Spd Automated</span>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold text-white">180&deg;F</span>
@@ -338,7 +321,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             </div>
 
             {/* Alternator */}
-            <div className="bg-[#0A0F14] p-3.5 rounded-xl border border-[#1E2532] space-y-1">
+            <div className="bg-black p-3.5 rounded-xl border border-[#FFE500]/20 space-y-1">
               <span className="text-[10px] text-slate-400 uppercase block">Electrical Charging</span>
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold text-emerald-400">14.2 V</span>
@@ -349,7 +332,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
           </div>
 
           {/* Virtual Kingpin Hitch & Articulation Sentinel */}
-          <div className="bg-[#0A0F14] p-4 rounded-xl border border-[#1E2532] shadow-xl space-y-3">
+          <div className="bg-black p-4 rounded-xl border border-[#FFE500]/20 shadow-xl space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#FFE500]">alt_route</span>
@@ -361,7 +344,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
                 className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                   isJackknifeDanger
                     ? 'bg-red-950 text-red-400 border border-red-500 animate-pulse'
-                    : 'bg-[#1E2532] text-[#FFE500]'
+                    : 'bg-[#FFE500]/10 text-[#FFE500]'
                 }`}
               >
                 {isJackknifeDanger ? 'DANGER: JACKKNIFE THRESHOLD' : 'SAFE ARTICULATION'}
@@ -369,7 +352,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             </div>
 
             {/* Trailer Articulation Visualization */}
-            <div className="bg-[#05080E] p-4 rounded-xl border border-[#1E2532] flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="bg-black p-4 rounded-xl border border-[#FFE500]/20 flex flex-col items-center justify-center relative overflow-hidden">
               <div className="w-full flex justify-between text-xs text-slate-400 mb-2">
                 <span>53&apos; Utility Reefer (#TR-8812)</span>
                 <span className="text-[#FFE500] font-bold">Hitch Angle: {trailerAngle}&deg;</span>
@@ -380,7 +363,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
                 <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-slate-800" />
 
                 {/* Tractor Cab */}
-                <div className="absolute bottom-4 w-12 h-16 bg-[#162030] border-2 border-[#FFE500] rounded-sm flex flex-col items-center justify-between p-1 z-10 shadow-lg">
+                <div className="absolute bottom-4 w-12 h-16 bg-[#FFE500]/10 border-2 border-[#FFE500] rounded-sm flex flex-col items-center justify-between p-1 z-10 shadow-lg">
                   <span className="text-[7px] text-[#FFE500] font-bold">CAB</span>
                   <div className="w-8 h-1 bg-[#FFE500] rounded" />
                   <span className="text-[6px] text-slate-400">K-PIN</span>
@@ -388,7 +371,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
 
                 {/* Trailer (Rotated) */}
                 <div
-                  className="absolute bottom-16 w-14 h-24 bg-[#1E2A3D] border-2 border-[#FFE500]/60 rounded-sm flex flex-col items-center justify-between p-1 transition-transform duration-100 shadow-xl"
+                  className="absolute bottom-16 w-14 h-24 bg-[#FFE500]/10 border-2 border-[#FFE500]/60 rounded-sm flex flex-col items-center justify-between p-1 transition-transform duration-100 shadow-xl"
                   style={{
                     transformOrigin: '50% 100%',
                     transform: `rotate(${trailerAngle}deg)`,
@@ -444,7 +427,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
             {REPAIR_FACILITIES.map((facility) => (
               <div
                 key={facility.id}
-                className="bg-[#0A0F14] p-4 rounded-2xl border border-[#1E2532] shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-[#2C384E] transition"
+                className="bg-black p-4 rounded-2xl border border-[#FFE500]/20 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-[#FFE500]/20 transition"
               >
                 <div>
                   <div className="flex items-center gap-2">
@@ -462,7 +445,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
 
                   <div className="flex items-center gap-1.5 flex-wrap mt-2">
                     {facility.services.map((svc, i) => (
-                      <span key={i} className="px-2 py-0.5 rounded bg-[#05080E] border border-slate-800 text-[10px] text-slate-300">
+                      <span key={i} className="px-2 py-0.5 rounded bg-black border border-slate-800 text-[10px] text-slate-300">
                         {svc}
                       </span>
                     ))}
@@ -472,7 +455,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                   <a
                     href={`tel:${facility.phone}`}
-                    className="px-3 py-2 rounded-xl bg-[#141C2B] hover:bg-[#1E293F] text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1.5"
+                    className="px-3 py-2 rounded-xl bg-[#FFE500]/10 hover:bg-[#FFE500]/10 text-slate-200 border border-slate-700 text-xs font-bold transition flex items-center gap-1.5"
                   >
                     <span className="material-symbols-outlined text-[16px] text-emerald-400">phone</span>
                     <span>Call Shop</span>
@@ -491,7 +474,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
           </div>
 
           {/* 49 CFR § 396.11 Certified Electronic DVIR Sign-off */}
-          <div className="bg-[#05080E] p-4 rounded-2xl border border-[#1E2532] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-black p-4 rounded-2xl border border-[#FFE500]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="font-bold text-white text-sm block">
                 DOT 49 CFR § 396.11 Certified Mechanical Safety DVIR Sign-off
@@ -518,7 +501,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
               }}
               className={`py-2 px-4 rounded-xl text-xs font-bold uppercase transition flex items-center gap-1.5 cursor-pointer ${
                 dvirSigned
-                  ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                  ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(255,229,0,0.4)]'
                   : 'btn-tactical-yellow'
               }`}
             >
