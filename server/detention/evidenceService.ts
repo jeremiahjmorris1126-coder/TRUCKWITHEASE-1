@@ -28,6 +28,25 @@ export function stableStringify(obj: any): string {
 const iso = (ts: number | null | undefined): string | null => (ts ? new Date(ts).toISOString() : null);
 const money = (n: number): string => `$${n.toFixed(2)}`;
 
+function normalizeEventSource(raw?: string): string {
+  if (!raw) return 'TELEMATICS_PROVIDER';
+  const lower = String(raw).trim().toLowerCase();
+  if (lower === 'phone_gps' || lower === 'phone' || lower === 'phone gps') {
+    return 'PHONE_GPS';
+  }
+  return String(raw).trim().toUpperCase();
+}
+
+function normalizeReceivedAt(receivedAt: string | number | undefined, fallbackTs: number): string {
+  if (typeof receivedAt === 'number' && !isNaN(receivedAt)) {
+    return new Date(receivedAt).toISOString();
+  }
+  if (typeof receivedAt === 'string' && receivedAt.trim()) {
+    return receivedAt.trim();
+  }
+  return new Date(fallbackTs).toISOString();
+}
+
 export const STATUTORY_LEGAL_NOTICE =
   'Notice: Timestamps and GPS coordinates originate directly from vehicle ECM/telematics hardware. Tamper-evident cryptographic verification via SHA-256 digest. Payment terms governed by carrier rate confirmation. Legal or statutory applicability UNVERIFIED, attorney to confirm.';
 
@@ -79,19 +98,28 @@ export function buildEvidencePacket(opts: BuildEvidencePacketOptions): EvidenceP
       waitBeforeDoorMinutes: s.waitBeforeDoorMinutes,
       dockWorkMinutes: s.dockWorkMinutes,
     },
-    doorEvents: snap.doorEvents.map((d: DoorEvent) => ({ at: iso(d.ts)!, state: d.state })),
+    doorEvents: snap.doorEvents.map((d: DoorEvent) => ({
+      at: iso(d.ts)!,
+      state: d.state,
+      source: normalizeEventSource(d.source),
+      receivedAt: normalizeReceivedAt(d.receivedAt, generatedTs),
+    })),
     gpsTrail: snap.gpsTrail.map((g: GpsEvent) => ({
       at: iso(g.ts)!,
       lat: g.lat,
       lng: g.lng,
       speedMph: g.speedMph ?? null,
-      source: (g as any).source === 'phone_gps' ? 'PHONE_GPS' : ((g as any).source || 'ECM_TELEMATICS'),
+      source: normalizeEventSource(g.source),
+      receivedAt: normalizeReceivedAt(g.receivedAt, generatedTs),
+      ...(g.type !== 'gps' || g.event ? { event: g.event || g.type } : {}),
     })),
     callLog: snap.calls.map((c: TelephonyCallEvent) => ({
       at: iso(c.ts)!,
       direction: c.direction,
       durationSec: c.durationSec,
       number: c.number,
+      source: normalizeEventSource(c.source),
+      receivedAt: normalizeReceivedAt(c.receivedAt, generatedTs),
     })),
     legalNotice: STATUTORY_LEGAL_NOTICE,
   };

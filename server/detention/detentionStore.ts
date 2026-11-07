@@ -5,7 +5,7 @@ import { EvidencePacket, DetentionInvoice, DetentionStop, TelematicsEvent } from
 const memoryPackets = new Map<string, EvidencePacket>(); // hash -> EvidencePacket
 const memoryInvoices = new Map<string, DetentionInvoice>(); // invoiceNumber -> DetentionInvoice
 const memoryActiveStops = new Map<string, { stop: DetentionStop; ctx: any; fleetId?: string | null }>(); // vehicleId -> data
-const memoryEvents = new Map<string, TelematicsEvent[]>(); // vehicleId -> events[]
+const memoryEvents = new Map<string, TelematicsEvent[]>(); // key (vehicleId, load:loadId, stop:stopId) -> events[]
 
 export class DetentionStore {
   /**
@@ -16,7 +16,19 @@ export class DetentionStore {
     data: { stop: DetentionStop; ctx: any; fleetId?: string | null }
   ): Promise<void> {
     memoryActiveStops.set(vehicleId, structuredClone(data));
+    if (data.stop?.loadId) {
+      memoryActiveStops.set(`load:${data.stop.loadId}`, structuredClone(data));
+    }
+    if (data.stop?.stopId) {
+      memoryActiveStops.set(`stop:${data.stop.stopId}`, structuredClone(data));
+    }
     memoryEvents.set(vehicleId, []);
+    if (data.stop?.loadId) {
+      memoryEvents.set(`load:${data.stop.loadId}`, []);
+    }
+    if (data.stop?.stopId) {
+      memoryEvents.set(`stop:${data.stop.stopId}`, []);
+    }
 
     const db = getDb();
     if (db && typeof (db as any).collection === 'function') {
@@ -48,12 +60,27 @@ export class DetentionStore {
   }
 
   /**
-   * Append telematics events for an active stop.
+   * Append telematics events for an active stop or load.
    */
-  async appendEvents(vehicleId: string, events: TelematicsEvent[]): Promise<void> {
+  async appendEvents(
+    vehicleId: string,
+    events: TelematicsEvent[],
+    meta?: { loadId?: string; stopId?: string }
+  ): Promise<void> {
     if (!events.length) return;
-    const existing = memoryEvents.get(vehicleId) || [];
-    memoryEvents.set(vehicleId, [...existing, ...structuredClone(events)]);
+    const active = memoryActiveStops.get(vehicleId);
+    const loadId = meta?.loadId || active?.stop?.loadId;
+    const stopId = meta?.stopId || active?.stop?.stopId;
+
+    const keys = new Set<string>();
+    if (vehicleId) keys.add(vehicleId);
+    if (loadId) keys.add(`load:${loadId}`);
+    if (stopId) keys.add(`stop:${stopId}`);
+
+    for (const k of keys) {
+      const existing = memoryEvents.get(k) || [];
+      memoryEvents.set(k, [...existing, ...structuredClone(events)]);
+    }
 
     const db = getDb();
     if (db && typeof (db as any).collection === 'function') {
@@ -73,6 +100,37 @@ export class DetentionStore {
         console.warn(`[DetentionStore] Firestore appendEvents failed: ${err.message}`);
       }
     }
+  }
+
+  /**
+   * Get all accumulated telematics events for a load, stop, or vehicle.
+   */
+  async getEventsForLoadAndStop(
+    loadId: string,
+    stopId?: string,
+    vehicleId?: string
+  ): Promise<TelematicsEvent[]> {
+    const combined: TelematicsEvent[] = [];
+    const seen = new Set<string>();
+    const candidateKeys = [
+      `load:${loadId}`,
+      loadId,
+      ...(stopId ? [`stop:${stopId}`, stopId] : []),
+      ...(vehicleId ? [vehicleId] : []),
+    ];
+
+    for (const k of candidateKeys) {
+      const list = await this.getEvents(k);
+      for (const ev of list) {
+        const dedupKey = `${ev.type}|${(ev as any).event ?? ''}|${ev.ts}|${(ev as any).state ?? ''}|${(ev as any).lat ?? ''}|${(ev as any).lng ?? ''}`;
+        if (!seen.has(dedupKey)) {
+          seen.add(dedupKey);
+          combined.push(ev);
+        }
+      }
+    }
+
+    return combined.sort((a, b) => a.ts - b.ts);
   }
 
   /**

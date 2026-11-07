@@ -9,7 +9,7 @@
   "start_url": "https://truckwithease.com",
   "theme_color": "#ffe600",
   "id": "com.truckwithease.app",
-  "description": "TruckWithEase is a trucking operations interface prototype. Some screens use sample or simulated data. This app is not an ELD, does not provide certified eRODS transfers or DVIR attestations, and is not connected to weigh station bypass services or vehicle engine hardware. It does not guarantee regulatory compliance, safety, or availability. Verify information with official sources and configured providers before operational use. API and integration readiness is reported by /api/health.",
+  "description": "TruckWithEase is a trucking operations interface prototype. Some screens use sample or simulated data. This app is not an ELD, does not provide ELD log transfers or DVIR attestations, and is not connected to weigh station bypass services or vehicle engine hardware. It does not guarantee regulatory compliance, safety, or availability. Verify information with official sources and configured providers before operational use. API and integration readiness is reported by /api/health.",
   "lang": "en",
   "display_override": [
     "window-controls-overlay",

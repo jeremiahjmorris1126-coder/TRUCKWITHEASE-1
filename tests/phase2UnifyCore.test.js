@@ -18,7 +18,7 @@ describe('Phase 2: Unify the Core - Integration Tests', () => {
     const testVectors = [
       'TruckWithEase::ComplianceVault::49CFR390.31',
       'Driver::MarcusVance::CDL-TX-8849201',
-      'Carrier::MorrishiveLogistics::USDOT-3928110',
+      'Carrier::TestFleet::TEST-USDOT-0001',
     ];
 
     for (const vector of testVectors) {
@@ -46,7 +46,7 @@ describe('Phase 2: Unify the Core - Integration Tests', () => {
         role: 'driver',
         fleetId: 'FLEET-PRO',
         carrierName: 'Vance Freightlines',
-        usdotNumber: '8877665',
+        usdotNumber: 'TEST-USDOT-0001',
       },
     });
 
@@ -77,7 +77,7 @@ describe('Phase 2: Unify the Core - Integration Tests', () => {
     const dossierJson = dotDocumentsService.exportFullAuditDossierJSON();
     const dossier = JSON.parse(dossierJson);
     expect(dossier.carrier).toContain('Vance Freightlines');
-    expect(dossier.carrier).toContain('8877665');
+    expect(dossier.carrier).toContain('TEST-USDOT-0001');
     expect(dossier.assignedDriver).toContain('David Vance');
     expect(dossier.totalRecords).toBeGreaterThan(0);
   });

@@ -57,13 +57,13 @@ class StateGeolocationService {
     this.currentState = {
       stateCode: defaultStateCode,
       stateData: defaultData,
-      latitude: 41.8781, // Default Chicago IL
-      longitude: -87.6298,
-      accuracyMeters: 15,
-      currentSpeedMph: 65,
+      latitude: null,
+      longitude: null,
+      accuracyMeters: null,
+      currentSpeedMph: 0,
       isGpsActive: false,
       gpsPermissionStatus: 'PROMPTING',
-      lastUpdatedTimestamp: new Date().toLocaleTimeString(),
+      lastUpdatedTimestamp: '',
       isSpeeding: false,
       speedDeltaMph: 0,
     };
@@ -229,16 +229,19 @@ class StateGeolocationService {
     }
   }
 
-  // Simulate entering a specific state code (e.g. crossing into California or Texas)
-  public simulateStateCode(stateCode: string, overrideSpeedMph?: number): void {
+  // Select a state code for reference regulations without fabricating GPS coordinates
+  public selectStateCode(stateCode: string): void {
     const stateData = US_STATE_DOT_REGULATIONS[stateCode] || US_STATE_DOT_REGULATIONS['IL'];
-    const bounds = STATE_BOUNDS.find((b) => b.code === stateCode);
-    const lat = bounds ? bounds.centerLat : 41.8781;
-    const lng = bounds ? bounds.centerLng : -87.6298;
-
-    const speedMph = overrideSpeedMph !== undefined ? overrideSpeedMph : this.currentState.currentSpeedMph;
-
-    this.updatePositionAndState(lat, lng, speedMph, 5, 'SIMULATED');
+    const isSpeeding = this.currentState.currentSpeedMph > stateData.truckSpeedLimitMph;
+    const speedDeltaMph = Math.max(0, this.currentState.currentSpeedMph - stateData.truckSpeedLimitMph);
+    this.currentState = {
+      ...this.currentState,
+      stateCode,
+      stateData,
+      isSpeeding,
+      speedDeltaMph,
+    };
+    this.notifyListeners();
   }
 }
 

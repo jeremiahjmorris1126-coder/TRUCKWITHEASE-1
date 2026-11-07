@@ -31,7 +31,10 @@ export class FuelDiscountClientService {
    * Retrieves aggregated gas/diesel discount offers along the corridor
    * from WEX, TruckSmarter, Pilot Flying J, Love's, and TA Petro.
    */
-  async getLiveFuelOffers(lat = 32.7767, lng = -96.7970, radiusMiles = 50): Promise<FuelOffer[]> {
+  async getLiveFuelOffers(lat?: number, lng?: number, radiusMiles = 50): Promise<FuelOffer[]> {
+    if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+      return [];
+    }
     try {
       const res = await apiClient.get<{ success?: boolean; offers: FuelOffer[] }>(
         `/api/v1/offers/fuel?lat=${lat}&lng=${lng}&radius=${radiusMiles}`

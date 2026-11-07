@@ -61,7 +61,7 @@ export interface FleetCustomizationSettings {
   enabledModules: Partial<Record<TabId, boolean>>;
 }
 
-export type InspectionActionType = 'PDF_GENERATED' | 'PRINTED' | 'ROADSIDE_AUDIT' | 'VOICE_TRIGGERED' | 'FMCSA_PORTAL_SYNC' | 'DVIR_SIGNOFF';
+export type InspectionActionType = 'PDF_GENERATED' | 'PRINTED' | 'ROADSIDE_AUDIT' | 'VOICE_TRIGGERED' | 'DVIR_SIGNOFF';
 export type InspectionTriggerSource = 'VOICE_CONTROL' | 'MANUAL_HUD' | 'OFFICER_REQUEST' | 'CAB_PRINTER' | 'SCHEDULED_DISPATCH' | 'ONE_TAP_COCKPIT';
 
 export interface InspectionLogEntry {
@@ -69,7 +69,7 @@ export interface InspectionLogEntry {
   timestamp: string; // ISO 8601 or ISO string
   displayTime: string; // e.g. "2026-09-11 15:02:18 CDT"
   relativeTime: string; // e.g. "Just now", "2 hours ago"
-  actionTitle: string; // e.g. "FMCSA § 395.8 8-Day Driver Daily Log Package"
+  actionTitle: string; // e.g. "49 CFR § 396.11 DVIR Inspection Report"
   actionType: InspectionActionType;
   triggerSource: InspectionTriggerSource;
   cycle: string; // e.g. "70-Hour / 8-Day"

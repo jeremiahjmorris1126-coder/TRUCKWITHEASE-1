@@ -21,6 +21,10 @@ const FORBIDDEN_TERMS = [
   'fmcsa certified',
   'jeremiah',
   'verified: true',
+  'simulatedDwell',
+  'erods',
+  'fmcsa_portal_sync',
+  'dataconnect',
 ];
 
 const SOURCE_TARGETS = [

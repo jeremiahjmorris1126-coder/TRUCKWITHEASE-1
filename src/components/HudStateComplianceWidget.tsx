@@ -39,11 +39,11 @@ export const HudStateComplianceWidget: React.FC<HudStateComplianceWidgetProps> =
     }
   };
 
-  const handleSimulateState = (stateCode: string) => {
-    stateGeolocationService.simulateStateCode(stateCode);
+  const handleSelectState = (stateCode: string) => {
+    stateGeolocationService.selectStateCode(stateCode);
     const targetState = US_STATE_DOT_REGULATIONS[stateCode];
     onShowToast(
-      `GEOLOCATION STATE OVERRIDE: ${targetState.stateName} (${targetState.stateCode}) • ${targetState.truckSpeedLimitMph} MPH LIMIT`,
+      `REFERENCE DOT RULES: ${targetState.stateName} (${targetState.stateCode}) • ${targetState.truckSpeedLimitMph} MPH LIMIT`,
       'travel_explore'
     );
   };
@@ -203,7 +203,7 @@ export const HudStateComplianceWidget: React.FC<HudStateComplianceWidgetProps> =
                 return (
                   <button
                     key={code}
-                    onClick={() => handleSimulateState(code)}
+                    onClick={() => handleSelectState(code)}
                     className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
                       isActive
                         ? 'bg-primary text-on-primary shadow-sm'

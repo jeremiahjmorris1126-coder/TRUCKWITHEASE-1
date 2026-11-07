@@ -48,14 +48,5 @@
   "firestore": {
     "database": "app-builder-38a26d99",
     "rules": "firestore.rules"
-  },
-  "dataconnect": {
-    "source": "dataconnect"
-  },
-  "emulators": {
-    "dataconnect": {
-      "port": 9399,
-      "dataDir": "dataconnect/.dataconnect/pgliteData"
-    }
   }
 }

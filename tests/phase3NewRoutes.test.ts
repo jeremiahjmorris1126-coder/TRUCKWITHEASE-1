@@ -255,13 +255,17 @@ test('Phase 3 - 6. Detention: Phone GPS labeled in evidence packet & rate con en
   }
   assert.equal(missingRateError, true, 'Detention without explicit rate confirmation terms must be rejected');
 
-  // 2. Start stop with explicit rate confirmation terms ($75/hr, 120 mins free time)
+  // 2. Start stop with explicit rate confirmation terms ($75/hr, 120 mins free time) and explicit geofence
   await detentionService.startStop(FLEET1_DRIVER, vehicleId, {
     stopId: 'stop-002',
     loadId: 'load-valid-01',
     kind: 'delivery',
     ratePerHour: 75.0,
     freeMinutes: 120,
+    fence: {
+      center: { lat: 32.7767, lng: -96.7970 },
+      radiusM: 250,
+    },
     facilityName: 'Dallas Distribution Hub Door 4',
   });
 
@@ -284,7 +288,7 @@ test('Phase 3 - 6. Detention: Phone GPS labeled in evidence packet & rate con en
   assert.ok(status.dwellMinutes >= 170);
   assert.ok(status.detentionMinutes >= 50);
 
-  // 5. Finalize stop: verify phone GPS is labeled in evidence packet
+  // 5. Finalize stop: verify phone GPS is labeled in evidence packet along with receivedAt
   const finalized = await detentionService.finalize(FLEET1_DRIVER, vehicleId);
   assert.ok(finalized.packet);
   assert.ok(finalized.packet.integrity.hash);
@@ -292,6 +296,7 @@ test('Phase 3 - 6. Detention: Phone GPS labeled in evidence packet & rate con en
   const phoneGpsEntries = finalized.packet.gpsTrail.filter((g) => g.source === 'PHONE_GPS');
   assert.ok(phoneGpsEntries.length > 0, 'Driver phone GPS points must be labeled as PHONE_GPS in evidence packet');
   assert.equal(phoneGpsEntries[0].source, 'PHONE_GPS');
+  assert.ok(phoneGpsEntries[0].receivedAt, 'Each event in packet must show when it was received');
 
   // 6. Cross-tenant isolation on finalize
   // Finalizing again or another fleet's stop returns 404
@@ -303,4 +308,171 @@ test('Phase 3 - 6. Detention: Phone GPS labeled in evidence packet & rate con en
     assert.equal(err.statusCode, 404);
   }
   assert.equal(crossFinalizeBlocked, true);
+});
+
+test('Phase 3 - 7. One-Tap Detention: Never invents evidence, rejects simulatedDwellMinutes, requires recorded arrival & departure', async () => {
+  const { createLoad } = await import('../server/loadMatching/loadService.ts');
+
+  const baseNow = Date.now();
+  const appointmentTs = baseNow - 240 * 60 * 1000; // 4 hours ago
+
+  // Create a load with rate confirmation terms, facility location, and appointment time
+  const load = await createLoad(FLEET1_ADMIN, {
+    loadNumber: 'TWE-DET-ONETAP-1',
+    origin: 'Dallas, TX',
+    destination: 'Atlanta, GA',
+    miles: 780,
+    deadheadMiles: 10,
+    grossPayUsd: 2600,
+    equipmentType: 'DRY_VAN',
+    weightLbs: 36000,
+    pickupTime: 'Yesterday',
+    deliveryTime: 'Today',
+    shipperBroker: 'Apex Freight Brokers',
+    shipperBrokerEmail: 'billing@apex.example.com',
+    contactPhone: '+1-800-555-0100',
+    estimatedTransitHours: 12,
+    detentionRatePerHour: 80.0,
+    freeMinutes: 120,
+    deliveryFacilityName: 'Atlanta Terminal 3',
+    deliveryAddress: '100 Industrial Way, Atlanta, GA',
+    deliveryCoordinates: { lat: 33.749, lng: -84.388 },
+    appointmentTs,
+  });
+
+  // 1. One-tap with NO recorded events = 400
+  let noEventsErr: any = null;
+  try {
+    await detentionService.generateOneTapFromLoad(FLEET1_DRIVER, load.id);
+  } catch (err: any) {
+    noEventsErr = err;
+  }
+  assert.ok(noEventsErr, 'One-tap with no recorded events must fail');
+  assert.equal(noEventsErr.statusCode, 400);
+  assert.equal(
+    noEventsErr.message,
+    'No recorded arrival and departure at this facility — detention invoice cannot be created.'
+  );
+
+  // 2. Request body / options with simulatedDwellMinutes is rejected with 400
+  let simulatedDwellErr: any = null;
+  try {
+    await detentionService.generateOneTapFromLoad(FLEET1_DRIVER, load.id, {
+      simulatedDwellMinutes: 300,
+    } as any);
+  } catch (err: any) {
+    simulatedDwellErr = err;
+  }
+  assert.ok(simulatedDwellErr, 'Passing simulatedDwellMinutes must be rejected');
+  assert.equal(simulatedDwellErr.statusCode, 400);
+
+  // 3. Missing facility location or appointment time = 400 (never a default)
+  const loadMissingCoords = await createLoad(FLEET1_ADMIN, {
+    loadNumber: 'TWE-DET-NO-COORDS',
+    origin: 'Dallas, TX',
+    destination: 'Atlanta, GA',
+    miles: 500,
+    deadheadMiles: 5,
+    grossPayUsd: 1800,
+    equipmentType: 'DRY_VAN',
+    weightLbs: 30000,
+    pickupTime: 'Today',
+    deliveryTime: 'Tomorrow',
+    shipperBroker: 'Apex Freight',
+    contactPhone: '+1-800-555-0100',
+    estimatedTransitHours: 8,
+    detentionRatePerHour: 80.0,
+    freeMinutes: 120,
+    appointmentTs,
+  });
+  let missingCoordsErr: any = null;
+  try {
+    await detentionService.generateOneTapFromLoad(FLEET1_DRIVER, loadMissingCoords.id);
+  } catch (err: any) {
+    missingCoordsErr = err;
+  }
+  assert.ok(missingCoordsErr);
+  assert.equal(missingCoordsErr.statusCode, 400);
+
+  const loadMissingAppt = await createLoad(FLEET1_ADMIN, {
+    loadNumber: 'TWE-DET-NO-APPT',
+    origin: 'Dallas, TX',
+    destination: 'Atlanta, GA',
+    miles: 500,
+    deadheadMiles: 5,
+    grossPayUsd: 1800,
+    equipmentType: 'DRY_VAN',
+    weightLbs: 30000,
+    pickupTime: 'Today',
+    deliveryTime: 'Tomorrow',
+    shipperBroker: 'Apex Freight',
+    contactPhone: '+1-800-555-0100',
+    estimatedTransitHours: 8,
+    detentionRatePerHour: 80.0,
+    freeMinutes: 120,
+    deliveryCoordinates: { lat: 33.749, lng: -84.388 },
+  });
+  let missingApptErr: any = null;
+  try {
+    await detentionService.generateOneTapFromLoad(FLEET1_DRIVER, loadMissingAppt.id);
+  } catch (err: any) {
+    missingApptErr = err;
+  }
+  assert.ok(missingApptErr);
+  assert.equal(missingApptErr.statusCode, 400);
+
+  // 4. Record arrival AND departure inside the facility geofence:
+  // Arrival 195 minutes ago, departure 0 minutes ago -> 195 mins dwell - 120 mins free = 75 mins detention
+  const arrivalTs = baseNow - 195 * 60 * 1000;
+  const departureTs = baseNow;
+  await detentionService.ingestEvents(
+    'TRK-ONETAP-1',
+    [
+      {
+        type: 'arrive',
+        ts: arrivalTs,
+        lat: 33.749,
+        lng: -84.388,
+        speedMph: 0,
+        source: 'phone_gps',
+      },
+      {
+        type: 'depart',
+        ts: departureTs,
+        lat: 33.749,
+        lng: -84.388,
+        speedMph: 12,
+        source: 'samsara',
+      },
+    ],
+    { loadId: load.id }
+  );
+
+  const oneTapResult = await detentionService.generateOneTapFromLoad(FLEET1_DRIVER, load.id, {
+    vehicleId: 'TRK-ONETAP-1',
+    generatedTs: baseNow,
+  });
+
+  assert.ok(oneTapResult.packet);
+  assert.ok(oneTapResult.invoice);
+  assert.equal(oneTapResult.packet.metrics.dwellMinutes, 195);
+  assert.equal(oneTapResult.packet.metrics.freeMinutes, 120);
+  assert.equal(oneTapResult.packet.metrics.detentionMinutes, 75, 'Invoice minutes must equal recorded departure minus arrival minus free time');
+  assert.equal(oneTapResult.invoice.lineItem.detentionMinutes, 75);
+  assert.equal(oneTapResult.packet.doorEvents.length, 0, 'No synthetic door events may be added');
+  assert.equal(oneTapResult.packet.gpsTrail.length, 2);
+  assert.equal(oneTapResult.packet.gpsTrail[0].source, 'PHONE_GPS');
+  assert.ok(oneTapResult.packet.gpsTrail[0].receivedAt);
+  assert.equal(oneTapResult.packet.gpsTrail[1].source, 'SAMSARA');
+  assert.ok(oneTapResult.packet.gpsTrail[1].receivedAt);
+
+  // 5. Cross-tenant isolation: another fleet calling one-tap on FLEET-ALPHA's load = 404
+  let otherFleetErr: any = null;
+  try {
+    await detentionService.generateOneTapFromLoad(FLEET2_DRIVER, load.id);
+  } catch (err: any) {
+    otherFleetErr = err;
+  }
+  assert.ok(otherFleetErr, 'Another fleet must receive 404');
+  assert.equal(otherFleetErr.statusCode, 404);
 });

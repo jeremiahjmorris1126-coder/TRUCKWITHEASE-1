@@ -16,7 +16,7 @@ export const StateBoundaryAgent: React.FC<StateBoundaryAgentProps> = ({
   const [activeStateCode, setActiveStateCode] = useState<string>('IL');
   const [previousStateCode, setPreviousStateCode] = useState<string>('TX');
   const [showBorderCrossingModal, setShowBorderCrossingModal] = useState<boolean>(false);
-  const [lastBorderTimestamp, setLastBorderTimestamp] = useState<string>('17:14:02 CDT');
+  const [lastBorderTimestamp, setLastBorderTimestamp] = useState<string>('');
 
   useEffect(() => {
     const unsubscribe = stateGeolocationService.subscribe((geoState) => {
@@ -39,20 +39,14 @@ export const StateBoundaryAgent: React.FC<StateBoundaryAgentProps> = ({
   const isSpeeding = currentSpeedMph > currentState.truckSpeedLimitMph;
   const speedDelta = currentSpeedMph - currentState.truckSpeedLimitMph;
 
-  const handleSimulateBorderCrossing = (targetStateCode: string) => {
+  const handleSelectStateRules = (targetStateCode: string) => {
     if (targetStateCode === activeStateCode) return;
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} CDT`;
-
     setPreviousStateCode(activeStateCode);
     setActiveStateCode(targetStateCode);
-    setLastBorderTimestamp(timeStr);
-    setShowBorderCrossingModal(true);
 
     const newState = US_STATE_DOT_REGULATIONS[targetStateCode];
     onShowToast(
-      `STATE BORDER CROSSING: Entered ${newState.stateName} (${newState.stateCode}) • Speed Limit: ${newState.truckSpeedLimitMph} MPH`,
+      `REFERENCE STATE SELECTED: ${newState.stateName} (${newState.stateCode}) • Speed Limit: ${newState.truckSpeedLimitMph} MPH`,
       'travel_explore'
     );
   };
@@ -94,7 +88,7 @@ export const StateBoundaryAgent: React.FC<StateBoundaryAgentProps> = ({
         <div className="flex items-center gap-2 self-start sm:self-center">
           <select
             value={activeStateCode}
-            onChange={(e) => handleSimulateBorderCrossing(e.target.value)}
+            onChange={(e) => handleSelectStateRules(e.target.value)}
             className="bg-surface-container-lowest text-primary font-bold text-[12px] px-3 py-2 rounded-xl border border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
           >
             {Object.values(US_STATE_DOT_REGULATIONS).map((st) => (

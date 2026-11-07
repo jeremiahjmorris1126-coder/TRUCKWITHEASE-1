@@ -611,30 +611,10 @@ class RealtimeRouteWeatherService {
     } catch (err: any) {
       console.warn('Realtime route weather fetch failed:', err);
       this.state.isLoading = false;
-      this.state.error = 'Live radar link experiencing atmospheric interference. Showing corridor baseline telemetry.';
-      
-      // Fallback data
-      this.state.weather = {
-        temperatureF: 68,
-        apparentTemperatureF: 70,
-        conditionText: 'Partly Cloudy Corridor',
-        weatherCode: 2,
-        icon: 'partly_cloudy_day',
-        windSpeedMph: 14,
-        windGustsMph: 20,
-        windDirectionDeg: 260,
-        windDirectionCardinal: 'WSW',
-        visibilityMiles: 10.0,
-        humidityPct: 52,
-        dewPointF: 50,
-        precipitationInHr: 0,
-        precipitationProbabilityPct: 10,
-        surfacePressureInHg: 29.94,
-        roadSurface: 'DRY_PAVEMENT',
-        roadSurfaceDesc: 'Dry pavement with standard tire grip. Optimum commercial transit conditions.',
-        updatedAt: new Date(),
-      };
-      this.state.lastUpdatedText = `Corridor Baseline • ${new Date().toLocaleTimeString()}`;
+      this.state.error = 'Weather service unavailable.';
+      this.state.weather = null;
+      this.state.activeAlerts = [];
+      this.state.lastUpdatedText = 'Weather service unavailable';
       this.notify();
     }
   }

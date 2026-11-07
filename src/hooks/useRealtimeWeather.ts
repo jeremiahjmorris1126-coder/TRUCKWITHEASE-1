@@ -210,33 +210,10 @@ export const useRealtimeWeather = (): UseRealtimeWeatherReturn => {
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Failed to query live atmospheric data';
       console.warn('Live weather query error:', errMsg);
-      setError('Live satellite link offline. Showing tactical Wyoming I-80 corridor conditions.');
-      
-      // Fallback: Wyoming I-80 corridor (known for 38+ mph crosswinds)
-      const fallbackAlert: WeatherAlertInfo = {
-        type: 'WIND',
-        severity: 'WARNING',
-        title: 'CROSSWIND TACTICAL ADVISORY',
-        message: 'High crosswinds detected on corridor (34 MPH sustained, gusts 44 MPH). Empty 53ft vans exercise extreme caution.',
-        speedAdvisoryMph: 55,
-        equipmentHazard: '53ft Semi / High-Profile Dry Van',
-        metricSnippet: 'Wind: 34 MPH | Gusts: 44 MPH',
-      };
-      
-      setWeather({
-        temperature: 42,
-        windSpeed: 34,
-        windGusts: 44,
-        windDirection: 270,
-        weatherCode: 3,
-        visibilityMiles: 8.5,
-        conditionText: 'High Crosswinds (Overcast)',
-        locationLabel: 'I-80 Elk Mountain, WY (Corridor)',
-        coords: { lat: 41.68, lon: -106.41 },
-        updatedAt: new Date(),
-      });
-      setAlert(fallbackAlert);
-      setIsSimulated(true);
+      setError('Weather service unavailable.');
+      setWeather(null);
+      setAlert(null);
+      setIsSimulated(false);
     } finally {
       setLoading(false);
     }
@@ -244,8 +221,10 @@ export const useRealtimeWeather = (): UseRealtimeWeatherReturn => {
 
   const detectLocationAndFetch = useCallback(() => {
     if (!navigator.geolocation) {
-      // Default to Chicago freight corridor
-      fetchWeatherForCoords(41.8781, -87.6298, 'Chicago Freight Hub (Default)');
+      setLoading(false);
+      setError('GPS geolocation unavailable.');
+      setWeather(null);
+      setAlert(null);
       return;
     }
 
@@ -255,8 +234,10 @@ export const useRealtimeWeather = (): UseRealtimeWeatherReturn => {
       },
       (err) => {
         console.info('Geolocation restricted or denied:', err.message);
-        // Realistic simulated corridor (I-80 Wyoming wind corridor)
-        fetchWeatherForCoords(41.68, -106.41, 'I-80 Wyoming Wind Corridor (Simulated)');
+        setLoading(false);
+        setError('GPS permission required to load local corridor weather.');
+        setWeather(null);
+        setAlert(null);
       },
       { timeout: 7000, enableHighAccuracy: false }
     );

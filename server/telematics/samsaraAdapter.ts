@@ -120,11 +120,11 @@ export class SamsaraAdapter implements TelematicsProviderAdapter {
         odometerMiles: item.obdOdometerMeters?.value ? Math.round(item.obdOdometerMeters.value / 1609.34) : 0,
         engineHours: 0,
         location: {
-          latitude: item.gps?.latitude || 38.6270,
-          longitude: item.gps?.longitude || -90.1994,
-          address: item.gps?.reverseGeo?.formattedLocation || 'Midwest Interstate Corridor',
+          latitude: item.gps?.latitude ?? 0,
+          longitude: item.gps?.longitude ?? 0,
+          address: item.gps?.reverseGeo?.formattedLocation || '',
           heading: item.gps?.headingDegrees || 0,
-          updatedAt: item.gps?.time || new Date().toISOString(),
+          updatedAt: item.gps?.time || '',
         },
         diagnostics: {
           checkEngineLight: Boolean(item.checkEngineLightIsOn),

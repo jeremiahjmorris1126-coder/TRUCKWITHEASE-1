@@ -1184,18 +1184,20 @@ async function startServer() {
       if (!caller || !caller.fleetId) {
         return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
       }
-      const { vehicleId, events } = req.body || {};
-      if (!vehicleId || !Array.isArray(events) || events.length === 0) {
-        return res.status(400).json({ error: 'BadRequest', message: 'vehicleId and non-empty events array required.' });
+      const { vehicleId, loadId, stopId, events } = req.body || {};
+      const targetKey = vehicleId || (loadId ? `load:${loadId}` : undefined);
+      if (!targetKey || !Array.isArray(events) || events.length === 0) {
+        return res.status(400).json({ error: 'BadRequest', message: 'vehicleId (or loadId) and non-empty events array required.' });
       }
 
-      // Explicitly tag phone GPS events
+      const receivedAt = new Date().toISOString();
       const taggedEvents = events.map((ev: any) => ({
         ...ev,
-        source: caller.role === 'driver' || ev.source === 'phone_gps' ? 'phone_gps' : (ev.source || 'ecm'),
+        source: caller.role === 'driver' || ev.source === 'phone_gps' ? 'phone_gps' : (ev.source || 'telematics_provider'),
+        receivedAt: ev.receivedAt || receivedAt,
       }));
 
-      const ingested = await detentionService.ingestEvents(vehicleId, taggedEvents);
+      const ingested = await detentionService.ingestEvents(targetKey, taggedEvents, { loadId, stopId });
       res.json({ success: true, ingested, count: taggedEvents.length });
     } catch (err: any) {
       res.status(err.statusCode || 400).json({ error: 'DetentionError', message: err.message });
@@ -1237,13 +1239,22 @@ async function startServer() {
       if (!caller || !caller.fleetId) {
         return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
       }
-      const { loadId, vehicleId, simulatedDwellMinutes, billTo } = req.body || {};
+      const body = req.body || {};
+      for (const key of Object.keys(body)) {
+        if (key.toLowerCase().includes('dwell')) {
+          return res.status(400).json({
+            error: 'DetentionError',
+            message: 'Client is not permitted to supply or override detention dwell time.',
+          });
+        }
+      }
+      const { loadId, vehicleId, stopId, billTo } = body;
       if (!loadId) {
         return res.status(400).json({ error: 'BadRequest', message: 'loadId is required.' });
       }
       const result = await detentionService.generateOneTapFromLoad(caller, loadId, {
         vehicleId,
-        simulatedDwellMinutes,
+        stopId,
         billTo,
       });
       res.json({ success: true, packet: result.packet, invoice: result.invoice });
@@ -1294,15 +1305,18 @@ async function startServer() {
   });
 
   app.get('/api/insurance/quotes', (req, res) => {
-    const dotNumber = (req.query.dot as string) || '1234567';
+    const dotNumber = (req.query.dot as string) || 'TEST-USDOT-0001';
     res.json({ success: true, dotNumber, quotes: getInsuranceQuotes(dotNumber) });
   });
 
   // Partners Module: Fuel & Gas Discounts (GET /v1/offers/fuel?lat=...&lng=...&radius=...)
   app.get(['/v1/offers/fuel', '/api/v1/offers/fuel', '/api/fuel/discounts', '/api/gas/discounts'], async (req, res) => {
     try {
-      const lat = parseFloat(req.query.lat as string) || 32.7767; // Default to current corridor GPS if not passed
-      const lng = parseFloat(req.query.lng as string) || -96.7970;
+      const lat = parseFloat(req.query.lat as string);
+      const lng = parseFloat(req.query.lng as string);
+      if (isNaN(lat) || isNaN(lng)) {
+        return res.status(400).json({ error: 'lat and lng query parameters are required.' });
+      }
       const radius = req.query.radius ? parseFloat(req.query.radius as string) : 50;
 
       const offers = await partnersRegistry.getAggregatedFuelOffers(lat, lng, radius);
@@ -1665,10 +1679,13 @@ async function startServer() {
   // Weather Hazards
   app.get('/api/weather/regional-hazards', async (req, res) => {
     try {
-      const location = (req.query.location as string) || 'Rolla / St. James, MO';
-      const corridor = (req.query.corridor as string) || 'I-44 Eastbound (MM 184.2)';
-      const lat = Number(req.query.lat) || 37.95;
-      const lon = Number(req.query.lon) || -91.77;
+      const lat = Number(req.query.lat);
+      const lon = Number(req.query.lon);
+      if (isNaN(lat) || isNaN(lon) || req.query.lat === undefined || req.query.lon === undefined) {
+        return res.status(400).json({ error: 'lat and lon query parameters are required.' });
+      }
+      const location = (req.query.location as string) || `${lat}, ${lon}`;
+      const corridor = (req.query.corridor as string) || '';
       const report = await fetchRegionalWeatherHazards(location, corridor, lat, lon);
       res.json(report);
     } catch (err) {
@@ -1678,8 +1695,11 @@ async function startServer() {
 
   app.post('/api/weather/regional-hazards', async (req, res) => {
     try {
-      const { location = 'Rolla, MO', corridor = 'I-44', lat = 37.95, lon = -91.77 } = req.body || {};
-      const report = await fetchRegionalWeatherHazards(location, corridor, Number(lat), Number(lon));
+      const { location, corridor = '', lat, lon } = req.body || {};
+      if (lat === undefined || lon === undefined || isNaN(Number(lat)) || isNaN(Number(lon))) {
+        return res.status(400).json({ error: 'lat and lon are required.' });
+      }
+      const report = await fetchRegionalWeatherHazards(location || `${lat}, ${lon}`, corridor, Number(lat), Number(lon));
       res.json(report);
     } catch (err) {
       res.status(500).json({ error: 'Weather lookup failed', details: (err as Error).message });

@@ -36,9 +36,11 @@ export class DetentionService {
   ): Promise<void> {
     let ratePerHour = rawStop.ratePerHour;
     let freeMinutes = rawStop.freeMinutes;
+    let resolvedFence = rawStop.fence;
+    let resolvedAppointmentTs = rawStop.appointmentTs;
 
-    // If rate or free time missing, dynamically resolve from the load's rate confirmation
-    if (ratePerHour === undefined || freeMinutes === undefined) {
+    // Dynamically resolve terms or facility coordinates from the load if not explicitly supplied
+    if (ratePerHour === undefined || freeMinutes === undefined || !resolvedFence || resolvedAppointmentTs === undefined) {
       const load = await fleetStore.getScopedDocument<FreightLoad>(caller, 'loads', rawStop.loadId);
       if (load) {
         if (ratePerHour === undefined && (load as any).detentionRatePerHour !== undefined) {
@@ -46,6 +48,19 @@ export class DetentionService {
         }
         if (freeMinutes === undefined && (load as any).freeMinutes !== undefined) {
           freeMinutes = (load as any).freeMinutes;
+        }
+        if (!resolvedFence) {
+          if ((load as any).deliveryFence?.center && typeof (load as any).deliveryFence.center.lat === 'number') {
+            resolvedFence = (load as any).deliveryFence;
+          } else if ((load as any).deliveryCoordinates && typeof (load as any).deliveryCoordinates.lat === 'number') {
+            resolvedFence = {
+              center: (load as any).deliveryCoordinates,
+              radiusM: 300,
+            };
+          }
+        }
+        if (resolvedAppointmentTs === undefined && (load as any).appointmentTs !== undefined) {
+          resolvedAppointmentTs = (load as any).appointmentTs;
         }
       }
     }
@@ -66,17 +81,27 @@ export class DetentionService {
       throw err;
     }
 
-    const fence = rawStop.fence || {
-      center: { lat: 32.7767, lng: -96.797 },
-      radiusM: 250,
-    };
+    if (
+      !resolvedFence ||
+      !resolvedFence.center ||
+      typeof resolvedFence.center.lat !== 'number' ||
+      typeof resolvedFence.center.lng !== 'number' ||
+      isNaN(resolvedFence.center.lat) ||
+      isNaN(resolvedFence.center.lng)
+    ) {
+      const err = new Error(
+        'Facility location coordinates (fence) are required. Default geofence coordinates are strictly prohibited.'
+      );
+      (err as any).statusCode = 400;
+      throw err;
+    }
 
     const stop: DetentionStop = {
       stopId: rawStop.stopId,
       loadId: rawStop.loadId,
       kind: rawStop.kind,
-      fence,
-      appointmentTs: rawStop.appointmentTs ?? null,
+      fence: resolvedFence,
+      appointmentTs: resolvedAppointmentTs ?? null,
       ratePerHour,
       freeMinutes,
       facilityName: rawStop.facilityName,
@@ -89,16 +114,29 @@ export class DetentionService {
   }
 
   /**
-   * Ingest telematics events from ECM / hardware feeds.
+   * Ingest telematics or phone GPS events from recorded feeds.
    */
-  async ingestEvents(vehicleId: string, events: TelematicsEvent[]): Promise<boolean> {
-    if (!(await this.ensureTracker(vehicleId))) return false;
-    const entry = this.activeTrackers.get(vehicleId)!;
+  async ingestEvents(
+    vehicleId: string,
+    events: TelematicsEvent[],
+    meta?: { loadId?: string; stopId?: string }
+  ): Promise<boolean> {
+    const receivedAt = new Date().toISOString();
+    const stampedEvents: TelematicsEvent[] = events.map((ev) => ({
+      ...ev,
+      source: (ev as any).source || 'telematics_provider',
+      receivedAt: (ev as any).receivedAt || receivedAt,
+    }));
 
-    for (const ev of events) {
-      entry.tracker.onEvent(ev);
+    const hasTracker = await this.ensureTracker(vehicleId);
+    if (hasTracker) {
+      const entry = this.activeTrackers.get(vehicleId)!;
+      for (const ev of stampedEvents) {
+        entry.tracker.onEvent(ev);
+      }
     }
-    await detentionStore.appendEvents(vehicleId, events);
+
+    await detentionStore.appendEvents(vehicleId, stampedEvents, meta);
     return true;
   }
 
@@ -170,19 +208,31 @@ export class DetentionService {
 
   /**
    * One-Tap Detention Invoice generator from an existing freight load.
-   * Extracts rate con terms dynamically, binds vehicle ECM timeline, generates evidence packet & invoice.
+   * Builds an invoice ONLY from events actually recorded for that load and stop.
+   * Never invents or defaults dwell time, GPS pings, door events, facility coordinates, or appointment time.
    */
   async generateOneTapFromLoad(
     caller: CallerIdentity,
     loadId: string,
     opts: {
       vehicleId?: string;
-      simulatedDwellMinutes?: number;
-      doorSensorsActive?: boolean;
+      stopId?: string;
       billTo?: BillToParty;
+      carrier?: { name: string; usdotNumber?: string; mcNumber?: string } | null;
       generatedTs?: number;
     } = {}
   ): Promise<{ packet: EvidencePacket; invoice: DetentionInvoice | null }> {
+    // Reject any attempt to supply or override dwell time from client options
+    if (opts && typeof opts === 'object') {
+      for (const key of Object.keys(opts)) {
+        if (key.toLowerCase().includes('dwell')) {
+          const err = new Error('Client is not permitted to supply or override detention dwell time.');
+          (err as any).statusCode = 400;
+          throw err;
+        }
+      }
+    }
+
     const load = await fleetStore.getScopedDocument<FreightLoad>(caller, 'loads', loadId);
     if (!load) {
       const err = new Error('Freight load not found.');
@@ -209,18 +259,49 @@ export class DetentionService {
       throw err;
     }
 
-    const stopId = `stop-${load.id}-delivery`;
-    const facilityFence = (load as any).deliveryFence || {
-      center: (load as any).deliveryCoordinates || { lat: 33.749, lng: -84.388 },
-      radiusM: 300,
-    };
+    const rawFence = (load as any).deliveryFence;
+    const rawCoords = (load as any).deliveryCoordinates;
+    const facilityFence =
+      rawFence &&
+      rawFence.center &&
+      typeof rawFence.center.lat === 'number' &&
+      typeof rawFence.center.lng === 'number' &&
+      !isNaN(rawFence.center.lat) &&
+      !isNaN(rawFence.center.lng)
+        ? rawFence
+        : rawCoords &&
+          typeof rawCoords.lat === 'number' &&
+          typeof rawCoords.lng === 'number' &&
+          !isNaN(rawCoords.lat) &&
+          !isNaN(rawCoords.lng)
+        ? { center: { lat: rawCoords.lat, lng: rawCoords.lng }, radiusM: 300 }
+        : null;
+
+    if (!facilityFence) {
+      const err = new Error(
+        `Load ${load.loadNumber} is missing facility location coordinates — detention invoice cannot be created.`
+      );
+      (err as any).statusCode = 400;
+      throw err;
+    }
+
+    const appointmentTs = (load as any).appointmentTs;
+    if (appointmentTs === undefined || appointmentTs === null || typeof appointmentTs !== 'number' || isNaN(appointmentTs)) {
+      const err = new Error(
+        `Load ${load.loadNumber} is missing appointment time — detention invoice cannot be created.`
+      );
+      (err as any).statusCode = 400;
+      throw err;
+    }
+
+    const stopId = opts.stopId || `stop-${load.id}-delivery`;
 
     const stop: DetentionStop = {
       stopId,
       loadId: load.id,
       kind: 'delivery',
       fence: facilityFence,
-      appointmentTs: (load as any).appointmentTs || Date.now() - 4 * 3600 * 1000,
+      appointmentTs,
       ratePerHour,
       freeMinutes,
       facilityName: (load as any).deliveryFacilityName || load.destination,
@@ -229,75 +310,37 @@ export class DetentionService {
 
     const tracker = createStopTracker(stop);
 
-    // Baseline ECM timeline generation if real-time pings are not yet registered
-    const now = opts.generatedTs ?? Date.now();
-    const totalDwellMin = opts.simulatedDwellMinutes ?? freeMinutes + 65; // Default to realistic detention scenario
-    const arrivalTs = now - totalDwellMin * 60_000;
-    const firstDoorOpenTs = arrivalTs + 42 * 60_000; // 42 min wait before dock work
-    const lastDoorCloseTs = now - 5 * 60_000;
-    const departureTs = now;
+    const effectiveVehicleId = opts.vehicleId || load.assignedUnitId;
+    const recordedEvents = await detentionStore.getEventsForLoadAndStop(load.id, stopId, effectiveVehicleId);
 
-    // Hardware GPS trail: arrival confirmation (ARRIVE_PINGS = 2)
-    tracker.onEvent({
-      type: 'gps',
-      ts: arrivalTs,
-      lat: facilityFence.center.lat + 0.0001,
-      lng: facilityFence.center.lng + 0.0001,
-      speedMph: 2,
-    });
-    tracker.onEvent({
-      type: 'gps',
-      ts: arrivalTs + 60_000,
-      lat: facilityFence.center.lat,
-      lng: facilityFence.center.lng,
-      speedMph: 0,
-    });
-
-    // Auxiliary Door sensors
-    if (opts.doorSensorsActive !== false) {
-      tracker.onEvent({
-        type: 'door',
-        ts: firstDoorOpenTs,
-        state: 'open',
-      });
-      tracker.onEvent({
-        type: 'door',
-        ts: lastDoorCloseTs,
-        state: 'closed',
-      });
+    for (const ev of recordedEvents) {
+      tracker.onEvent(ev);
     }
 
-    // Departure confirmation (DEPART_PINGS = 2)
-    tracker.onEvent({
-      type: 'gps',
-      ts: departureTs,
-      lat: facilityFence.center.lat + 0.01,
-      lng: facilityFence.center.lng + 0.01,
-      speedMph: 15,
-    });
-    tracker.onEvent({
-      type: 'gps',
-      ts: departureTs + 60_000,
-      lat: facilityFence.center.lat + 0.02,
-      lng: facilityFence.center.lng + 0.02,
-      speedMph: 28,
-    });
+    const now = opts.generatedTs ?? Date.now();
+    const summary = tracker.summary(now);
+
+    if (summary.arrivalTs === null || summary.departureTs === null || summary.status !== 'departed') {
+      const err = new Error(
+        'No recorded arrival and departure at this facility — detention invoice cannot be created.'
+      );
+      (err as any).statusCode = 400;
+      throw err;
+    }
 
     const packet = buildEvidencePacket({
       tracker,
       fleetId: load.fleetId || caller.fleetId,
-      carrier: {
-        name: 'TruckWithEase Sovereign Fleet',
-        usdotNumber: '3892104',
-        mcNumber: 'MC-198273',
-      },
-      vehicle: {
-        id: load.assignedUnitId || 'UNIT-101',
-        unitNumber: load.assignedUnitId || 'TR-702',
-      },
+      carrier: opts.carrier ?? null,
+      vehicle: effectiveVehicleId
+        ? {
+            id: effectiveVehicleId,
+            unitNumber: effectiveVehicleId,
+          }
+        : null,
       driver: {
         id: load.assignedDriverId || caller.uid,
-        name: caller.email ? caller.email.split('@')[0] : 'Assigned Driver',
+        name: caller.email ? caller.email.split('@')[0] : caller.uid,
       },
       generatedTs: now,
     });
@@ -308,8 +351,8 @@ export class DetentionService {
     if (packet.metrics.detentionMinutes > 0) {
       const invNum = `INV-DET-${load.loadNumber}-${Date.now().toString().slice(-4)}`;
       const billTo: BillToParty = opts.billTo || {
-        name: load.shipperBroker || 'Broker Logistics Group',
-        email: (load as any).shipperBrokerEmail || 'claims@freightbroker.example.com',
+        name: load.shipperBroker,
+        email: (load as any).shipperBrokerEmail,
       };
 
       invoice = buildDetentionInvoice({

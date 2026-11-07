@@ -124,7 +124,7 @@ test('6. Trucker Fuel Discounts & Trucking Insurance Quotes', () => {
   assert.equal(fuelPerks.length, 3);
   assert.ok(fuelPerks[0].truckWithEaseDiscountUsd > 0.40);
 
-  const insurance = getInsuranceQuotes('9876543');
+  const insurance = getInsuranceQuotes('TEST-USDOT-0001');
   assert.equal(insurance.length, 3);
   assert.ok(insurance[0].liabilityLimitUsd >= 1000000);
 });
@@ -299,8 +299,8 @@ test('10. Partners Module: Insurance Providers Unit Tests, Timeout/Fallback, & C
     driverId: 'drv-test-01',
     consentGivenAt: new Date().toISOString(),
     coverageType: 'primary_liability',
-    mcNumber: 'MC-123456',
-    dotNumber: '3948210',
+    mcNumber: 'TEST-MC-0001',
+    dotNumber: 'TEST-USDOT-0001',
     yearsInBusiness: 4,
   });
 
@@ -964,7 +964,7 @@ test('32. Subscriber Sign-Up Loop: Canonical Pricing, Luhn Credit Card Validatio
     accountType: 'driver',
     tierId: 'SOLO_PRO',
     carrierName: 'Bluegrass Heavy Haul',
-    usdotNumber: '4091823',
+    usdotNumber: 'TEST-USDOT-0001',
     cdlNumber: 'CDL-KY-8819201',
     cdlState: 'KY',
     creditCard: {
@@ -993,8 +993,8 @@ test('32. Subscriber Sign-Up Loop: Canonical Pricing, Luhn Credit Card Validatio
     accountType: 'fleet_manager',
     tierId: 'FLEET_PRO',
     carrierName: 'Shaw Freight Lines LLC',
-    usdotNumber: '3910482',
-    mcNumber: 'MC-884920',
+    usdotNumber: 'TEST-USDOT-0001',
+    mcNumber: 'TEST-MC-0001',
     additionalPhoneLines: 1,
     creditCard: {
       cardholderName: 'Helena Shaw',
