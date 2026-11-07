@@ -46,6 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
       case 'hos-clocks':
         return 'HOS & Compliance';
       case 'trip-planner':
+      case 'truck-parking':
+      case 'weigh-bypass':
       case 'radar-54b':
       case 'dispatch-eta':
       case 'master-mechanic':

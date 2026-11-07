@@ -3,10 +3,12 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { FEATURE_FLAGS, ENABLE_TELEMETRY_SCREEN } from '../src/config/featureFlags';
 
+// 'prepass' and 'drivewyze' were removed from this list at the owner's request:
+// the app now links drivers to enroll in those bypass programs (enrollment links
+// only; the app never issues a bypass signal). The '/v1/prepass' and '/v1/bypass'
+// route bans below still apply.
 const FORBIDDEN_TERMS = [
   'checkr',
-  'prepass',
-  'drivewyze',
   'watsonx',
   'ibm sterling',
   'quantum',

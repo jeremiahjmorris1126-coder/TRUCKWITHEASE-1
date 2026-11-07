@@ -1,3 +1,5 @@
+import { resolveHttpsUrl } from '../config/externalLinks';
+
 /**
  * GPSTab ordering: TruckWithEase does not sell or fulfil ELD hardware. Users are
  * sent to GPSTab's own store to order the device and service plan.
@@ -18,17 +20,7 @@ export interface EldOrderOption {
 }
 
 export function resolveGpstabOrderUrl(raw = process.env.GPSTAB_ORDER_URL): { url: string; custom: boolean } {
-  const candidate = raw?.trim();
-  if (candidate) {
-    try {
-      const u = new URL(candidate);
-      if (u.protocol === 'https:') return { url: u.toString(), custom: true };
-      console.warn('[GPSTab] GPSTAB_ORDER_URL ignored: must be an https URL.');
-    } catch {
-      console.warn('[GPSTab] GPSTAB_ORDER_URL ignored: not a valid URL.');
-    }
-  }
-  return { url: GPSTAB_DEFAULT_ORDER_URL, custom: false };
+  return resolveHttpsUrl(raw, GPSTAB_DEFAULT_ORDER_URL, 'GPSTAB_ORDER_URL');
 }
 
 export function getEldOrderOptions(): EldOrderOption[] {

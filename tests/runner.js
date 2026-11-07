@@ -10,6 +10,7 @@ const testFiles = [
   'tests/phase4OfflineSync.test.ts',
   'tests/eldTelematics.test.ts',
   'tests/gpstabOrder.test.ts',
+  'tests/parkingBypass.test.ts',
   'tests/bundleEldAudit.test.ts',
 ];
 

@@ -7,6 +7,8 @@ interface RestAreaAlertModalProps {
   onClose: () => void;
   onResetAlertness: () => void;
   onShowToast: (msg: string, icon?: string) => void;
+  /** Opens the truck parking page (real-time availability where states publish it). */
+  onFindParking?: () => void;
 }
 
 export const RestAreaAlertModal: React.FC<RestAreaAlertModalProps> = ({
@@ -15,6 +17,7 @@ export const RestAreaAlertModal: React.FC<RestAreaAlertModalProps> = ({
   onClose,
   onResetAlertness,
   onShowToast,
+  onFindParking,
 }) => {
   const [testHits, setTestHits] = useState<number>(0);
   const [testActive, setTestActive] = useState<boolean>(false);
@@ -23,22 +26,9 @@ export const RestAreaAlertModal: React.FC<RestAreaAlertModalProps> = ({
 
   if (!isOpen) return null;
 
-  const restArea = alertnessData.recommendedRestArea || {
-    name: "Love's Travel Stop #402",
-    brand: "Love's",
-    exit: 'Exit 488',
-    mileMarker: 488,
-    milesAway: 14.2,
-    availableSpots: 42,
-    amenities: ['Hot Showers', 'DEF Pump', 'Overnight Parking', '24/7 Diner'],
-  };
-
-  const handleRouteToRestArea = () => {
-    onShowToast(
-      `PARKING RESERVED & ROUTED: Navigating to ${restArea.name} (${restArea.exit}). 30-Min HOS Break Timer Synced!`,
-      'local_parking'
-    );
+  const handleFindParking = () => {
     onClose();
+    onFindParking?.();
   };
 
   const handleStartPingTest = () => {
@@ -121,39 +111,12 @@ export const RestAreaAlertModal: React.FC<RestAreaAlertModalProps> = ({
           </p>
         </div>
 
-        {/* RECOMMENDED REST AREA CARD */}
-        <div className="bg-surface-container-low p-3.5 rounded-xl border border-surface-container-high space-y-2.5">
-          <div className="flex items-center justify-between pb-2 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[20px]">
-                local_parking
-              </span>
-              <div>
-                <span className="font-mono text-[13px] font-bold text-on-surface block">
-                  {restArea.name}
-                </span>
-                <span className="text-[10px] text-outline font-mono block">
-                  {restArea.exit} &bull; Mile Marker {restArea.mileMarker} ({restArea.milesAway} Miles Ahead)
-                </span>
-              </div>
-            </div>
-
-            <span className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 font-mono text-[11px] font-bold border border-emerald-500/40">
-              {restArea.availableSpots} SPOTS OPEN
-            </span>
-          </div>
-
-          {/* Amenities Pills */}
-          <div className="flex items-center gap-1.5 flex-wrap font-mono text-[10px] text-outline">
-            {restArea.amenities.map((amenity) => (
-              <span
-                key={amenity}
-                className="px-2 py-0.5 rounded bg-surface-container-lowest border border-white/5 text-on-surface"
-              >
-                ✓ {amenity}
-              </span>
-            ))}
-          </div>
+        {/* TRUCK PARKING: real availability lives on the Parking page (no invented counts here) */}
+        <div className="bg-surface-container-low p-3.5 rounded-xl border border-surface-container-high flex items-center gap-2.5">
+          <span className="material-symbols-outlined text-primary text-[20px]">local_parking</span>
+          <span className="text-[12px] text-on-surface leading-relaxed">
+            Find a safe place to park. The Parking page shows live open-space counts where state DOTs publish them.
+          </span>
         </div>
 
         {/* COGNITIVE REACTION PING TEST SECTION */}
@@ -179,11 +142,11 @@ export const RestAreaAlertModal: React.FC<RestAreaAlertModalProps> = ({
         {/* Modal Action Buttons */}
         <div className="flex flex-col sm:flex-row items-center gap-space-sm pt-2">
           <button
-            onClick={handleRouteToRestArea}
+            onClick={handleFindParking}
             className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-primary text-on-primary font-label-caps text-[12px] font-bold uppercase tracking-wider shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[18px]">navigation</span>
-            <span>Reserve & Route to Rest Area</span>
+            <span className="material-symbols-outlined text-[18px]">local_parking</span>
+            <span>Find Truck Parking</span>
           </button>
 
           {!testActive && (

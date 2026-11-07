@@ -34,7 +34,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'ROUTE & DISPATCH',
     sublabel: 'Stops, Scales & Docks',
     icon: 'route',
-    matches: ['trip-planner', 'radar-54b', 'dispatch-eta', 'master-mechanic'],
+    matches: ['trip-planner', 'truck-parking', 'weigh-bypass', 'radar-54b', 'dispatch-eta', 'master-mechanic'],
   },
   {
     id: 'fleet-expenses',

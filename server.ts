@@ -16,6 +16,8 @@ import {
 import { checkFirestoreHealth, testFirestoreReadWrite } from './server/firestore';
 import { telematicsManager } from './server/telematics/telematicsManager';
 import { getEldOrderOptions } from './server/eld/gpstabOrder';
+import { getBypassPrograms } from './server/bypass/bypassPrograms';
+import { tpimsService } from './server/parking/tpimsService';
 import { triggerAuxAlert, getActiveAlerts, getAllAlerts, resolveAlert, AuxInputType } from './server/alerts/alertEngine';
 import { getLoads, createLoad, matchLoadsForDriver, dispatchLoad, getLoadById, updateLoadStatus } from './server/loadMatching/loadService';
 import { getDriverProfile, updateDriverProfile, getDriverDocuments, addDriverDocument, getDriverDocumentById } from './server/driver/driverProfileService';
@@ -638,6 +640,33 @@ async function startServer() {
   // Where users order their ELD (GPSTab's own store; TruckWithEase does not sell hardware).
   app.get('/api/eld/order-options', (_req, res) => {
     res.json({ success: true, options: getEldOrderOptions() });
+  });
+
+  // Weigh station bypass enrollment links. The app never issues a bypass signal itself.
+  app.get('/api/weigh-bypass/programs', (_req, res) => {
+    res.json({ success: true, programs: getBypassPrograms() });
+  });
+
+  // Real-time truck parking from state DOT TPIMS feeds. Optional ?lat=&lon= sorts by distance.
+  app.get('/api/parking/sites', async (req, res) => {
+    try {
+      const lat = req.query.lat !== undefined ? Number(req.query.lat) : undefined;
+      const lon = req.query.lon !== undefined ? Number(req.query.lon) : undefined;
+      const validCoords =
+        lat !== undefined && lon !== undefined && Number.isFinite(lat) && Number.isFinite(lon) &&
+        Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+      if ((lat !== undefined || lon !== undefined) && !validCoords) {
+        return res.status(400).json({ error: 'BadRequest', message: 'lat and lon must both be valid coordinates.' });
+      }
+      const limit = req.query.limit !== undefined ? Number(req.query.limit) : undefined;
+      const configured = tpimsService.isConfigured();
+      const sites = configured
+        ? await tpimsService.getSites({ lat: validCoords ? lat : undefined, lon: validCoords ? lon : undefined, limit })
+        : [];
+      res.json({ success: true, configured, count: sites.length, sites, feeds: tpimsService.getFeedStatus() });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
   });
 
   app.get('/api/telematics/status', (req, res) => {

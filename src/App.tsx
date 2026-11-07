@@ -288,14 +288,21 @@ export default function App() {
           />
         );
       case 'trip-planner':
+      case 'truck-parking':
+      case 'weigh-bypass':
       case 'radar-54b':
       case 'dispatch-eta':
       case 'master-mechanic':
 
         return (
           <RouteDispatchHub
+            key={activeTab}
             initialSubTab={
-              activeTab === 'radar-54b'
+              activeTab === 'truck-parking'
+                ? 'parking'
+                : activeTab === 'weigh-bypass'
+                ? 'bypass'
+                : activeTab === 'radar-54b'
                 ? 'weigh-scales'
                 : activeTab === 'dispatch-eta'
                 ? 'dispatch'
@@ -456,6 +463,7 @@ export default function App() {
         onClose={() => alertness.setIsRestModalOpen(false)}
         onResetAlertness={alertness.resetAlertness}
         onShowToast={showToast}
+        onFindParking={() => setActiveTab('truck-parking')}
       />
 
       {/* Firebase Driver & Fleet Authenticator Modal */}
