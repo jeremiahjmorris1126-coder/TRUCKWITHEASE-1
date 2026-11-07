@@ -205,7 +205,7 @@ export const useVoiceControl = ({
           return;
         }
         if (phrase.includes('haptics') || phrase.includes('vibration')) {
-          setTimedFeedback('HAPTICS', 'SWITCHING TO CAN-BUS HAPTIC TEST SUITE', 'vibration');
+          setTimedFeedback('HAPTICS', 'SWITCHING TO HAPTIC TEST SUITE', 'vibration');
           onSelectTab('haptics');
           return;
         }
@@ -220,7 +220,7 @@ export const useVoiceControl = ({
           return;
         }
         if (phrase.includes('telemetry') || phrase.includes('diagnostics')) {
-          setTimedFeedback('TELEMETRY', 'SWITCHING TO J1939 FLEET TELEMETRY', 'memory');
+          setTimedFeedback('TELEMETRY', 'SWITCHING TO FLEET TELEMETRY', 'memory');
           onSelectTab('telemetry');
           return;
         }

@@ -4,6 +4,7 @@ import { FleetExpensesInvoiceScreen } from './FleetExpensesInvoiceScreen';
 import { SecurityVaultScreen } from './SecurityVaultScreen';
 import { EcosystemTrustHubScreen } from './EcosystemTrustHubScreen';
 import { MasterSynchronizerScreen } from './MasterSynchronizerScreen';
+import { ENABLE_MASTER_SYNC, FEATURE_FLAGS } from '../../config/featureFlags';
 
 interface FleetOperationsHubProps {
   initialSubTab?: 'invoices' | 'vault' | 'trust' | 'sync';
@@ -23,7 +24,11 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
   onClearLogs,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'vault' | 'trust' | 'sync'>(
-    initialSubTab
+    initialSubTab === 'sync' && !ENABLE_MASTER_SYNC
+      ? 'invoices'
+      : initialSubTab === 'trust' && !FEATURE_FLAGS.ENABLE_THIRD_PARTY_PARTNERS
+      ? 'invoices'
+      : initialSubTab
   );
 
   return (
@@ -56,29 +61,33 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
               <span>Compliance Vault</span>
             </button>
 
-            <button
-              onClick={() => setActiveSubTab('trust')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer whitespace-nowrap flex-1 ${
-                activeSubTab === 'trust'
-                  ? 'bg-primary text-on-primary shadow-md'
-                  : 'bg-surface-container/60 hover:bg-surface-container text-outline hover:text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">hub</span>
-              <span>Trust Network</span>
-            </button>
+            {FEATURE_FLAGS.ENABLE_THIRD_PARTY_PARTNERS && (
+              <button
+                onClick={() => setActiveSubTab('trust')}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer whitespace-nowrap flex-1 ${
+                  activeSubTab === 'trust'
+                    ? 'bg-primary text-on-primary shadow-md'
+                    : 'bg-surface-container/60 hover:bg-surface-container text-outline hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">hub</span>
+                <span>Trust Network</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveSubTab('sync')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer whitespace-nowrap flex-1 ${
-                activeSubTab === 'sync'
-                  ? 'bg-primary text-on-primary shadow-md'
-                  : 'bg-surface-container/60 hover:bg-surface-container text-outline hover:text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">cloud_sync</span>
-              <span>System & Sync</span>
-            </button>
+            {ENABLE_MASTER_SYNC && (
+              <button
+                onClick={() => setActiveSubTab('sync')}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer whitespace-nowrap flex-1 ${
+                  activeSubTab === 'sync'
+                    ? 'bg-primary text-on-primary shadow-md'
+                    : 'bg-surface-container/60 hover:bg-surface-container text-outline hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">cloud_sync</span>
+                <span>System & Sync</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -97,10 +106,10 @@ export const FleetOperationsHub: React.FC<FleetOperationsHubProps> = ({
             onClearLogs={onClearLogs || (() => {})}
           />
         )}
-        {activeSubTab === 'trust' && (
+        {FEATURE_FLAGS.ENABLE_THIRD_PARTY_PARTNERS && activeSubTab === 'trust' && (
           <EcosystemTrustHubScreen onShowToast={onShowToast} />
         )}
-        {activeSubTab === 'sync' && (
+        {ENABLE_MASTER_SYNC && activeSubTab === 'sync' && (
           <MasterSynchronizerScreen onShowToast={onShowToast} />
         )}
       </div>

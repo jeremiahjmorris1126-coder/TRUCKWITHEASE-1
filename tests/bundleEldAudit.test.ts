@@ -1,10 +1,135 @@
 import { describe, expect, it } from 'bun:test';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { FEATURE_FLAGS } from '../src/config/featureFlags';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { FEATURE_FLAGS, ENABLE_TELEMETRY_SCREEN } from '../src/config/featureFlags';
+
+const FORBIDDEN_TERMS = [
+  'checkr',
+  'prepass',
+  'drivewyze',
+  'watsonx',
+  'ibm sterling',
+  'quantum',
+  'anneal',
+  'merkle',
+  'nasa',
+  'J1939',
+  'CAN-bus',
+  'canbus',
+  '10hz',
+  'weigh station: open',
+  'fmcsa certified',
+  'jeremiah',
+  'verified: true',
+];
+
+const SOURCE_TARGETS = [
+  'src',
+  'server',
+  'detention-proof',
+  'public',
+  'server.ts',
+  'index.html',
+];
+
+const BUNDLE_TARGETS = ['dist'];
+
+function collectFiles(targetPath: string, fileList: string[] = []): string[] {
+  if (!existsSync(targetPath)) return fileList;
+  const stat = statSync(targetPath);
+  if (stat.isFile()) {
+    if (/\.(ts|tsx|js|cjs|mjs|json|html|css)$/i.test(targetPath)) {
+      fileList.push(targetPath);
+    }
+    return fileList;
+  }
+  for (const entry of readdirSync(targetPath, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === '.git') continue;
+    const fullPath = join(targetPath, entry.name);
+    if (entry.isDirectory()) {
+      collectFiles(fullPath, fileList);
+    } else if (/\.(ts|tsx|js|cjs|mjs|json|html|css)$/i.test(entry.name)) {
+      fileList.push(fullPath);
+    }
+  }
+  return fileList;
+}
+
+function countOccurrencesCaseInsensitive(textLower: string, termLower: string): number {
+  let count = 0;
+  let pos = 0;
+  while ((pos = textLower.indexOf(termLower, pos)) !== -1) {
+    count++;
+    pos += termLower.length;
+  }
+  return count;
+}
 
 describe('ELD REGULATORY COMPLIANCE AUDIT: ZERO SELF-MADE HOS LOGS OR UNREQUESTED MODULES', () => {
-  // 1. Bundle verification
+  it('searches source folders AND the built bundle (case-insensitive) for all 15 forbidden terms and fails if any match is found', () => {
+    const rootDir = process.cwd();
+    const distDir = join(rootDir, 'dist');
+    expect(existsSync(distDir)).toBe(true);
+
+    const allFiles: string[] = [];
+    for (const target of [...SOURCE_TARGETS, ...BUNDLE_TARGETS]) {
+      collectFiles(join(rootDir, target), allFiles);
+    }
+
+    expect(allFiles.length).toBeGreaterThan(0);
+
+    const termTotals: Record<string, number> = {};
+    for (const term of FORBIDDEN_TERMS) {
+      termTotals[term] = 0;
+    }
+
+    const matchedFilesReport: Array<{ file: string; termCounts: Record<string, number>; total: number }> = [];
+    const scannedFilesSummary: Array<{ file: string; matches: number }> = [];
+
+    for (const filePath of allFiles) {
+      const relPath = relative(rootDir, filePath).replace(/\\/g, '/');
+      const contentLower = readFileSync(filePath, 'utf8').toLowerCase();
+      let fileMatchTotal = 0;
+      const fileTermCounts: Record<string, number> = {};
+
+      for (const term of FORBIDDEN_TERMS) {
+        const count = countOccurrencesCaseInsensitive(contentLower, term.toLowerCase());
+        if (count > 0) {
+          fileTermCounts[term] = count;
+          fileMatchTotal += count;
+          termTotals[term] += count;
+        }
+      }
+
+      scannedFilesSummary.push({ file: relPath, matches: fileMatchTotal });
+      if (fileMatchTotal > 0) {
+        matchedFilesReport.push({
+          file: relPath,
+          termCounts: fileTermCounts,
+          total: fileMatchTotal,
+        });
+      }
+    }
+
+    console.log('=== CASE-INSENSITIVE FORBIDDEN TERM SCAN OUTPUT ===');
+    console.log(`Total files scanned (source + dist): ${allFiles.length}`);
+    for (const term of FORBIDDEN_TERMS) {
+      console.log(`Term "${term}": ${termTotals[term]} matches`);
+    }
+    if (matchedFilesReport.length === 0) {
+      console.log('Files with matches: 0');
+    } else {
+      for (const item of matchedFilesReport) {
+        console.log(`MATCH FOUND in ${item.file}: ${JSON.stringify(item.termCounts)} (total=${item.total})`);
+      }
+    }
+
+    expect(matchedFilesReport).toEqual([]);
+    for (const term of FORBIDDEN_TERMS) {
+      expect(termTotals[term]).toBe(0);
+    }
+  });
+
   it('strictly verifies zero unrequested features, outside company names, or self-made HOS code in production bundles', () => {
     const distDir = join(process.cwd(), 'dist');
     const assetsDir = join(distDir, 'assets');
@@ -31,6 +156,9 @@ describe('ELD REGULATORY COMPLIANCE AUDIT: ZERO SELF-MADE HOS LOGS OR UNREQUESTE
     const forbiddenInClient = [
       'HosDailyLogPdfModal',
       'BluetoothEldModal',
+      'bluetoothEldService',
+      'NasaGoogleCloseUpOrbitalSpotter',
+      'nasaOrbitalSpotterService',
       'calculateLiveClocks',
       'evaluateSplitSleeperBerth',
       'calculateNasaVerification',
@@ -47,6 +175,8 @@ describe('ELD REGULATORY COMPLIANCE AUDIT: ZERO SELF-MADE HOS LOGS OR UNREQUESTE
       'QuantumAlertnessReportCard',
       'quantumPredictiveService',
       'processQuantumPredictiveAnalytics',
+      'HSM SEAL VERIFIED',
+      'drv-jeremiah-904',
     ];
 
     for (const pattern of forbiddenInClient) {
@@ -80,16 +210,19 @@ describe('ELD REGULATORY COMPLIANCE AUDIT: ZERO SELF-MADE HOS LOGS OR UNREQUESTE
     const requiredNotice = 'Hours of service come from your ELD. Connect your ELD to view them here.';
     expect(clientBundleContent.includes(requiredNotice)).toBe(true);
 
-    // UNREQUESTED PARTNER FLAGS STAY OFF
+    // UNREQUESTED PARTNER FLAGS & TELEMETRY SCREEN STAY OFF
     expect(FEATURE_FLAGS.ENABLE_THIRD_PARTY_PARTNERS).toBe(false);
     expect(FEATURE_FLAGS.ENABLE_TWILIO_TELEPHONY).toBe(false);
+    expect(ENABLE_TELEMETRY_SCREEN).toBe(false);
   });
 
-  // 2. Source Tree Audit: Ensure deleted modules are not in the repository
   it('verifies source code contains zero self-made HOS calculators or unrequested feature modules', () => {
     const deletedSourceFiles = [
       'src/components/HosDailyLogPdfModal.tsx',
       'src/components/BluetoothEldModal.tsx',
+      'src/services/bluetoothEldService.ts',
+      'src/components/NasaGoogleCloseUpOrbitalSpotter.tsx',
+      'src/services/nasaOrbitalSpotterService.ts',
       'src/services/nasaEldTimeService.ts',
       'src/services/eldCalculations.ts',
       'server/eld/eldTimeService.ts',

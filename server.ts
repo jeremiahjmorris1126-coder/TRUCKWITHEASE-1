@@ -63,7 +63,7 @@ interface MemorySnapshot {
   heapLimitMb: number;
   domNodeCount: number;
   fps: number;
-  canBusLatencyMs: number;
+  renderLatencyMs: number;
   memoryHealthScore: number;
   leakProbability: number;
   activeRoute: string;
@@ -72,7 +72,7 @@ interface MemorySnapshot {
 interface PerformanceOptimization {
   id: string;
   timestamp: string;
-  actionType: 'GC_DOM_PRUNE' | 'BUFFER_FLUSH' | 'DEBOUNCE_THROTTLE' | 'CAN_BUS_RATE_LIMIT';
+  actionType: 'GC_DOM_PRUNE' | 'BUFFER_FLUSH' | 'DEBOUNCE_THROTTLE' | 'EVENT_RATE_LIMIT';
   description: string;
   memorySavedMb: number;
   appliedState: 'SUCCESS' | 'ACTIVE';
@@ -1501,7 +1501,7 @@ async function startServer() {
       }
       res.json({
         success: true,
-        verified: true,
+        verified: Boolean(result.verified),
         emailRecord: result.emailRecord,
         user: result.user,
       });
@@ -1565,7 +1565,7 @@ async function startServer() {
   });
 
   // ==========================================
-  // MEMORY, PREDICTIVE & QUANTUM PERFORMANCE APIS
+  // MEMORY & PERFORMANCE APIS
   // ==========================================
   const restrictDriver: express.RequestHandler = (req, res, next) => {
     const caller: CallerIdentity = (req as any).user;
@@ -1583,12 +1583,12 @@ async function startServer() {
         heapLimitMb = 512.0,
         domNodeCount = 420,
         fps = 60,
-        canBusLatencyMs = 1.2,
+        renderLatencyMs = 1.2,
         activeRoute = 'Night HUD',
       } = req.body;
 
       const heapRatio = usedHeapMb / totalHeapMb;
-      const memoryHealthScore = Math.max(10, Math.min(100, Math.round(100 - heapRatio * 40 - (canBusLatencyMs > 5 ? 15 : 0))));
+      const memoryHealthScore = Math.max(10, Math.min(100, Math.round(100 - heapRatio * 40 - (renderLatencyMs > 5 ? 15 : 0))));
       const leakProbability = parseFloat((Math.max(0.01, (heapRatio - 0.6) * 1.5).toFixed(3)));
 
       const snapshot: MemorySnapshot = {
@@ -1599,7 +1599,7 @@ async function startServer() {
         heapLimitMb: parseFloat(heapLimitMb.toFixed(2)),
         domNodeCount: parseInt(domNodeCount, 10),
         fps: parseInt(fps, 10),
-        canBusLatencyMs: parseFloat(canBusLatencyMs.toFixed(2)),
+        renderLatencyMs: parseFloat(renderLatencyMs.toFixed(2)),
         memoryHealthScore,
         leakProbability,
         activeRoute,
@@ -1627,7 +1627,7 @@ async function startServer() {
       heapLimitMb: 512.0,
       domNodeCount: 380,
       fps: 60,
-      canBusLatencyMs: 1.1,
+      renderLatencyMs: 1.1,
       memoryHealthScore: 94,
       leakProbability: 0.02,
       activeRoute: 'Night HUD',
@@ -1809,7 +1809,7 @@ async function startServer() {
         status: 'READY',
         branch,
         lastCommit,
-        remoteUrl: 'https://github.com/jeremiahjmorris1126-coder/TRUCKWITHEASE-1.git',
+        remoteUrl: process.env.GIT_REMOTE_URL || 'https://github.com/truckwithease/TRUCKWITHEASE-1.git',
         cloudflareReady: true,
         targetDomains: ['truckwithease.com', 'Morrishive.com'],
         timestamp: new Date().toISOString(),

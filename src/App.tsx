@@ -5,7 +5,6 @@
 
 import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { TabId, InspectionLogEntry, InspectionActionType, InspectionTriggerSource } from './types';
-import { INITIAL_INSPECTION_LOGS } from './data/mockData';
 import { Header } from './components/Header';
 import { Navigation } from './components/Navigation';
 import { Toast } from './components/Toast';
@@ -26,7 +25,6 @@ import { MasterMechanicScreen } from './components/screens/MasterMechanicScreen'
 import { HapticsScreen } from './components/screens/HapticsScreen';
 import { EcosystemTrustHubScreen } from './components/screens/EcosystemTrustHubScreen';
 import { SecurityVaultScreen } from './components/screens/SecurityVaultScreen';
-import { TelemetryScreen } from './components/screens/TelemetryScreen';
 import { DispatchEtaScreen } from './components/screens/DispatchEtaScreen';
 import { MasterSynchronizerScreen } from './components/screens/MasterSynchronizerScreen';
 import { FleetExpensesInvoiceScreen } from './components/screens/FleetExpensesInvoiceScreen';
@@ -38,15 +36,15 @@ import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 import { AuthLoginModal } from './components/AuthLoginModal';
 import { clientAuth } from './services/firebaseClientAuth';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { bluetoothEldService } from './services/bluetoothEldService';
 import { memoryPerformanceService } from './services/memoryPerformanceService';
 import { FleetCustomizationSettings } from './types';
 import {
   ENABLE_UNVERIFIED_HOS_CLOCKS,
-  ENABLE_TELEMETRY_10HZ,
-  ENABLE_BLUETOOTH_ELD,
+  ENABLE_TELEMETRY_SCREEN,
   ENABLE_HAPTICS_SCREEN,
   ENABLE_MASTER_SYNC,
+  ENABLE_RADAR_54B,
+  FEATURE_FLAGS,
 } from './config/featureFlags';
 import { apiClient, registerApiAuthHandlers } from './services/apiClient';
 
@@ -64,12 +62,12 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
     'vault': true,
     'fleet-expenses': true,
     'hos-clocks': ENABLE_UNVERIFIED_HOS_CLOCKS,
-    'radar-54b': true,
+    'radar-54b': ENABLE_RADAR_54B,
     'trip-planner': true,
     'master-mechanic': true,
     'haptics': ENABLE_HAPTICS_SCREEN,
-    'ecosystem': true,
-    'telemetry': ENABLE_TELEMETRY_10HZ,
+    'ecosystem': FEATURE_FLAGS.ENABLE_THIRD_PARTY_PARTNERS,
+    'telemetry': ENABLE_TELEMETRY_SCREEN,
   },
 };
 
@@ -89,8 +87,6 @@ export default function App() {
   const [toastIcon, setToastIcon] = useState<string>('verified_user');
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
-  const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState<boolean>(false);
-  const [isBluetoothConnected, setIsBluetoothConnected] = useState<boolean>(() => bluetoothEldService.getStatus() === 'CONNECTED');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [driverProfile, setDriverProfile] = useState<{ name?: string; cdlNumber?: string } | null>(null);
@@ -135,16 +131,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Synchronize with Bluetooth ELD Service
-  useEffect(() => {
-    return bluetoothEldService.subscribe((telemetry, status) => {
-      setIsBluetoothConnected(status === 'CONNECTED');
-      if (status === 'CONNECTED') {
-        setSpeed(telemetry.wheelSpeedMph);
-      }
-    });
-  }, []);
-
   // Fleet Customization Settings
   const [fleetSettings, setFleetSettings] = useState<FleetCustomizationSettings>(() => {
     try {
@@ -183,7 +169,7 @@ export default function App() {
     } catch (e) {
       console.warn('Failed to load saved inspection logs:', e);
     }
-    return INITIAL_INSPECTION_LOGS;
+    return [];
   });
 
   const handleRecordInspectionPdf = (
@@ -218,10 +204,10 @@ export default function App() {
       triggerSource,
       cycle: '70-Hour / 8-Day',
       daysCovered: 8,
-      merkleHash: randomHex,
+      documentHash: randomHex,
       recordNumber: recNum,
       fileSize: `${Math.floor(340 + Math.random() * 25)} KB`,
-      verified: true,
+      verified: Boolean(false),
       notes:
         notes || (firebaseUser?.email ? `Attested by authenticated driver (${firebaseUser.email}) at ${displayTime}. Compliant under 49 CFR § 395.8.` : `Inspection record generated at ${displayTime}. Driver sign-in required for digital attestation.`),
     };
@@ -245,8 +231,6 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
-
-  // Vehicle speed derived from connected Bluetooth ELD or J1939 telematics stream
 
   const showToast = (message: string, icon = 'verified_user') => {
     setToastMessage(message);
@@ -346,30 +330,19 @@ export default function App() {
             onGenerateNewPdf={(triggerSource, notes) => {
               handleRecordInspectionPdf('PDF_GENERATED', (triggerSource as InspectionTriggerSource) || 'MANUAL_HUD', notes);
               setIsPdfModalOpen(true);
-              showToast('NEW INSPECTION PDF GENERATED // CRYPTOGRAPHICALLY ATTESTED', 'picture_as_pdf');
+              showToast('NEW INSPECTION PDF GENERATED // ATTESTED', 'picture_as_pdf');
             }}
             onClearLogs={() => {
-              setInspectionLogs(INITIAL_INSPECTION_LOGS);
+              setInspectionLogs([]);
               try {
                 localStorage.removeItem('truck_inspection_logs');
               } catch (e) {}
-              showToast('INSPECTION AUDIT LOG ARCHIVE RESET TO BASELINE', 'restart_alt');
+              showToast('INSPECTION AUDIT LOG ARCHIVE CLEARED', 'restart_alt');
             }}
           />
         );
       case 'haptics':
         return <HapticsScreen onShowToast={showToast} />;
-      case 'telemetry':
-        return (
-          <TelemetryScreen
-            onShowToast={showToast}
-            speed={speed}
-            onRecordInspectionLog={(actionType, triggerSource, notes) => {
-              handleRecordInspectionPdf(actionType as any, triggerSource as any, notes);
-            }}
-            onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
-          />
-        );
       default:
         return null;
     }
@@ -414,8 +387,6 @@ export default function App() {
         alertnessScore={alertness.alertnessData.score}
         onOpenAlertnessModal={() => alertness.setIsRestModalOpen(true)}
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
-        onOpenBluetoothModal={() => setIsBluetoothModalOpen(true)}
-        isBluetoothConnected={isBluetoothConnected}
         onOpenAuthLogin={() => setIsAuthModalOpen(true)}
         currentUser={firebaseUser}
         driverName={driverProfile?.name}
@@ -427,7 +398,7 @@ export default function App() {
           role="status"
           className="mx-4 mb-4 rounded-lg border border-amber-500/60 bg-[#0A0F14] px-4 py-3 text-sm font-semibold text-amber-300"
         >
-          Demo data may be shown. FMCSA/DOT certification, Drivewyze, NASA telemetry, and vehicle hardware connections are not verified. Do not use this app as a regulatory or safety authority.
+          Demo data may be shown. Vehicle hardware connections and external regulatory feeds are not connected unless explicitly configured. Do not use this app as an official ELD or safety authority.
         </div>
         <Suspense
           fallback={

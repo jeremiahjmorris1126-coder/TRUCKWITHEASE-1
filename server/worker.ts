@@ -76,9 +76,8 @@ export default {
             kvCache: env.CACHE ? 'CONNECTED' : 'NOT_BOUND',
           },
           subsystems: {
-            fmcsaEngine: 'STANDALONE_LOCAL_49CFR395',
-            nasaOrbitalSpotter: 'DETERMINISTIC_MODELING',
-            weighStationBypass: 'PUBLIC_STATION_DIRECTORY',
+            dvirEngine: 'ACTIVE',
+            routingEngine: 'ACTIVE',
           },
           timestamp: new Date().toISOString(),
         };

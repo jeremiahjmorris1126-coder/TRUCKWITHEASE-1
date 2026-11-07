@@ -67,40 +67,27 @@ export const MinimalistCruisingOverlay: React.FC<MinimalistCruisingOverlayProps>
           </div>
         </div>
 
-        {/* CENTER: KEY HOS TIMERS (DRIVE & SHIFT COUNTDOWN) */}
-        <div className="grid grid-cols-2 gap-3 w-full md:w-auto">
-          <div className="p-3.5 rounded-2xl bg-neutral-900/90 border border-emerald-500/40 text-center flex flex-col justify-center min-w-[130px]">
-            <span className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">
-              DRIVE REMAINING
-            </span>
-            <span className="text-[26px] font-black text-emerald-400 my-0.5">
-              06h 14m
-            </span>
-            <span className="text-[9px] text-emerald-300 font-bold">49 CFR § 395.3(a)</span>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-neutral-900/90 border border-neutral-700 text-center flex flex-col justify-center min-w-[130px]">
-            <span className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider">
-              DUTY SHIFT
-            </span>
-            <span className="text-[26px] font-black text-white my-0.5">
-              08h 40m
-            </span>
-            <span className="text-[9px] text-neutral-400 font-bold">14h WINDOW</span>
-          </div>
+        {/* CENTER: HOURS OF SERVICE NOTICE */}
+        <div className="p-4 rounded-2xl bg-neutral-900/90 border border-neutral-700 text-center flex flex-col justify-center max-w-xs">
+          <span className="text-[9px] text-neutral-400 uppercase font-bold tracking-wider mb-1">
+            HOURS OF SERVICE
+          </span>
+          <span className="text-xs font-bold text-neutral-200 leading-relaxed">
+            Hours of service come from your ELD. Connect your ELD to view them here.
+          </span>
         </div>
 
-        {/* RIGHT: NEXT UPCOMING WAYPOINT & BYPASS STATUS */}
+        {/* RIGHT: NEXT UPCOMING WAYPOINT */}
         <div className="flex flex-col items-center md:items-end text-center md:text-right w-full md:w-auto">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10px] font-bold mb-1.5">
-            <span className="material-symbols-outlined text-[14px]">scale</span>
-            <span>WEIGH STATION: OPEN</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/20 border border-sky-400/50 text-sky-300 text-[10px] font-bold mb-1.5">
+            <span className="material-symbols-outlined text-[14px]">navigation</span>
+            <span>UPCOMING WAYPOINT</span>
           </div>
           <span className="text-[18px] font-bold text-white uppercase">
-            Joplin Scale (MM 18)
+            St. James Rest Plaza
           </span>
           <span className="text-[11px] text-neutral-300 mt-0.5">
-            18 Miles Ahead • Missouri DOT Weight Station
+            14 Miles Ahead • Corridor Rest Area
           </span>
         </div>
       </div>
@@ -112,7 +99,7 @@ export const MinimalistCruisingOverlay: React.FC<MinimalistCruisingOverlayProps>
           <div>
             <span className="text-[9px] text-neutral-400 uppercase block font-bold">NEXT REST AREA</span>
             <span className="text-[13px] font-bold text-white block">St. James Plaza (14 Mi)</span>
-            <span className="text-[10px] text-emerald-400">28 Truck Parking Spaces Open</span>
+            <span className="text-[10px] text-emerald-400">Corridor Truck Parking</span>
           </div>
           <span className="material-symbols-outlined text-neutral-500 text-[26px]">local_parking</span>
         </div>
@@ -120,9 +107,9 @@ export const MinimalistCruisingOverlay: React.FC<MinimalistCruisingOverlayProps>
         {/* Next Diesel Stop */}
         <div className="p-3.5 rounded-2xl bg-neutral-950 border border-neutral-800 flex items-center justify-between">
           <div>
-            <span className="text-[9px] text-neutral-400 uppercase block font-bold">NEXT DIESEL DISCOUNT</span>
-            <span className="text-[13px] font-bold text-white block">Love&apos;s #402 (12 Mi)</span>
-            <span className="text-[10px] text-amber-400">$3.89/gal • In-App Fleet Pay</span>
+            <span className="text-[9px] text-neutral-400 uppercase block font-bold">NEXT FUEL STOP</span>
+            <span className="text-[13px] font-bold text-white block">Exit 195 Travel Center (12 Mi)</span>
+            <span className="text-[10px] text-amber-400">Commercial Diesel Lanes</span>
           </div>
           <span className="material-symbols-outlined text-amber-400 text-[26px]">local_gas_station</span>
         </div>

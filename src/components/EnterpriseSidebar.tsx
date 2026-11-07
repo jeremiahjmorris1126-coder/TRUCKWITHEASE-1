@@ -1,7 +1,6 @@
 import React from 'react';
 import { TabId } from '../types';
 import {
-  ENABLE_TELEMETRY_10HZ,
   ENABLE_HAPTICS_SCREEN,
 } from '../config/featureFlags';
 import { User } from 'firebase/auth';
@@ -69,12 +68,6 @@ const COMMAND_MENU_ITEMS: CommandMenuItem[] = [
     icon: 'receipt_long',
     badge: 'SECURE',
     badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-  },
-  {
-    id: 'telemetry',
-    label: 'VEHICLE TELEMETRY',
-    sublabel: '10Hz ECM CAN-Bus & Heat',
-    icon: 'memory',
   },
   {
     id: 'haptics',
@@ -171,9 +164,6 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
 
             <div className="text-right font-mono shrink-0 pl-1">
               <span className="text-[12px] font-bold text-primary block">{speed} MPH</span>
-              {ENABLE_TELEMETRY_10HZ && (
-                <span className="text-[8px] text-emerald-400 block font-bold">ECM 10Hz</span>
-              )}
             </div>
           </div>
         </div>

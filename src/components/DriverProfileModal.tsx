@@ -64,13 +64,13 @@ export const DriverProfileModal: React.FC<DriverProfileModalProps> = ({
         setProfile({
           name: prof.name || user.displayName || user.email?.split('@')[0] || '',
           cdlNumber: prof.cdlNumber || '',
-          cdlState: prof.cdlState || 'IL',
+          cdlState: prof.cdlState || '',
           medicalCardExpiration: prof.medicalCardExpiration || '',
           phone: prof.phone || '',
-          unitNumber: prof.unitNumber || '',
-          fleetId: tenant.tenantId || prof.fleetId || 'Unassigned Fleet',
-          carrierName: tenant.carrierName || 'Independent Fleet',
-          usdotNumber: tenant.usdotNumber || '',
+          unitNumber: prof.unitNumber || prof.assignedUnitId || '',
+          fleetId: tenant.tenantId || prof.fleetId || '',
+          carrierName: tenant.carrierName || prof.carrierName || '',
+          usdotNumber: tenant.usdotNumber || prof.usdotNumber || '',
         });
       })
       .catch((err) => {

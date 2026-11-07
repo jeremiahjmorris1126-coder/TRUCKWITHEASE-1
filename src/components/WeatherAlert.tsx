@@ -40,7 +40,7 @@ export const WeatherAlert: React.FC<WeatherAlertProps> = ({ onShowToast }) => {
           </div>
         </div>
         <span className="font-mono text-[9px] text-outline px-2 py-0.5 rounded bg-black/30 border border-outline/20">
-          CAN-BUS LIVE
+          WEATHER FEED
         </span>
       </div>
     );

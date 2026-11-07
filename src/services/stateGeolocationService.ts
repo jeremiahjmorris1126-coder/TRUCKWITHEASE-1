@@ -159,7 +159,7 @@ class StateGeolocationService {
     this.notifyListeners();
   }
 
-  // Update vehicle speed dynamically from CAN-Bus telemetry or UI speed slider
+  // Update vehicle speed dynamically from GPS telemetry or UI speed slider
   public updateCurrentSpeed(speedMph: number): void {
     const isSpeeding = speedMph > this.currentState.stateData.truckSpeedLimitMph;
     const speedDeltaMph = Math.max(0, speedMph - this.currentState.stateData.truckSpeedLimitMph);

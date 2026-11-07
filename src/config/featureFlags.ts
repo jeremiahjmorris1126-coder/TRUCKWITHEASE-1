@@ -21,8 +21,9 @@ export const FEATURE_FLAGS: FeatureFlags = {
 // Application flags
 export const ENABLE_UNVERIFIED_HOS_CLOCKS: boolean = false;
 export const ENABLE_ONE_TAP_DVIR: boolean = true;
-export const ENABLE_TELEMETRY_10HZ: boolean = false;
+export const ENABLE_TELEMETRY_SCREEN: boolean = false;
 export const ENABLE_BLUETOOTH_ELD: boolean = false;
 export const ENABLE_HAPTICS_SCREEN: boolean = false;
 export const ENABLE_MASTER_SYNC: boolean = false;
+export const ENABLE_RADAR_54B: boolean = false;
 export const ENABLE_DEV_SAMPLE_DATA: boolean = false;

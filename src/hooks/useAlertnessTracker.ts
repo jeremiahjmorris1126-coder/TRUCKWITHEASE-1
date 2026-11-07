@@ -1,15 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { DriverAlertnessData, DriverAlertnessStatus } from '../types';
-import { PARKING_FACILITIES } from '../data/mockData';
 
 const DEFAULT_RECOMMENDED_REST_AREA = {
-  name: "Love's Travel Stop #402",
-  brand: "Love's" as const,
-  exit: 'Exit 488',
-  mileMarker: 488,
-  milesAway: 14.2,
-  availableSpots: 42,
-  amenities: ['Hot Showers', 'DEF Pump', 'Overnight Parking', '24/7 Diner'],
+  name: 'Nearest Highway Rest Area',
+  brand: 'Rest Area' as const,
+  exit: 'Next Exit',
+  mileMarker: 0,
+  milesAway: 0,
+  availableSpots: 0,
+  amenities: ['Restrooms', 'Truck Parking'],
 };
 
 export function useAlertnessTracker(
@@ -106,7 +105,7 @@ export function useAlertnessTracker(
     setIsRestModalOpen(false);
   }, []);
 
-  const nearestParking = PARKING_FACILITIES[0] || DEFAULT_RECOMMENDED_REST_AREA;
+  const nearestParking = DEFAULT_RECOMMENDED_REST_AREA;
 
   const alertnessData: DriverAlertnessData = {
     score,

@@ -6,7 +6,7 @@ export interface MemorySnapshot {
   heapLimitMb: number;
   domNodeCount: number;
   fps: number;
-  canBusLatencyMs: number;
+  renderLatencyMs: number;
   memoryHealthScore: number;
   leakProbability: number;
   activeRoute: string;
@@ -15,7 +15,7 @@ export interface MemorySnapshot {
 export interface PerformanceOptimization {
   id: string;
   timestamp: string;
-  actionType: 'GC_DOM_PRUNE' | 'BUFFER_FLUSH' | 'DEBOUNCE_THROTTLE' | 'CAN_BUS_RATE_LIMIT';
+  actionType: 'GC_DOM_PRUNE' | 'BUFFER_FLUSH' | 'DEBOUNCE_THROTTLE' | 'EVENT_RATE_LIMIT';
   description: string;
   memorySavedMb: number;
   appliedState: 'SUCCESS' | 'ACTIVE';
@@ -64,7 +64,7 @@ export const memoryPerformanceService = {
     heapLimitMb?: number;
     domNodeCount?: number;
     fps?: number;
-    canBusLatencyMs?: number;
+    renderLatencyMs?: number;
     activeRoute?: string;
   }) {
     try {
@@ -91,7 +91,7 @@ export const memoryPerformanceService = {
           heapLimitMb: heapLimit || 512.0,
           domNodeCount: domCount,
           fps: data.fps || 60,
-          canBusLatencyMs: data.canBusLatencyMs || 1.1,
+          renderLatencyMs: data.renderLatencyMs || 1.1,
           activeRoute: data.activeRoute || 'Cockpit',
         }),
       });

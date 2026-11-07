@@ -58,7 +58,7 @@ const REPAIR_FACILITIES = [
     exit: 'Exit 514 • I-20',
     mileMarker: 514.2,
     milesAway: 21.8,
-    services: ['Complete Overhaul', 'J1939 OEM Calibration', 'Brake Reline', 'Wrecker Service'],
+    services: ['Complete Overhaul', 'OEM ECM Calibration', 'Brake Reline', 'Wrecker Service'],
     phone: '(817) 555-0822',
     rating: 4.8,
     baysOpen: 1,
@@ -91,7 +91,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
     setTimeout(() => {
       setFaultCodes((prev) => prev.map((f) => ({ ...f, cleared: true })));
       setIsScanning(false);
-      onShowToast('J1939 ECU CODES HEALED & CLEARED // ZERO ACTIVE FAULTS LOGGED', 'verified');
+      onShowToast('DIAGNOSTIC FAULT CODES CLEARED // ZERO ACTIVE FAULTS LOGGED', 'verified');
     }, 900);
   };
 
@@ -99,7 +99,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
     setIsScanning(true);
     setTimeout(() => {
       setIsScanning(false);
-      onShowToast('J1939 ECM SCAN COMPLETE // ALL 12 CAN-BUS CONTROLLERS RESPONDING', 'check_circle');
+      onShowToast('DIAGNOSTIC CHECKLIST COMPLETE // NO ENGINE HARDWARE CONNECTED', 'check_circle');
     }, 1200);
   };
 
@@ -111,8 +111,8 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
       body: JSON.stringify({
         type: 'CRITICAL_FAULT',
         severity: 'WARNING',
-        vehicleUnit: 'UNIT-101',
-        driverName: session?.user?.name || 'Marcus Vance',
+        vehicleUnit: session?.user?.unitNumber || '',
+        driverName: session?.user?.name || '',
         title: `Mechanic Dispatched: ${facilityName}`,
         description: `Roadside repair dispatch initiated for ${facilityName}. ETA 22 min.`,
       }),
@@ -132,7 +132,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
           <span>THE MASTER MECHANIC</span>
         </h1>
         <p className="text-sm sm:text-base font-medium text-emerald-300/90 tracking-wide mt-1">
-          Predictive Vehicle Diagnostics • J1939 ECU Scanner • Mechanical Health HUD • 49 CFR § 396
+          Predictive Vehicle Diagnostics • DTC Reference Guide • Mechanical Health HUD • 49 CFR § 396
         </p>
       </div>
 
@@ -147,7 +147,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
           }`}
         >
           <span className="material-symbols-outlined text-[16px]">terminal</span>
-          <span>J1939 ECU Diagnostics</span>
+          <span>ECU Diagnostics</span>
         </button>
 
         <button
@@ -176,7 +176,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
       </div>
 
       {/* ==================================================================== */}
-      {/* TAB 1: J1939 ECU & DTC DIAGNOSTIC SCANNER                            */}
+      {/* TAB 1: ECU & DTC DIAGNOSTIC REFERENCE                                */}
       {/* ==================================================================== */}
       {activeTab === 'DIAGNOSTICS' && (
         <div className="space-y-4">
@@ -189,14 +189,14 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-['Space_Grotesk'] text-lg font-bold text-white uppercase">
-                    CAN-Bus J1939 Powertrain Gateway
+                    Powertrain Diagnostic Reference
                   </h3>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    250 KBPS &bull; 10Hz ECM
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    SAMPLE DTCs
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Connected Controller: Cummins X15 Performance ECM (VIN: 1FTFW1ED8NFA9104)
+                  Diagnostic Reference Guide (No ELD hardware connected)
                 </p>
               </div>
             </div>
@@ -208,7 +208,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
                 className="btn-tactical-yellow py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
               >
                 <span className={`material-symbols-outlined text-[16px] ${isScanning ? 'animate-spin' : ''}`}>sync</span>
-                <span>{isScanning ? 'Scanning ECU...' : 'Scan J1939 Bus'}</span>
+                <span>{isScanning ? 'Checking...' : 'Check DTC List'}</span>
               </button>
 
               <button
@@ -236,7 +236,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
               <div className="bg-[#0A0F14] p-8 rounded-2xl border border-emerald-500/40 text-center space-y-2">
                 <span className="material-symbols-outlined text-4xl text-emerald-400">verified</span>
                 <h4 className="font-['Space_Grotesk'] text-lg font-bold text-white uppercase">
-                  All J1939 Powertrain Systems Clean
+                  All Powertrain Systems Clean
                 </h4>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
                   Zero active fault codes. Engine, transmission, aftertreatment, and ABS modules operating within strict OEM tolerances.

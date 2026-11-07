@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { fuelDiscountClientService, FuelOffer } from '../services/fuelDiscountClientService';
-import { ENABLE_ONE_TAP_DVIR } from '../config/featureFlags';
+import { ENABLE_ONE_TAP_DVIR, FEATURE_FLAGS } from '../config/featureFlags';
 import { clientAuth } from '../services/firebaseClientAuth';
-import { TabId, WeighStation } from '../types';
+import { TabId } from '../types';
 import { fleetInvoicesService } from '../services/fleetInvoicesService';
 import { dvirClientService, MANDATORY_DVIR_COMPONENTS, DvirRecord, DvirDefectItem } from '../services/dvirClientService';
 
@@ -23,20 +23,20 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
 }) => {
   // Modal states for 1-tap actions
   const [activeModal, setActiveModal] = useState<
-    'FUEL' | 'DISPATCH' | 'SCALE' | 'PARKING' | 'DVIR' | null
+    'FUEL' | 'DISPATCH' | 'PARKING' | 'DVIR' | null
   >(null);
 
   // Quick Fuel State
   const [fuelGallons, setFuelGallons] = useState<number>(100);
   const [fuelPricePerGal, setFuelPricePerGal] = useState<number>(3.89);
-  const [fuelLocation, setFuelLocation] = useState<string>("Love's Travel Stop #402 (I-44 MM 184)");
-  const [fuelType, setFuelType] = useState<'DIESEL' | 'DEF' | 'SCALE' | 'MAINTENANCE'>('DIESEL');
+  const [fuelLocation, setFuelLocation] = useState<string>("Exit 184 Travel Center (I-44 MM 184)");
+  const [fuelType, setFuelType] = useState<'DIESEL' | 'DEF' | 'MAINTENANCE'>('DIESEL');
 
   // Real FMCSA § 396.11 DVIR State
   const [dvirType, setDvirType] = useState<'PRE_TRIP' | 'POST_TRIP'>('PRE_TRIP');
-  const [dvirUnitNumber, setDvirUnitNumber] = useState<string>('TRACTOR-101');
-  const [dvirTrailerNumber, setDvirTrailerNumber] = useState<string>('TRL-5309');
-  const [dvirOdometer, setDvirOdometer] = useState<number>(143840);
+  const [dvirUnitNumber, setDvirUnitNumber] = useState<string>('');
+  const [dvirTrailerNumber, setDvirTrailerNumber] = useState<string>('');
+  const [dvirOdometer, setDvirOdometer] = useState<number>(0);
   const [dvirComponents, setDvirComponents] = useState<Record<string, { inspected: boolean; hasDefect: boolean; severity: 'MINOR' | 'MAJOR' | 'OUT_OF_SERVICE'; notes: string }>>(() => {
     const init: Record<string, { inspected: boolean; hasDefect: boolean; severity: 'MINOR' | 'MAJOR' | 'OUT_OF_SERVICE'; notes: string }> = {};
     MANDATORY_DVIR_COMPONENTS.forEach((c) => {
@@ -45,32 +45,31 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
     return init;
   });
   const [dvirSafeToOperate, setDvirSafeToOperate] = useState<boolean>(true);
-  const [dvirCertifiedBy, setDvirCertifiedBy] = useState<string>(clientAuth.currentUser?.displayName || 'Authorized Driver');
-  const [nearbyStations, setNearbyStations] = useState<WeighStation[]>([
-    {
-      id: 'ws-effingham',
-      name: 'Effingham Eastbound DOT Inspection Station',
-      corridor: 'I-70 Eastbound',
-      mileMarker: 96.4,
-      milesAway: 18.4,
-      status: 'OPEN',
-      scaleType: 'Static + WIM Axle Scales',
-    },
-  ]);
-  const [selectedStation, setSelectedStation] = useState<WeighStation | null>(null);
+  const [dvirCertifiedBy, setDvirCertifiedBy] = useState<string>(clientAuth.currentUser?.displayName || '');
   const [liveFuelOffers, setLiveFuelOffers] = useState<FuelOffer[]>([]);
 
   useEffect(() => {
-    if (activeModal === 'FUEL') {
+    if (!clientAuth.currentUser) return;
+    import('../services/firebaseClientAuth').then(({ authenticatedFetch }) => {
+      authenticatedFetch('/api/driver/profile')
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.profile) {
+              if (data.profile.name) setDvirCertifiedBy(data.profile.name);
+              if (data.profile.assignedUnitId) setDvirUnitNumber(data.profile.assignedUnitId);
+            }
+          }
+        })
+        .catch(() => {});
+    });
+  }, []);
+
+  useEffect(() => {
+    if (activeModal === 'FUEL' && FEATURE_FLAGS.ENABLE_THIRD_PARTY_PARTNERS) {
       fuelDiscountClientService.getLiveFuelOffers().then((offers) => {
         setLiveFuelOffers(offers);
       });
-    }
-  }, [activeModal]);
-
-  useEffect(() => {
-    if (activeModal === 'SCALE' && nearbyStations.length > 0 && !selectedStation) {
-      setSelectedStation(nearbyStations[0]);
     }
   }, [activeModal]);
   const [dvirGeneralNotes, setDvirGeneralNotes] = useState<string>('');
@@ -85,7 +84,7 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
   const etaMinute = (now.getMinutes() + 20) % 60;
   const etaFormatted = `${etaHour.toString().padStart(2, '0')}:${etaMinute.toString().padStart(2, '0')} CDT`;
 
-  const dispatchUpdateText = `[SAMPLE TRUCK #1042 UPDATE] En route I-44 E @ MM 184 // Speed: ${speed} MPH // Weather: unverified // ETA to Dock Door 14: ${etaFormatted} // Status: sample data; not verified`;
+  const dispatchUpdateText = `Status update // Speed: ${speed} MPH // ETA: ${etaFormatted}`;
 
   // 1-Tap Fuel Submission
   const handleLogFuelDirect = (gallons: number, pricePerGal: number, itemDesc: string, totalAmount: number) => {
@@ -94,20 +93,20 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
         orderNumber: `FUEL-${Date.now().toString().slice(-6)}`,
         dateOrdered: new Date().toLocaleDateString('en-US') + ' at ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         status: 'PAID',
-        paymentMethod: 'Fleet One Comdata Fuel Card - XXXX9102',
+        paymentMethod: 'Fuel Card',
         vendorName: fuelLocation,
-        vendorAddress: 'I-44 Exit 184, Rolla, MO 65401',
-        vendorPhone: '800-555-4921',
-        vendorContactEmail: 'receipts@loves.com',
+        vendorAddress: fuelLocation,
+        vendorPhone: '',
+        vendorContactEmail: '',
         category: 'FUEL_DIESEL',
-        billToName: clientAuth.currentUser?.displayName || clientAuth.currentUser?.email || 'Owner-Operator',
-        billToCompany: 'Morrishive Logistics LLC',
-        billToAddress: '1042 Highway Transport Way, St. Louis, MO 63101',
-        shipToName: 'Truck #1042 Tractor (Freightliner Cascadia)',
-        shipToCompany: 'Terminal Direct Refuel',
+        billToName: dvirCertifiedBy || clientAuth.currentUser?.displayName || clientAuth.currentUser?.email || '',
+        billToCompany: '',
+        billToAddress: '',
+        shipToName: dvirUnitNumber || '',
+        shipToCompany: '',
         shipToAddress: fuelLocation,
-        shippingMethod: 'On-Site Terminal Pump',
-        customerPhone: '312-555-0142',
+        shippingMethod: 'On-Site Pump',
+        customerPhone: '',
         subtotal: totalAmount,
         shippingAndHandling: 0,
         estimatedTax: Math.round(totalAmount * 0.05 * 100) / 100,
@@ -301,23 +300,6 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
           </span>
         </button>
 
-        {/* TILE 4: 1-TAP SCALE CHECK */}
-        <button
-          onClick={() => setActiveModal('SCALE')}
-          className="flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-surface-container-highest hover:border-amber-500/60 transition-all cursor-pointer text-center group shadow-md active:scale-95"
-          title="Inspect next weigh station and bypass clearance"
-        >
-          <div className="w-10 h-10 rounded-xl bg-amber-500/15 group-hover:bg-amber-500/25 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-1.5 transition-all">
-            <span className="material-symbols-outlined text-[22px]">scale</span>
-          </div>
-          <span className="text-[11px] font-bold text-white group-hover:text-amber-400 uppercase tracking-tight">
-            Next Scale
-          </span>
-          <span className="text-[9px] text-outline group-hover:text-outline/90 mt-0.5">
-            Bypass & Rules
-          </span>
-        </button>
-
         {/* TILE 5: 1-TAP TRUCK PARKING */}
         <button
           onClick={() => setActiveModal('PARKING')}
@@ -387,12 +369,12 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
                 <span className="text-white font-bold truncate max-w-[260px]">{fuelLocation}</span>
               </div>
 
-              {/* Live Gas & Diesel Discounts Network (WEX / TruckSmarter / EFS) */}
+              {FEATURE_FLAGS.ENABLE_THIRD_PARTY_PARTNERS && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-amber-400 uppercase flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                    Live Fuel Network Discounts (WEX &bull; TruckSmarter)
+                    Fuel Network Offers
                   </span>
                   <span className="text-[9px] text-outline">Tap offer to apply</span>
                 </div>
@@ -428,6 +410,7 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
                   })}
                 </div>
               </div>
+              )}
 
               {/* Instant 1-Click Presets */}
               <div className="space-y-1.5">
@@ -607,86 +590,6 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
                   </button>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 3. SCALE & BYPASS MODAL */}
-      {activeModal === 'SCALE' && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-surface-container p-5 rounded-2xl border-2 border-amber-500/60 shadow-2xl max-w-lg w-full space-y-4 font-mono">
-            <div className="flex items-center justify-between border-b border-surface-container-high pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[20px]">scale</span>
-                </div>
-                <div>
-                  <h3 className="text-[14px] font-bold text-white uppercase">Upcoming Scale &amp; Bypass Radar</h3>
-                  <span className="text-[10px] text-outline">Real-time station status and scale limits</span>
-                </div>
-              </div>
-              <button
-                onClick={() => setActiveModal(null)}
-                className="w-7 h-7 rounded-lg bg-surface-container-high text-outline hover:text-white flex items-center justify-center cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {/* Station Details */}
-              <div className="p-3.5 rounded-xl bg-surface-container-low border border-surface-container-high space-y-2 text-[11px]">
-                <div className="flex items-center justify-between border-b border-surface-container-high pb-1.5">
-                  <span className="text-outline">Scale Station:</span>
-                  <span className="text-white font-bold">{selectedStation?.name || 'Effingham Eastbound DOT Inspection Station'}</span>
-                </div>
-                <div className="flex items-center justify-between border-b border-surface-container-high pb-1.5">
-                  <span className="text-outline">Distance:</span>
-                  <span className="text-primary font-bold">18.4 Miles (Approx. 16 Mins @ 64 MPH)</span>
-                </div>
-                <div className="flex items-center justify-between border-b border-surface-container-high pb-1.5">
-                  <span className="text-outline">State Limit:</span>
-                  <span className="text-white font-bold">80,000 LBS GVW (+400 LBS Certified APU Credit)</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-outline">Station Status:</span>
-                  <span className="text-emerald-400 font-bold">OPEN &bull; RAMPS NORMAL FLOW</span>
-                </div>
-              </div>
-
-              {/* Real WIM Axle Weights Display */}
-              <div className="p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high space-y-1.5 text-[10px]">
-                <span className="text-outline uppercase font-bold block">Vehicle Axle Readings:</span>
-                <div className="grid grid-cols-4 gap-1.5 text-center font-bold">
-                  <div className="p-1.5 bg-surface-container-high rounded">
-                    <span className="text-outline block text-[8px]">STEER</span>
-                    <span className="text-white text-[11px]">11,800 lb</span>
-                  </div>
-                  <div className="p-1.5 bg-surface-container-high rounded">
-                    <span className="text-outline block text-[8px]">DRIVE</span>
-                    <span className="text-white text-[11px]">32,400 lb</span>
-                  </div>
-                  <div className="p-1.5 bg-surface-container-high rounded">
-                    <span className="text-outline block text-[8px]">TRAILER</span>
-                    <span className="text-white text-[11px]">32,200 lb</span>
-                  </div>
-                  <div className="p-1.5 bg-surface-container-high rounded">
-                    <span className="text-outline block text-[8px]">GROSS</span>
-                    <span className="text-emerald-400 text-[11px]">76,400 lb</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  onShowToast('WEIGH STATION STATUS ACKNOWLEDGED', 'check_circle');
-                  setActiveModal(null);
-                }}
-                className="w-full py-3 rounded-xl btn-tactical-yellow text-black font-black text-[11px] uppercase tracking-wider hover:brightness-110 cursor-pointer shadow-md transition-all"
-              >
-                Acknowledge Station Information
-              </button>
             </div>
           </div>
         </div>

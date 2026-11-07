@@ -74,7 +74,7 @@ export interface InspectionLogEntry {
   triggerSource: InspectionTriggerSource;
   cycle: string; // e.g. "70-Hour / 8-Day"
   daysCovered: number; // 8
-  merkleHash: string; // SHA-256
+  documentHash: string; // SHA-256
   recordNumber: string; // e.g. "REC-2026-0911-4138"
   fileSize: string; // e.g. "342 KB"
   verified: boolean;
@@ -100,11 +100,11 @@ export type LoadStatus = 'ON_TIME' | 'DELAY_RISK' | 'EARLY' | 'CRITICAL_LATE';
 
 export interface DispatchLoad {
   id: string;
-  loadNumber: string; // e.g. "LD-8902"
-  driverName: string; // e.g. "Jeremiah J. Morris"
-  truckUnit: string; // e.g. "TRK-904"
-  trailerUnit: string; // e.g. "TRL-5321"
-  cargoDescription: string; // e.g. "Automotive Components (High Value)"
+  loadNumber: string;
+  driverName: string;
+  truckUnit: string;
+  trailerUnit: string;
+  cargoDescription: string;
   originFacility: string; // e.g. "Dallas Hub (TX)"
   destinationTerminal: string; // e.g. "Fort Worth Logistics Gateway"
   dockDoor: string; // e.g. "Door 04"
@@ -174,7 +174,7 @@ export interface DotDocumentRecord {
   documentNumber: string;
   driverName: string;
   unitNumber: string;
-  merkleProofHash: string;
+  documentHash: string;
   fileSizeBytes: number;
   fileFormat: string;
   notes: string;

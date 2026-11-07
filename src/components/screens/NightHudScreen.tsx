@@ -1,28 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import {
-  CARRIER_INFO,
-  DRIVER_INFO,
-  EQUIPMENT_INFO,
-  ACTIVE_HASH,
-  HISTORICAL_LOGS,
-} from '../../data/mockData';
-import { DayLog, DriverAlertnessData, HudVisionProfile, TabId } from '../../types';
-import { RouteWeatherHudWidget } from '../RouteWeatherHudWidget';
-import { ENABLE_UNVERIFIED_HOS_CLOCKS } from '../../config/featureFlags';
-import { DriverAlertnessWidget } from '../DriverAlertnessWidget';
-import { HudStateComplianceWidget } from '../HudStateComplianceWidget';
-import { TripPlannerHudOverlay } from '../TripPlannerHudOverlay';
-import { OwnerOperatorQuickDeck } from '../OwnerOperatorQuickDeck';
-import { HudVisionToggle } from '../HudVisionToggle';
-import { MinimalistCruisingOverlay } from '../MinimalistCruisingOverlay';
-import { RouteFocusedCorridorRibbon } from '../RouteFocusedCorridorRibbon';
-import { RegionalWeatherHazardFeed } from '../RegionalWeatherHazardFeed';
+import { HudVisionProfile, DriverAlertnessData, TabId } from '../../types';
+import { ComplianceDocumentArchive } from '../ComplianceDocumentArchive';
+import { authenticatedFetch } from '../../services/firebaseClientAuth';
 
 interface NightHudScreenProps {
-  onShowToast: (msg: string, icon?: string) => void;
-  onOpenPrivacyLock: () => void;
-  onOpenPdfModal: () => void;
-  onOpenEmergency: () => void;
+  selectedCycle?: '70_8' | '60_7';
+  onCycleChange?: (cycle: '70_8' | '60_7') => void;
+  onExportInspection?: () => void;
+  onOpenPdfModal?: () => void;
+  onOpenPrivacyLock?: () => void;
+  onOpenEmergency?: () => void;
   onToggleVoice?: () => void;
   isListening?: boolean;
   alertnessData?: DriverAlertnessData;
@@ -30,1077 +17,192 @@ interface NightHudScreenProps {
   onTriggerFatigue?: () => void;
   onResetAlertness?: () => void;
   onRecordInspectionLog?: (actionType: string, triggerSource: string, notes: string) => void;
-  onNavigateToTab?: (tabId: TabId) => void;
+  onNavigateToTab?: (tab: TabId) => void;
+  onShowToast?: (msg: string, icon?: string) => void;
+  visionProfile?: HudVisionProfile;
+  onVisionProfileChange?: (profile: HudVisionProfile) => void;
 }
 
 export const NightHudScreen: React.FC<NightHudScreenProps> = ({
-  onShowToast,
-  onOpenPrivacyLock,
+  onExportInspection,
   onOpenPdfModal,
-  onOpenEmergency,
-  onToggleVoice,
-  isListening = false,
-  alertnessData,
-  onOpenRestModal,
-  onTriggerFatigue,
-  onResetAlertness,
-  onRecordInspectionLog,
-  onNavigateToTab,
+  onShowToast,
+  visionProfile = 'HIGH_CONTRAST',
+  onVisionProfileChange,
 }) => {
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
-  const [cockpitSection, setCockpitSection] = useState<'ROUTE' | 'COMPLIANCE' | 'ALERTNESS'>('ROUTE');
-  const [copiedHash, setCopiedHash] = useState<boolean>(false);
+  const [driverProfile, setDriverProfile] = useState<{
+    name: string;
+    cdlNumber: string;
+    cdlState: string;
+    assignedUnitId: string;
+    carrierName?: string;
+    usdotNumber?: string;
+    mcNumber?: string;
+  } | null>(null);
 
-  // Vision Toggle Overlay Profile State ('HIGH_CONTRAST' | 'MINIMALIST' | 'ROUTE_FOCUSED')
-  const [visionProfile, setVisionProfile] = useState<HudVisionProfile>(() => {
-    try {
-      const saved = localStorage.getItem('truck_hud_vision_profile');
-      if (saved === 'HIGH_CONTRAST' || saved === 'MINIMALIST' || saved === 'ROUTE_FOCUSED') {
-        return saved as HudVisionProfile;
-      }
-    } catch (e) {
-      console.warn('Failed to load vision profile from storage:', e);
-    }
-    return 'HIGH_CONTRAST';
-  });
+  const [vehicleProfile, setVehicleProfile] = useState<{
+    unitNumber?: string;
+    heightFt: number;
+    weightLbs: number;
+    lengthFt: number;
+    widthFt: number;
+    axles: number;
+  } | null>(null);
 
-  const handleVisionProfileChange = (newProfile: HudVisionProfile) => {
-    setVisionProfile(newProfile);
-    try {
-      localStorage.setItem('truck_hud_vision_profile', newProfile);
-    } catch (e) {
-      console.warn('Failed to persist vision profile:', e);
-    }
-
-    if (newProfile === 'HIGH_CONTRAST') {
-      onShowToast('VISION PROFILE: HIGH CONTRAST // MAXIMUM OPTICAL GLARE & FOG FILTER', 'contrast');
-    } else if (newProfile === 'MINIMALIST') {
-      onShowToast('VISION PROFILE: MINIMALIST // DISTRACTION-FREE INTERSTATE CRUISE HUD', 'speed');
-    } else if (newProfile === 'ROUTE_FOCUSED') {
-      setCockpitSection('ROUTE');
-      onShowToast('VISION PROFILE: ROUTE FOCUSED // CORRIDOR, WEATHER & WEIGH TELEMETRY', 'alt_route');
-    }
-  };
-
-  // Dedicated Hotkey [O] and custom event listeners to quickly cycle overlay profiles directly while driving
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-      if (e.key === 'o' || e.key === 'O') {
-        e.preventDefault();
-        setVisionProfile((current) => {
-          const next: HudVisionProfile =
-            current === 'HIGH_CONTRAST'
-              ? 'MINIMALIST'
-              : current === 'MINIMALIST'
-              ? 'ROUTE_FOCUSED'
-              : 'HIGH_CONTRAST';
-          handleVisionProfileChange(next);
-          return next;
-        });
-      }
-    };
+    authenticatedFetch('/api/driver/profile')
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.profile) {
+            setDriverProfile(data.profile);
+          }
+        }
+      })
+      .catch(() => {});
 
-    const handleCustomChange = (e: Event) => {
-      const customEvt = e as CustomEvent<HudVisionProfile>;
-      if (customEvt.detail) {
-        handleVisionProfileChange(customEvt.detail);
-      }
-    };
-
-    const handleCustomCycle = () => {
-      setVisionProfile((current) => {
-        const next: HudVisionProfile =
-          current === 'HIGH_CONTRAST'
-            ? 'MINIMALIST'
-            : current === 'MINIMALIST'
-            ? 'ROUTE_FOCUSED'
-            : 'HIGH_CONTRAST';
-        handleVisionProfileChange(next);
-        return next;
-      });
-    };
-
-    const handleOpenHazards = () => {
-      setCockpitSection('ROUTE');
-      if (visionProfile === 'MINIMALIST') {
-        handleVisionProfileChange('ROUTE_FOCUSED');
-      }
-      setTimeout(() => {
-        const el = document.getElementById('regional-weather-hazard-feed');
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('truck_vision_profile_changed', handleCustomChange);
-    window.addEventListener('truck_vision_profile_cycle', handleCustomCycle);
-    window.addEventListener('truck_open_weather_hazards', handleOpenHazards);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('truck_vision_profile_changed', handleCustomChange);
-      window.removeEventListener('truck_vision_profile_cycle', handleCustomCycle);
-      window.removeEventListener('truck_open_weather_hazards', handleOpenHazards);
-    };
+    authenticatedFetch('/v1/routing/vehicle-profile')
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.profile) {
+            setVehicleProfile(data.profile);
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  const activeDay: DayLog = HISTORICAL_LOGS[selectedDayIndex] || HISTORICAL_LOGS[0];
-
-  const handleCopyHash = () => {
-    navigator.clipboard?.writeText(ACTIVE_HASH).catch(() => {});
-    setCopiedHash(true);
-    onShowToast('SHA-256 DIGEST COPIED TO CLIPBOARD');
-    setTimeout(() => setCopiedHash(false), 2000);
-  };
-
-  const handleSelectDay = (index: number) => {
-    setSelectedDayIndex(index);
-    const day = HISTORICAL_LOGS[index];
-    onShowToast(`LOADED SAMPLE LOG: ${day.dayLabel}`);
-  };
+  const isMinimalist = visionProfile === 'MINIMALIST';
+  const isRouteFocused = visionProfile === 'ROUTE_FOCUSED';
 
   return (
-    <div
-      className={`flex flex-col w-full max-w-4xl mx-auto font-mono transition-colors duration-200 ${
-        visionProfile === 'HIGH_CONTRAST'
-          ? 'bg-black/95 text-white p-2.5 sm:p-3.5 rounded-3xl border-2 border-amber-400/90 shadow-[0_0_35px_rgba(245,158,11,0.2)]'
-          : visionProfile === 'MINIMALIST'
-          ? 'p-1.5'
-          : 'p-1.5'
-      }`}
-    >
-      <div className="flex flex-col gap-space-md px-gutter-mobile pb-space-2xl">
-        {/* VISION TOGGLE OVERLAY BAR */}
-        <HudVisionToggle
-          currentProfile={visionProfile}
-          onProfileChange={handleVisionProfileChange}
-        />
-
-        {visionProfile === 'MINIMALIST' ? (
-          <MinimalistCruisingOverlay
-            onOpenPdfModal={onOpenPdfModal}
-            onOpenEmergency={onOpenEmergency}
-            onShowToast={onShowToast}
-            onSwitchToRoute={() => handleVisionProfileChange('ROUTE_FOCUSED')}
-            onSwitchToHighContrast={() => handleVisionProfileChange('HIGH_CONTRAST')}
-          />
-        ) : (
-          <>
-            {/* ELEVATED CORRIDOR RIBBON (ACTIVATES IN ROUTE FOCUSED PROFILE) */}
-            {visionProfile === 'ROUTE_FOCUSED' && (
-              <RouteFocusedCorridorRibbon
-                onShowToast={onShowToast}
-                onNavigateToTripPlanner={onNavigateToTab ? () => onNavigateToTab('trip-planner') : undefined}
-                onOpenHazards={() => {
-                  setCockpitSection('ROUTE');
-                  onShowToast('SCROLLING TO REGIONAL WEATHER HAZARDS FEED', 'alt_route');
-                }}
-              />
-            )}
-
-            {/* EXECUTIVE TELEMETRY QUICK RIBBON */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div
-                className={`p-2.5 rounded-xl flex items-center justify-between shadow-sm transition-colors ${
-                  visionProfile === 'HIGH_CONTRAST'
-                    ? 'bg-neutral-950 border-2 border-emerald-400/90 shadow-[0_0_10px_rgba(52,211,153,0.2)]'
-                    : 'bg-surface-container-low border border-surface-container-high/80'
-                }`}
-              >
-                <div>
-                  <span className="text-[9px] text-outline uppercase block">Drive Remaining</span>
-                  <span className="text-[15px] font-bold text-emerald-400">06h 14m</span>
-                </div>
-                <span className="material-symbols-outlined text-emerald-400 text-[22px]">timer</span>
-              </div>
-
-              <div
-                className={`p-2.5 rounded-xl flex items-center justify-between shadow-sm transition-colors ${
-                  visionProfile === 'HIGH_CONTRAST'
-                    ? 'bg-neutral-950 border-2 border-primary/90'
-                    : 'bg-surface-container-low border border-surface-container-high/80'
-                }`}
-              >
-                <div>
-                  <span className="text-[9px] text-outline uppercase block">Duty Shift</span>
-                  <span className="text-[15px] font-bold text-white">08h 40m</span>
-                </div>
-                <span className="material-symbols-outlined text-primary text-[22px]">more_time</span>
-              </div>
-
-              <div
-                className={`p-2.5 rounded-xl flex items-center justify-between shadow-sm transition-colors ${
-                  visionProfile === 'HIGH_CONTRAST'
-                    ? 'bg-neutral-950 border-2 border-amber-400/90 shadow-[0_0_10px_rgba(251,191,36,0.2)]'
-                    : 'bg-surface-container-low border border-surface-container-high/80'
-                }`}
-              >
-                <div>
-                  <span className="text-[9px] text-outline uppercase block">Next Scale</span>
-                  <span className="text-[14px] font-bold text-amber-400">18 Mi • Bypass</span>
-                </div>
-                <span className="material-symbols-outlined text-amber-400 text-[22px]">scale</span>
-              </div>
-
-              <div
-                className={`p-2.5 rounded-xl flex items-center justify-between shadow-sm transition-colors ${
-                  visionProfile === 'HIGH_CONTRAST'
-                    ? 'bg-neutral-950 border-2 border-sky-400/90 shadow-[0_0_10px_rgba(56,189,248,0.2)]'
-                    : 'bg-surface-container-low border border-surface-container-high/80'
-                }`}
-              >
-                <div>
-                  <span className="text-[9px] text-outline uppercase block">Corridor &amp; Limit</span>
-                  <span className="text-[14px] font-bold text-sky-400">MO • 70 MPH</span>
-                </div>
-                <span className="material-symbols-outlined text-sky-400 text-[22px]">speed</span>
-              </div>
-            </div>
-
-
-        {/* OWNER-OPERATOR 1-TOUCH COMMAND DECK (6 INSTANT EXECUTION TOOLS) */}
-        <OwnerOperatorQuickDeck
-          onShowToast={onShowToast}
-          onOpenPdfModal={onOpenPdfModal}
-          onRecordInspectionLog={onRecordInspectionLog}
-          onNavigateToTab={onNavigateToTab}
-        />
-
-        {/* COCKPIT DETAILED TELEMETRY SECTION SWITCHER */}
-        <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-surface-container-low border border-surface-container-high/80 overflow-x-auto">
-          <button
-            onClick={() => setCockpitSection('ROUTE')}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase transition-all cursor-pointer flex-1 whitespace-nowrap ${
-              cockpitSection === 'ROUTE'
-                ? 'bg-primary text-on-primary shadow-md'
-                : 'text-outline hover:text-white bg-surface-container/40'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">route</span>
-            <span>Route &amp; Weather Ahead</span>
-          </button>
-
-          <button
-            onClick={() => setCockpitSection('COMPLIANCE')}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase transition-all cursor-pointer flex-1 whitespace-nowrap ${
-              cockpitSection === 'COMPLIANCE'
-                ? 'bg-primary text-on-primary shadow-md'
-                : 'text-outline hover:text-white bg-surface-container/40'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">policy</span>
-            <span>Roadside &amp; State DOT</span>
-          </button>
-
-          <button
-            onClick={() => setCockpitSection('ALERTNESS')}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase transition-all cursor-pointer flex-1 whitespace-nowrap ${
-              cockpitSection === 'ALERTNESS'
-                ? 'bg-primary text-on-primary shadow-md'
-                : 'text-outline hover:text-white bg-surface-container/40'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">psychology</span>
-            <span>Driver Alertness &amp; Voice</span>
-          </button>
-        </div>
-
-        {/* SECTION 1: ROUTE & WEATHER */}
-        {cockpitSection === 'ROUTE' && (
-          <div className="space-y-4 animate-fade-in">
-            {/* REAL-TIME REGIONAL WEATHER HAZARDS FEED (GROUNDED WITH GOOGLE SEARCH / NWS) */}
-            <RegionalWeatherHazardFeed onShowToast={onShowToast} />
-
-            {/* REAL-TIME WEATHER API SERVICE & SEVERE WEATHER ALERTS FOR DRIVER'S ROUTE LOCATION */}
-            <RouteWeatherHudWidget onShowToast={onShowToast} />
-
-            {/* TRIP PLANNER HUD OVERLAY: UPCOMING REST STOPS, DIESEL STATIONS & WEIGH SCALES */}
-            <TripPlannerHudOverlay
-              onShowToast={onShowToast}
-              onNavigateToTripPlanner={onNavigateToTab ? () => onNavigateToTab('trip-planner') : undefined}
-            />
-          </div>
-        )}
-
-        {/* SECTION 3: ALERTNESS & VOICE */}
-        {cockpitSection === 'ALERTNESS' && (
-          <div className="space-y-4 animate-fade-in">
-            {alertnessData && onOpenRestModal && onTriggerFatigue && onResetAlertness && (
-              <DriverAlertnessWidget
-                alertnessData={alertnessData}
-                onOpenRestModal={onOpenRestModal}
-                onTriggerFatigue={onTriggerFatigue}
-                onResetAlertness={onResetAlertness}
-              />
-            )}
-
-            {/* VOICE COMMAND HUD STATUS & SHORTCUT BAR */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-xs p-space-sm bg-surface-container-low/90 rounded-xl border border-surface-container-high/80 shadow-md">
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className={`flex items-center justify-center w-7 h-7 rounded-lg border ${
-                  isListening ? 'bg-error text-on-error border-white animate-pulse' : 'bg-surface-container-highest text-primary border-primary/40'
-                }`}>
-                  <span className="material-symbols-outlined text-[16px]">
-                    {isListening ? 'mic' : 'mic_none'}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-label-caps text-[10px] text-primary uppercase font-bold tracking-wider">
-                      VOICE COCKPIT READY
-                    </span>
-                    <span className="font-mono text-[9px] text-outline">
-                      SAY &quot;SHOW INSPECTION&quot; OR &quot;EMERGENCY&quot;
-                    </span>
-                  </div>
-                  <span className="font-mono text-[9px] text-outline/80">
-                    KEYBOARD SHORTCUTS: [I] INSPECTION PDF • [E] E911 • [V] TOGGLE MIC
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                <button
-                  onClick={onOpenPdfModal}
-                  className="px-2 py-1 rounded bg-surface-container-high hover:bg-surface-container-highest border border-surface-container-highest text-[10px] font-mono text-primary flex items-center gap-1 hover:border-primary/50 transition-all cursor-pointer"
-                  title="Speak or click: 'Show Inspection' [I]"
-                >
-                  <span className="material-symbols-outlined text-[14px]">picture_as_pdf</span>
-                  <span>&quot;Show Inspection&quot; [I]</span>
-                </button>
-                <button
-                  onClick={onOpenEmergency}
-                  className="px-2 py-1 rounded bg-error-container/30 hover:bg-error-container/50 border border-error/40 text-[10px] font-mono text-error flex items-center gap-1 transition-all cursor-pointer"
-                  title="Speak or click: 'Emergency' [E]"
-                >
-                  <span className="material-symbols-outlined text-[14px]">e911_emergency</span>
-                  <span>&quot;Emergency&quot; [E]</span>
-                </button>
-                {onToggleVoice && (
-                  <button
-                    onClick={onToggleVoice}
-                    className={`p-1 rounded border text-[10px] font-mono transition-all cursor-pointer ${
-                      isListening
-                        ? 'bg-error text-white border-white animate-pulse'
-                        : 'bg-surface-container hover:bg-surface-container-highest text-outline hover:text-white border-surface-container-highest'
-                    }`}
-                    title="Toggle Mic Listening [V]"
-                  >
-                    <span className="material-symbols-outlined text-[16px] block">
-                      {isListening ? 'mic' : 'mic_none'}
-                    </span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* SECTION 2: ROADSIDE & COMPLIANCE */}
-        {cockpitSection === 'COMPLIANCE' && (
-          <div className="space-y-4 animate-fade-in">
-            {/* AUTOMATED GEOLOCATION HUD STATE COMPLIANCE & SPEED LIMIT SERVICE */}
-            <HudStateComplianceWidget
-              onShowToast={onShowToast}
-              onRecordInspectionLog={onRecordInspectionLog}
-            />
-
-        {/* TOP STATUTORY AUDIT BANNER & LOCK SWITCH */}
-        <div className="flex flex-col bg-surface-container p-space-md rounded-xl space-y-space-sm shadow-xl border border-surface-container-high/60">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-space-xs">
-              <span className="w-2.5 h-2.5 rounded-full bg-primary animate-ping" />
-              <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">
-                FMCSA ELD DEMO PREVIEW
-              </span>
-            </div>
-            <span className="bg-primary-container/20 text-primary font-telemetry-label text-[10px] px-space-xs py-0.5 rounded border border-primary/30">
-              49 CFR § 395.15
+    <div className="flex flex-col w-full max-w-5xl mx-auto px-gutter-mobile pb-space-2xl space-y-space-md">
+      {/* HUD Vision Profile Selector Bar */}
+      {onVisionProfileChange && (
+        <div className="bg-surface-container-low p-2.5 rounded-xl border border-surface-container-high flex flex-wrap items-center justify-between gap-2 shadow-lg">
+          <div className="flex items-center gap-2 px-1">
+            <span className="material-symbols-outlined text-primary text-[18px]">visibility</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-on-surface-variant font-bold">
+              Cockpit Vision Mode:
             </span>
           </div>
-
-          <div className="flex items-center justify-between gap-space-sm pt-space-2xs">
-            <div className="flex flex-col">
-              <span className="font-headline-sm text-headline-sm text-on-surface uppercase font-bold">
-                Statutory Audit Slip
-              </span>
-              <span className="font-telemetry-label text-telemetry-label text-on-surface-variant">
-                SAMPLE RECORD // NOT VERIFIED
-              </span>
-            </div>
-            <button
-              id="btn-toggle-lock"
-              onClick={onOpenPrivacyLock}
-              className="flex items-center gap-space-xs bg-primary-container hover:bg-primary-fixed px-space-sm py-space-xs rounded-lg active:scale-95 transition-transform text-on-primary-container shadow-md cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                screen_lock_portrait
-              </span>
-              <span className="font-label-caps text-[10px] tracking-wider uppercase font-bold">
-                CABIN LOCK
-              </span>
-            </button>
-          </div>
-
-          {/* Quick Trust Indicators Strip */}
-          <div className="grid grid-cols-3 gap-space-xs pt-space-xs">
-            <div className="flex flex-col items-center justify-center p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Audit Status
-              </span>
-              <span className="font-label-caps text-label-caps text-primary uppercase">
-                DEMO DATA
-              </span>
-            </div>
-            <div className="flex flex-col items-center justify-center p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                FMCSA Web Relay
-              </span>
-              <span className="font-label-caps text-label-caps text-primary uppercase">
-                NOT CONNECTED
-              </span>
-            </div>
-            <div className="flex flex-col items-center justify-center p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Split Sleeper
-              </span>
-              <span className="font-label-caps text-label-caps text-primary-fixed uppercase">
-                § 395.1(g) EXCL
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* DEMO OFFICER VERIFICATION PREVIEW */}
-        <div className="flex flex-col bg-surface-container-low p-space-md rounded-xl space-y-space-md border border-surface-container-high/40 shadow-md">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-space-xs">
-              <span className="material-symbols-outlined text-primary text-[20px]">
-                qr_code_scanner
-              </span>
-              <span className="font-label-caps text-label-caps text-on-surface tracking-wider uppercase font-bold">
-                Officer Portal Preview
-              </span>
-            </div>
-            <span className="font-telemetry-label text-telemetry-label text-outline">
-              PIN:{' '}
-              <strong className="text-primary tracking-widest text-[13px] font-bold">
-                {DRIVER_INFO.fmcsaPin}
-              </strong>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-space-md bg-surface-container p-space-sm rounded-lg border border-surface-container-highest">
-            <div className="w-24 h-24 bg-surface-container-lowest p-1.5 rounded flex items-center justify-center shrink-0 border border-outline/30 text-center font-mono text-xs text-outline">
-              DEMO
-            </div>
-
-            <div className="flex flex-col justify-between flex-1 min-w-0">
-              <div className="flex flex-col">
-                <span className="font-telemetry-label text-[10px] text-outline uppercase tracking-wider">
-                  Officer Portal
-                </span>
-                <span className="font-body-sm text-body-sm text-on-surface truncate font-semibold">
-                  Not configured
-                </span>
-              </div>
-              <p className="font-body-sm text-[11px] text-on-surface-variant leading-tight mt-1">
-                No officer verification portal or QR code is connected.
-              </p>
-              <div className="flex items-center gap-space-xs mt-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                <span className="font-telemetry-label text-[10px] text-primary">
-                  PORTAL NOT CONNECTED
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* STATUTORY CARRIER & VEHICLE IDENTITY MATRIX */}
-        <div className="flex flex-col bg-surface-container p-space-md rounded-xl space-y-space-sm shadow-md border border-surface-container-high/50">
-          <div className="flex items-center justify-between pb-space-2xs">
-            <span className="font-label-caps text-label-caps text-primary tracking-wider uppercase font-bold">
-              Carrier &amp; Equipment Identity
-            </span>
-            <span className="font-telemetry-label text-telemetry-label text-outline">
-              § 395.8(d) FORM
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-space-xs">
-            {/* Col 1 */}
-            <div className="flex flex-col p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Authorized Carrier
-              </span>
-              <span className="font-body-sm text-body-sm text-on-surface font-semibold truncate">
-                {CARRIER_INFO.name}
-              </span>
-              <span className="font-telemetry-label text-[10px] text-primary truncate">
-                {CARRIER_INFO.partner}
-              </span>
-            </div>
-            {/* Col 2 */}
-            <div className="flex flex-col p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Statutory Authorities
-              </span>
-              <span className="font-telemetry-label text-telemetry-label text-on-surface font-semibold truncate">
-                USDOT: {CARRIER_INFO.usdot}
-              </span>
-              <span className="font-telemetry-label text-telemetry-label text-primary truncate">
-                MC: {CARRIER_INFO.mc}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col p-space-xs bg-surface-container-low rounded space-y-space-2xs border border-surface-container-highest">
-            <div className="flex items-center justify-between">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Assigned Commercial Driver
-              </span>
-              <span className="font-telemetry-label text-[10px] text-primary">
-                {DRIVER_INFO.cdlClass}
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span className="font-body-md text-body-md text-on-surface font-bold">
-                {DRIVER_INFO.name}
-              </span>
-              <span className="font-telemetry-label text-telemetry-label text-on-surface-variant font-mono">
-                {DRIVER_INFO.cdlNumber}
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-1">
-              <span className="font-body-sm text-[11px] text-outline">
-                Medical Certificate: Exp {DRIVER_INFO.medicalCertExp}
-              </span>
-              <span className="font-body-sm text-[11px] text-on-surface-variant">
-                Co-Driver: <em className="text-outline not-italic">{DRIVER_INFO.coDriver}</em>
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-space-xs">
-            <div className="flex flex-col p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Power Unit
-              </span>
-              <span className="font-body-sm text-body-sm text-on-surface font-bold truncate">
-                {EQUIPMENT_INFO.powerUnit}
-              </span>
-              <span className="font-telemetry-label text-[9px] text-outline truncate font-mono">
-                VIN: {EQUIPMENT_INFO.vin}
-              </span>
-            </div>
-            <div className="flex flex-col p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Trailing Unit
-              </span>
-              <span className="font-body-sm text-body-sm text-on-surface font-bold truncate">
-                {EQUIPMENT_INFO.trailingUnit}
-              </span>
-              <span className="font-telemetry-label text-[9px] text-primary truncate">
-                Height: {EQUIPMENT_INFO.trailerHeight}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
-            <div className="flex items-center gap-space-xs truncate">
-              <span className="material-symbols-outlined text-outline text-[16px]">
-                description
-              </span>
-              <span className="font-telemetry-label text-[11px] text-on-surface truncate">
-                Manifest {EQUIPMENT_INFO.manifestId}: {EQUIPMENT_INFO.route}
-              </span>
-            </div>
-            <span className="font-telemetry-label text-[10px] text-primary shrink-0 font-bold px-1.5 py-0.5 rounded bg-primary/10">
-              {EQUIPMENT_INFO.freightType}
-            </span>
-          </div>
-        </div>
-
-        {/* SHA-256 CRYPTOGRAPHIC INTEGRITY CARD */}
-        <div className="flex flex-col bg-surface-container p-space-md rounded-xl space-y-space-sm shadow-xl border border-surface-container-high/60">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-space-xs">
-              <span className="material-symbols-outlined text-primary text-[20px]">
-                enhanced_encryption
-              </span>
-              <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest font-bold">
-                SHA-256 Ledger Proof
-              </span>
-            </div>
-            <span className="font-telemetry-label text-[10px] bg-primary/10 text-primary px-space-xs py-0.5 rounded border border-primary/20">
-              DEMO HASH — NOT VERIFIED
-            </span>
-          </div>
-
-          <div className="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col space-y-space-xs border border-surface-container-high">
-            <div className="flex items-center justify-between">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Active Record SHA-256 Checksum
-              </span>
-              <button
-                id="btn-copy-hash"
-                onClick={handleCopyHash}
-                className="flex items-center gap-1 text-primary hover:text-primary-fixed active:scale-95 transition-transform cursor-pointer"
-                title="Copy Checksum"
-              >
-                <span className="font-telemetry-label text-[10px] uppercase font-bold">
-                  {copiedHash ? 'COPIED' : 'COPY'}
-                </span>
-                <span className="material-symbols-outlined text-[14px]">
-                  {copiedHash ? 'check' : 'content_copy'}
-                </span>
-              </button>
-            </div>
-            <p
-              id="hash-string"
-              className="font-telemetry-metric text-[11px] text-primary break-all leading-tight font-mono selection:bg-primary-container p-1 rounded bg-surface-container-low"
-            >
-              {ACTIVE_HASH}
-            </p>
-            <div className="flex items-center justify-between pt-space-xs text-outline font-telemetry-label text-[10px]">
-              <span>Merkle #4,132 âž” #4,133</span>
-              <span className="text-on-surface-variant">2025-03-13 05:14:22 CST</span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-space-xs bg-surface-container-low rounded border border-surface-container-highest">
-            <div className="flex flex-col">
-              <span className="font-telemetry-label text-[10px] text-outline uppercase">
-                Sample Signature
-              </span>
-              <span className="font-headline-sm text-headline-sm text-primary tracking-wide italic font-serif">
-                J. Morris
-              </span>
-            </div>
-            <div className="flex flex-col items-end">
-              <span className="font-telemetry-label text-[9px] text-outline">
-                DEMO ONLY
-              </span>
-              <span className="font-telemetry-label text-[10px] text-primary font-bold">
-                NOT CERTIFIED
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* 49 CFR § 395 STATUTORY CLOCKS */}
-        {ENABLE_UNVERIFIED_HOS_CLOCKS && (
-        <div className="flex flex-col bg-surface-container p-space-md rounded-xl space-y-space-md shadow-lg border border-surface-container-high/50">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest font-bold">
-                Sample HOS Display
-              </span>
-              <span className="font-telemetry-label text-[10px] text-outline">
-                CURRENT DAY CYCLE: THURSDAY 03/13
-              </span>
-            </div>
-            <span className="material-symbols-outlined text-primary text-[20px]">
-              timer
-            </span>
-          </div>
-
-          {/* Clock Modules Grid */}
-          <div className="grid grid-cols-2 gap-space-sm">
-            {/* 11-Hour Drive */}
-            <div className="bg-surface-container-low p-space-sm rounded-lg flex flex-col justify-between space-y-space-xs border border-surface-container-highest">
-              <div className="flex items-center justify-between">
-                <span className="font-telemetry-label text-[10px] text-outline uppercase truncate">
-                  11h Driving Cap
-                </span>
-                <span className="w-2 h-2 rounded-full bg-primary" />
-              </div>
-              <span className="font-telemetry-metric text-telemetry-metric text-primary">
-                06:44
-              </span>
-              <div className="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
-                <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '61%' }} />
-              </div>
-              <span className="font-telemetry-label text-[9px] text-on-surface-variant">
-                0 Violations • 04h 16m Driven
-              </span>
-            </div>
-
-            {/* 14-Hour Duty Window */}
-            <div className="bg-surface-container-low p-space-sm rounded-lg flex flex-col justify-between space-y-space-xs border border-surface-container-highest">
-              <div className="flex items-center justify-between">
-                <span className="font-telemetry-label text-[10px] text-outline uppercase truncate">
-                  14h Duty Window
-                </span>
-                <span className="w-2 h-2 rounded-full bg-primary" />
-              </div>
-              <span className="font-telemetry-metric text-telemetry-metric text-primary">
-                09:18
-              </span>
-              <div className="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
-                <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '66%' }} />
-              </div>
-              <span className="font-telemetry-label text-[9px] text-primary truncate font-bold">
-                Split-Reset § 395.1(g)
-              </span>
-            </div>
-
-            {/* 30-Min Rest Break */}
-            <div className="bg-surface-container-low p-space-sm rounded-lg flex flex-col justify-between space-y-space-xs border border-surface-container-highest">
-              <div className="flex items-center justify-between">
-                <span className="font-telemetry-label text-[10px] text-outline uppercase truncate">
-                  30-Min Break
-                </span>
-                <span className="material-symbols-outlined text-primary text-[14px]">
-                  check_circle
-                </span>
-              </div>
-              <span className="font-headline-sm text-headline-sm text-primary font-bold">
-                SATISFIED
-              </span>
-              <div className="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
-                <div className="bg-primary h-full rounded-full" style={{ width: '100%' }} />
-              </div>
-              <span className="font-telemetry-label text-[9px] text-on-surface-variant">
-                Via Berth Rest @ 01:20
-              </span>
-            </div>
-
-            {/* 70-Hour / 8-Day Cap */}
-            <div className="bg-surface-container-low p-space-sm rounded-lg flex flex-col justify-between space-y-space-xs border border-surface-container-highest">
-              <div className="flex items-center justify-between">
-                <span className="font-telemetry-label text-[10px] text-outline uppercase truncate">
-                  70h / 8-Day Roll
-                </span>
-                <span className="w-2 h-2 rounded-full bg-primary" />
-              </div>
-              <span className="font-telemetry-metric text-telemetry-metric text-primary">
-                32:15
-              </span>
-              <div className="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
-                <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '46%' }} />
-              </div>
-              <span className="font-telemetry-label text-[9px] text-on-surface-variant">
-                37h 45m Used of 70h Cap
-              </span>
-            </div>
-          </div>
-
-          {/* Statutory Split-Sleeper Clause Legal Box */}
-          <div className="bg-surface-container-lowest p-space-sm rounded-lg space-y-space-2xs border border-surface-container-highest">
-            <div className="flex items-center gap-space-xs">
-              <span className="material-symbols-outlined text-primary text-[16px]">
-                gavel
-              </span>
-              <span className="font-label-caps text-label-caps text-primary uppercase font-bold">
-                Statutory Split Berth Affirmation
-              </span>
-            </div>
-            <p className="font-body-sm text-[11px] text-on-surface-variant leading-relaxed">
-              Pursuant to <strong className="text-on-surface">49 CFR § 395.1(g)(1)(ii)(A)</strong>, Qualifying Period 1 (07h 12m Sleeper Berth continuous duration) completed at 05:12 CST is legally excluded from calculation against the 14-hour on-duty operating window limit.
-            </p>
-          </div>
-        </div>
-
-        
-      )}
-
-        {/* 24-HOUR STATUTORY DUTY CYCLE GRAPHIC GRID */}
-        <div className="flex flex-col bg-surface-container p-space-md rounded-xl space-y-space-sm shadow-xl border border-surface-container-high/60">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest font-bold">
-                24-Hour Duty Grid
-              </span>
-              <span className="font-telemetry-label text-[10px] text-outline">
-                MIDNIGHT TO MIDNIGHT CYCLE (CST)
-              </span>
-            </div>
-            <span className="font-telemetry-label text-[11px] text-primary font-bold">
-              15h 00m Total Today
-            </span>
-          </div>
-
-          {/* Tactical SVG Grid HUD */}
-          <div className="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col space-y-2 overflow-x-auto border border-surface-container-high">
-            <div className="flex justify-between text-outline font-telemetry-label text-[9px] px-8">
-              <span>00:00</span>
-              <span>04:00</span>
-              <span>08:00</span>
-              <span>12:00</span>
-              <span>16:00</span>
-              <span>20:00</span>
-              <span>24:00</span>
-            </div>
-
-            <svg
-              className="w-full h-32"
-              preserveAspectRatio="none"
-              viewBox="0 0 400 120"
-            >
-              {/* Background Grid Lines */}
-              <g stroke="#1e1f25" strokeWidth="1">
-                <line x1="40" x2="390" y1="15" y2="15" />
-                <line x1="40" x2="390" y1="45" y2="45" />
-                <line x1="40" x2="390" y1="75" y2="75" />
-                <line x1="40" x2="390" y1="105" y2="105" />
-
-                {/* Hourly vertical ticks */}
-                <line x1="40" x2="40" y1="0" y2="120" />
-                <line strokeDasharray="2 2" x1="98" x2="98" y1="0" y2="120" />
-                <line strokeDasharray="2 2" x1="156" x2="156" y1="0" y2="120" />
-                <line strokeDasharray="2 2" x1="215" x2="215" y1="0" y2="120" />
-                <line strokeDasharray="2 2" x1="273" x2="273" y1="0" y2="120" />
-                <line strokeDasharray="2 2" x1="331" x2="331" y1="0" y2="120" />
-                <line x1="390" x2="390" y1="0" y2="120" />
-              </g>
-
-              {/* Row Labels */}
-              <text fill="#99907c" fontFamily="JetBrains Mono" fontSize="9" fontWeight="600" x="5" y="19">
-                OFF
-              </text>
-              <text fill="#e5a91e" fontFamily="JetBrains Mono" fontSize="9" fontWeight="600" x="5" y="49">
-                SB
-              </text>
-              <text fill="#e5a91e" fontFamily="JetBrains Mono" fontSize="9" fontWeight="600" x="5" y="79">
-                D
-              </text>
-              <text fill="#99907c" fontFamily="JetBrains Mono" fontSize="9" fontWeight="600" x="5" y="109">
-                ON
-              </text>
-
-              {/* Active Duty Path Line */}
-              <polyline
-                fill="none"
-                points="40,15 73,15 73,45 178,45 178,105 196,105 196,75 258,75"
-                stroke="#b48214"
-                strokeWidth="2.5"
-              />
-
-              {/* Shaded Area Under Current Status (Driving) */}
-              <polygon
-                fill="#b48214"
-                fillOpacity="0.15"
-                points="196,75 258,75 258,120 196,120"
-              />
-
-              {/* Berth Exclusion Marker highlight */}
-              <rect
-                fill="#e5a91e"
-                fillOpacity="0.2"
-                height="14"
-                rx="2"
-                width="105"
-                x="73"
-                y="38"
-              />
-              <text
-                fill="#ffe088"
-                fontFamily="Space Grotesk"
-                fontSize="8"
-                fontWeight="700"
-                x="80"
-                y="48"
-              >
-                QUALIFYING SPLIT 07h 12m
-              </text>
-
-              {/* Current Time Cursor Pin (15:00 CST) */}
-              <line
-                stroke="#e5a91e"
-                strokeDasharray="3 3"
-                strokeWidth="1.5"
-                x1="258"
-                x2="258"
-                y1="0"
-                y2="120"
-              />
-              <circle cx="258" cy="75" fill="#e5a91e" r="4" className="animate-ping" opacity="0.4" />
-              <circle cx="258" cy="75" fill="#e5a91e" r="4" />
-            </svg>
-
-            {/* Total Hours Breakdown Bar */}
-            <div className="grid grid-cols-4 gap-space-2xs pt-space-xs text-center">
-              <div className="bg-surface-container-low p-1 rounded border border-surface-container-highest">
-                <span className="font-telemetry-label text-[9px] text-outline block">
-                  1. OFF
-                </span>
-                <span className="font-telemetry-metric text-[12px] text-on-surface">
-                  02h 15m
-                </span>
-              </div>
-              <div className="bg-surface-container-low p-1 rounded border border-surface-container-highest">
-                <span className="font-telemetry-label text-[9px] text-primary block">
-                  2. SLEEPER
-                </span>
-                <span className="font-telemetry-metric text-[12px] text-primary font-bold">
-                  07h 12m
-                </span>
-              </div>
-              <div className="bg-surface-container-low p-1 rounded border border-surface-container-highest">
-                <span className="font-telemetry-label text-[9px] text-primary block">
-                  3. DRIVE
-                </span>
-                <span className="font-telemetry-metric text-[12px] text-primary font-bold">
-                  04h 16m
-                </span>
-              </div>
-              <div className="bg-surface-container-low p-1 rounded border border-surface-container-highest">
-                <span className="font-telemetry-label text-[9px] text-outline block">
-                  4. ON-DUTY
-                </span>
-                <span className="font-telemetry-metric text-[12px] text-on-surface">
-                  01h 17m
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 8-DAY HISTORICAL LOG AUDIT STRIP */}
-        <div className="flex flex-col bg-surface-container p-space-md rounded-xl space-y-space-sm shadow-md border border-surface-container-high/60">
-          <div className="flex items-center justify-between">
-            <span className="font-label-caps text-label-caps text-primary uppercase tracking-wider font-bold">
-              8-Day Prior Log Chain
-            </span>
-            <span className="font-telemetry-label text-[10px] text-primary font-bold">
-              SAMPLE DATA
-            </span>
-          </div>
-
-          {/* Day Pills Scroll Row */}
-          <div className="flex items-center gap-space-xs overflow-x-auto pb-space-2xs">
-            {HISTORICAL_LOGS.map((day, idx) => {
-              const isSelected = selectedDayIndex === idx;
+          <div className="flex items-center gap-1.5">
+            {(
+              [
+                { id: 'HIGH_CONTRAST', label: 'High Contrast', icon: 'contrast' },
+                { id: 'MINIMALIST', label: 'Minimalist Focus', icon: 'filter_center_focus' },
+                { id: 'ROUTE_FOCUSED', label: 'Route Priority', icon: 'alt_route' },
+              ] as const
+            ).map((mode) => {
+              const active = visionProfile === mode.id;
               return (
                 <button
-                  key={day.id}
-                  onClick={() => handleSelectDay(idx)}
-                  className={`day-tab px-space-sm py-1.5 rounded font-telemetry-label text-[11px] shrink-0 transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-primary text-on-primary font-bold shadow-md'
-                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                  key={mode.id}
+                  onClick={() => onVisionProfileChange(mode.id)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
+                    active
+                      ? 'bg-primary text-on-primary shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                      : 'bg-surface-container text-on-surface-variant hover:text-white border border-surface-container-high'
                   }`}
                 >
-                  {day.shortDate}
+                  <span className="material-symbols-outlined text-[14px]">{mode.icon}</span>
+                  <span>{mode.label}</span>
                 </button>
               );
             })}
           </div>
+        </div>
+      )}
 
-          {/* Active Selected Day Log Snapshot Card */}
-          <div
-            id="day-log-snapshot"
-            className="bg-surface-container-low p-space-sm rounded-lg flex items-center justify-between border border-surface-container-highest"
-          >
-            <div className="flex items-center gap-space-sm">
-              <span className="material-symbols-outlined text-primary text-[22px]">
-                verified
+      {/* ELD Read-Only HOS Notice */}
+      <div className="bg-[#0A0F14] p-6 rounded-xl border border-[#1E2532] shadow-2xl text-center space-y-3">
+        <span className="material-symbols-outlined text-[#FFE500] text-[36px]">
+          schedule
+        </span>
+        <p className="text-sm font-mono font-bold text-white">
+          Hours of service come from your ELD. Connect your ELD to view them here.
+        </p>
+      </div>
+
+      {/* Signed-In Driver & Equipment Identification Matrix (Only shown when signed in) */}
+      {driverProfile ? (
+        <div className="bg-surface-container-low p-5 rounded-xl border border-surface-container-high shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b border-surface-container-high pb-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-[20px]">
+                verified_user
               </span>
-              <div className="flex flex-col">
-                <span
-                  id="active-day-title"
-                  className="font-body-md text-body-md font-bold text-on-surface"
-                >
-                  {activeDay.dateStr}
-                </span>
-                <span className="font-telemetry-label text-[10px] text-outline">
-                  DRIVE: {activeDay.driveHours} • ON-DUTY: {activeDay.onDutyHours} • {activeDay.deficiencies} DEFICIENCIES
-                </span>
+              <h3 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
+                Driver &amp; Equipment Profile (/api/driver/profile)
+              </h3>
+            </div>
+            <button
+              onClick={onExportInspection || onOpenPdfModal}
+              className="px-3 py-1 rounded bg-primary/20 text-primary border border-primary/40 text-[10px] font-mono font-bold uppercase cursor-pointer"
+            >
+              View Summary
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+            {/* Carrier Block */}
+            <div className="p-3.5 rounded-lg bg-surface-container border border-surface-container-high space-y-1.5">
+              <div className="text-[10px] text-primary font-bold uppercase tracking-wider">
+                MOTOR CARRIER
               </div>
+              {driverProfile.carrierName ? (
+                <>
+                  <div className="text-white font-bold text-sm">{driverProfile.carrierName}</div>
+                  {driverProfile.usdotNumber && (
+                    <div className="text-on-surface-variant">
+                      USDOT: <span className="text-slate-200">{driverProfile.usdotNumber}</span>
+                    </div>
+                  )}
+                  {driverProfile.mcNumber && (
+                    <div className="text-on-surface-variant">
+                      MC: <span className="text-slate-200">{driverProfile.mcNumber}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-on-surface-variant">No carrier specified</div>
+              )}
             </div>
-            <span className="font-label-caps text-[9px] bg-primary-container/20 text-primary px-space-xs py-1 rounded border border-primary/30">
-              DEMO
-            </span>
-          </div>
 
-          {/* External transfer integrations are unavailable. */}
-          <div className="flex flex-col gap-space-xs pt-space-xs">
-            <button
-              id="btn-transmit-fmcsa"
-              disabled
-              className="w-full py-space-sm px-space-md bg-surface-container-high text-outline font-headline-sm text-[15px] font-bold uppercase rounded-lg flex items-center justify-center gap-space-xs cursor-not-allowed"
-            >
-              <span className="material-symbols-outlined text-[20px]">cloud_off</span>
-              <span>FMCSA TRANSFER NOT CONFIGURED</span>
-            </button>
+            {/* Driver Block */}
+            <div className="p-3.5 rounded-lg bg-surface-container border border-surface-container-high space-y-1.5">
+              <div className="text-[10px] text-primary font-bold uppercase tracking-wider">
+                PRIMARY DRIVER
+              </div>
+              <div className="text-white font-bold text-sm">{driverProfile.name}</div>
+              {driverProfile.cdlNumber && (
+                <div className="text-on-surface-variant">
+                  CDL: <span className="text-slate-200">{driverProfile.cdlNumber}</span> ({driverProfile.cdlState})
+                </div>
+              )}
+            </div>
 
-            <div className="grid grid-cols-2 gap-space-xs">
-              <button
-                id="btn-bluetooth-send"
-                disabled
-                className="py-space-xs bg-surface-container-low text-outline font-label-caps text-[11px] uppercase rounded flex items-center justify-center gap-1 border border-surface-container-highest cursor-not-allowed"
-              >
-                <span className="material-symbols-outlined text-primary text-[16px]">
-                  bluetooth_disabled
-                </span>
-                <span>DOT SYNC NOT CONNECTED</span>
-              </button>
-
-              <button
-                id="btn-export-pdf"
-                onClick={onOpenPdfModal}
-                className="py-space-xs bg-surface-container-low text-on-surface hover:bg-surface-container-high font-label-caps text-[11px] uppercase rounded flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer border border-surface-container-highest"
-              >
-                <span className="material-symbols-outlined text-primary text-[16px]">
-                  picture_as_pdf
-                </span>
-                <span>PRINT / 8-DAY PDF</span>
-              </button>
+            {/* Equipment Block */}
+            <div className="p-3.5 rounded-lg bg-surface-container border border-surface-container-high space-y-1.5">
+              <div className="text-[10px] text-primary font-bold uppercase tracking-wider">
+                ASSIGNED EQUIPMENT
+              </div>
+              <div className="text-white font-bold text-sm">
+                Unit: {vehicleProfile?.unitNumber || driverProfile.assignedUnitId || 'Not specified'}
+              </div>
+              {vehicleProfile && (
+                <div className="text-amber-300 font-bold">
+                  Height: {vehicleProfile.heightFt} ft • Length: {vehicleProfile.lengthFt} ft • {vehicleProfile.weightLbs.toLocaleString()} lbs
+                </div>
+              )}
             </div>
           </div>
         </div>
+      ) : null}
 
-        {/* OFFICER STATUTORY DISCLOSURE & HOTLINE FOOTER */}
-        <div className="flex flex-col bg-surface-container-lowest p-space-md rounded-xl space-y-space-sm text-center border border-surface-container-high/40">
-          <div className="flex items-center justify-center gap-space-xs text-primary">
-            <span className="material-symbols-outlined text-[16px]">
-              policy
-            </span>
-            <span className="font-label-caps text-label-caps uppercase tracking-wider font-bold">
-              Demo Data Notice
-            </span>
-          </div>
-
-          <p className="font-body-sm text-[11px] text-outline leading-relaxed text-left">
-            This screen contains sample data. It is not a certified record of duty status, does not connect to FMCSA Web Services or vehicle ECM hardware, and must not be used for inspections or compliance decisions.
-          </p>
-
-          <div className="flex items-center justify-between pt-space-xs bg-surface-container-low p-space-xs rounded text-left border border-surface-container-highest">
-            <div className="flex flex-col">
-              <span className="font-telemetry-label text-[9px] text-outline uppercase">
-                Sample Dispatch Contact
-              </span>
-              <span className="font-telemetry-metric text-[14px] text-primary font-bold">
-                {CARRIER_INFO.phone}
-              </span>
-            </div>
-            <button
-              onClick={onOpenEmergency}
-              className="px-space-sm py-1 bg-primary text-on-primary rounded font-label-caps text-[10px] uppercase font-bold flex items-center gap-1 cursor-pointer hover:brightness-110 active:scale-95 transition-all shadow"
-            >
-              <span className="material-symbols-outlined text-[14px]">
-                call
-              </span>
-              DISPATCH
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-          </>
-        )}
-      </div>
+      {/* Full DOT / FMCSA Compliance Document Archive (Hidden in Minimalist or Route Priority mode) */}
+      {!isMinimalist && !isRouteFocused && <ComplianceDocumentArchive onShowToast={onShowToast} />}
     </div>
   );
 };

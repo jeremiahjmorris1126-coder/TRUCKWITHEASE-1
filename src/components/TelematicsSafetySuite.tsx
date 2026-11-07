@@ -718,14 +718,14 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
                   UNTOUCHABLE TELEMATICS & ELD SAFETY SUITE
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-950/80 border border-emerald-500 text-emerald-400">
-                  SIMULATED — NOT FMCSA CERTIFIED
+                  SIMULATED — NOT AN ELD
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-amber-950/80 border border-amber-500/80 text-amber-400">
                   HARNESS: SIMULATION STREAM
                 </span>
               </div>
               <p className="text-sm text-slate-400 font-mono mt-0.5">
-                Harsh Braking • Speeding Sentinel • Collision Black Box • Stop Duration • CAN-bus J1939 Engine Fusion
+                Harsh Braking • Speeding Sentinel • Collision Black Box • Stop Duration • Vehicle Telemetry
               </p>
             </div>
           </div>
@@ -787,7 +787,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
                         <Truck className="w-3.5 h-3.5 text-sky-400" />
                         <div>
                           <div className="font-bold text-white">Samsara Gateway</div>
-                          <div className="text-[10px] text-slate-400">J1939 ECU CAN data feed</div>
+                          <div className="text-[10px] text-slate-400">Provider API data feed</div>
                         </div>
                       </div>
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
@@ -1086,7 +1086,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
                 <Gauge className="w-5 h-5 text-[#D4AF37]" />
                 <span className="font-mono text-sm font-bold text-white uppercase">PRIMARY GLANCEABLE SPEEDOMETER</span>
               </div>
-              <span className="text-xs font-mono text-slate-400">SAE J1939 PGN 65265 / SPN 84</span>
+              <span className="text-xs font-mono text-slate-400">GPS VELOCITY</span>
             </div>
 
             {/* SPEEDOMETER CORE */}
@@ -1252,7 +1252,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
             {/* ENGINE RPM & THROTTLE / BRAKE PSI */}
             <div className="bg-[#0C0E14] border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
               <div className="flex items-center justify-between text-xs font-mono text-slate-400 border-b border-slate-800 pb-2">
-                <span>CAN-BUS J1939 POWERTRAIN STATUS</span>
+                <span>POWERTRAIN STATUS</span>
                 <span className="text-amber-400 font-bold">NO HARDWARE FEED</span>
               </div>
               <div className="grid grid-cols-2 gap-3 font-mono">
@@ -1332,7 +1332,7 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
                 </div>
                 {event.notes && (
                   <div className="mt-3 text-xs font-mono text-slate-300 bg-black/40 p-2.5 rounded-lg border border-slate-800/80">
-                    <span className="text-slate-500">CAN-Bus Dossier Note:</span> {event.notes}
+                    <span className="text-slate-500">Dossier Note:</span> {event.notes}
                   </div>
                 )}
               </div>
@@ -2115,9 +2115,9 @@ export const TelematicsSafetySuite: React.FC<TelematicsSafetySuiteProps> = ({
             </div>
 
             <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-2">
-              <div className="text-sm font-bold text-sky-400">SAE J1939 Engine Diagnostics Fusion</div>
+              <div className="text-sm font-bold text-sky-400">Provider ELD Telemetry Integration</div>
               <p className="text-xs text-slate-300">
-                Continuous polling of PGN 65265 (Cruise Control / Vehicle Speed), PGN 61444 (Electronic Engine Controller 1 / RPM), and PGN 65248 (Vehicle Distance) with sub-100ms latency.
+                Official engine hours, odometer, and duty status transitions come directly from the driver&apos;s connected ELD provider API.
               </p>
             </div>
           </div>

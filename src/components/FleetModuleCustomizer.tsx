@@ -11,16 +11,15 @@ interface FleetModuleCustomizerProps {
 const ALL_MODULES: { id: TabId; name: string; desc: string; category: string; icon: string }[] = [
   { id: 'master-sync', name: 'Everyday Sync', desc: 'Master fleet control & unified dispatch', category: 'OPERATIONS', icon: 'stars' },
   { id: 'night-hud', name: 'Night HUD', desc: 'High-contrast driver in-cab cockpit', category: 'HUD', icon: 'dashboard' },
-  { id: 'dispatch-eta', name: 'Dispatch ETA', desc: 'Google Maps corridor & dock slot management', category: 'OPERATIONS', icon: 'schedule_send' },
-  { id: 'vault', name: 'Sec. Vault', desc: 'HSM cryptographic logs & 8-day inspection records', category: 'COMPLIANCE', icon: 'lock' },
-  { id: 'fleet-expenses', name: 'Invoices & Expenses', desc: 'WebstaurantStore sales invoices, fuel & supply receipts', category: 'COMPLIANCE', icon: 'receipt_long' },
-  { id: 'hos-clocks', name: 'HOS Clocks', desc: '70h / 8-day duty status timers & alerts', category: 'COMPLIANCE', icon: 'timer' },
-  { id: 'radar-54b', name: 'Radar 54B', desc: 'Collision avoidance & Doppler radar distance', category: 'SAFETY', icon: 'radar' },
-  { id: 'trip-planner', name: 'Trip Planner', desc: 'Realtime geolocation upcoming rest stops, fuel & weigh scales', category: 'OPERATIONS', icon: 'route' },
-  { id: 'master-mechanic', name: 'The Master Mechanic', desc: 'J1939 ECU diagnostics, component health & repair dispatch', category: 'OPERATIONS', icon: 'build_circle' },
+  { id: 'dispatch-eta', name: 'Dispatch ETA', desc: 'Corridor & dock slot management', category: 'OPERATIONS', icon: 'schedule_send' },
+  { id: 'vault', name: 'Sec. Vault', desc: 'Document archive & inspection records', category: 'COMPLIANCE', icon: 'lock' },
+  { id: 'fleet-expenses', name: 'Invoices & Expenses', desc: 'Commercial sales invoices, fuel & supply receipts', category: 'COMPLIANCE', icon: 'receipt_long' },
+  { id: 'hos-clocks', name: 'HOS Clocks', desc: 'Read-only ELD provider duty clocks', category: 'COMPLIANCE', icon: 'timer' },
+  { id: 'radar-54b', name: 'Radar 54B', desc: 'Low-bridge clearance & route hazard alerts', category: 'SAFETY', icon: 'radar' },
+  { id: 'trip-planner', name: 'Trip Planner', desc: 'Upcoming rest stops & fuel waypoints', category: 'OPERATIONS', icon: 'route' },
+  { id: 'master-mechanic', name: 'The Master Mechanic', desc: 'Component inspection, DVIR & roadside repair dispatch', category: 'OPERATIONS', icon: 'build_circle' },
   { id: 'haptics', name: 'Haptics', desc: 'Steering wheel tactile driver warnings', category: 'SAFETY', icon: 'vibration' },
   { id: 'ecosystem', name: 'Trust Hub', desc: 'Broker & carrier vetting system', category: 'COMPLIANCE', icon: 'hub' },
-  { id: 'telemetry', name: 'Telemetry', desc: '10Hz CAN-Bus diagnostics & memory tracker', category: 'ANALYTICS', icon: 'memory' },
 ];
 
 export const FleetModuleCustomizer: React.FC<FleetModuleCustomizerProps> = ({

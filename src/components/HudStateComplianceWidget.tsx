@@ -51,12 +51,12 @@ export const HudStateComplianceWidget: React.FC<HudStateComplianceWidgetProps> =
   const handleAttestStateCompliance = () => {
     const timestamp = new Date().toISOString().substring(0, 19).replace('T', ' ') + ' UTC';
     const st = geoState.stateData;
-    const notes = `STATE GEOLOCATION COMPLIANCE ATTESTATION // State: ${st.stateName} (${st.stateCode}) // Truck Limit: ${st.truckSpeedLimitMph} MPH // Current Speed: ${geoState.currentSpeedMph} MPH // Lat/Lng: ${geoState.latitude}, ${geoState.longitude} // Lane Rules: ${st.laneRestrictions} // Weigh Station: ${st.weighStationPolicy} // Attested by Jeremiah J. Morris (CDL IL-98104820) at ${timestamp}.`;
+    const notes = `STATE GEOLOCATION COMPLIANCE ATTESTATION // State: ${st.stateName} (${st.stateCode}) // Truck Limit: ${st.truckSpeedLimitMph} MPH // Current Speed: ${geoState.currentSpeedMph} MPH // Lat/Lng: ${geoState.latitude}, ${geoState.longitude} // Lane Rules: ${st.laneRestrictions} // Logged at ${timestamp}.`;
 
     if (onRecordInspectionLog) {
       onRecordInspectionLog('ROADSIDE_AUDIT', 'MANUAL_HUD', notes);
     }
-    onShowToast(`GEOLOCATION STATE COMPLIANCE LOGGED FOR ${st.stateCode} TO HSM VAULT`, 'verified');
+    onShowToast(`GEOLOCATION STATE COMPLIANCE LOGGED FOR ${st.stateCode} TO COMPLIANCE VAULT`, 'verified');
   };
 
   const st = geoState.stateData;
@@ -114,7 +114,7 @@ export const HudStateComplianceWidget: React.FC<HudStateComplianceWidgetProps> =
       </div>
 
       {/* Primary HUD Speed Limit & State Regulation Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         {/* State Identity & Location */}
         <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container-high flex flex-col justify-between space-y-1">
           <span className="text-[9px] text-outline uppercase font-bold block">DETECTED LOCATION STATE</span>
@@ -156,15 +156,6 @@ export const HudStateComplianceWidget: React.FC<HudStateComplianceWidgetProps> =
               {geoState.isSpeeding ? `+${geoState.speedDeltaMph} MPH OVER` : 'COMPLIANT'}
             </span>
           </div>
-        </div>
-
-        {/* Weigh Station Policy */}
-        <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container-high flex flex-col justify-between space-y-1">
-          <span className="text-[9px] text-outline uppercase font-bold block">WEIGH SCALE POLICY</span>
-          <span className="text-[11px] font-bold text-emerald-400 leading-tight block truncate" title={st.weighStationPolicy}>
-            {st.weighStationPolicy}
-          </span>
-          <span className="text-[9px] text-outline block">APU Weight Allowance: +{st.apuWeightAllowanceLbs} lbs</span>
         </div>
 
         {/* Lane Rules & Hotline */}
@@ -264,12 +255,6 @@ export const HudStateComplianceWidget: React.FC<HudStateComplianceWidgetProps> =
               <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container-high space-y-1">
                 <span className="text-[10px] font-bold text-amber-400 uppercase block">Lane Restrictions</span>
                 <p className="text-[11px] text-on-surface">{st.laneRestrictions}</p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container-high space-y-1">
-                <span className="text-[10px] font-bold text-emerald-400 uppercase block">Weigh Station Scale Mandates</span>
-                <p className="text-[11px] text-on-surface">{st.weighStationPolicy}</p>
-                <p className="text-[10px] text-outline">APU Weight Bonus: +{st.apuWeightAllowanceLbs} LBS certified scale credit.</p>
               </div>
 
               <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container-high space-y-1">

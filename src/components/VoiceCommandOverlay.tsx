@@ -131,7 +131,7 @@ export const VoiceCommandOverlay: React.FC<VoiceCommandOverlayProps> = ({ voice 
                   </span>
                   <span className="font-mono text-[9px] text-outline">
                     {voice.isListening
-                      ? 'LISTENING TO ACOUSTIC CAN-BUS SENSORS'
+                      ? 'LISTENING FOR VOICE COMMAND'
                       : 'STANDBY // READY FOR SPOKEN INSTRUCTION'}
                   </span>
                 </div>

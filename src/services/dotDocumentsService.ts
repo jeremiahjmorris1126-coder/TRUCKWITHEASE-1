@@ -1,5 +1,4 @@
 import { DotDocumentRecord, DotDocCategory, DotDocStatus } from '../types';
-import { INITIAL_DOT_DOCUMENTS } from '../data/dotDocumentTemplatesData';
 import { generateSecureToken, computeSha256 } from './cryptoService';
 import { authenticatedFetch, getSubscriberSession } from './firebaseClientAuth';
 
@@ -21,7 +20,7 @@ class DotDocumentsService {
   private isSyncingBackend: boolean = false;
 
   constructor() {
-    this.documents = [...INITIAL_DOT_DOCUMENTS];
+    this.documents = [];
     if (typeof window !== 'undefined') {
       this.syncWithBackend().catch(() => {});
     }
@@ -57,9 +56,9 @@ class DotDocumentsService {
       const res = await authenticatedFetch('/api/driver/documents');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data?.documents) && data.documents.length > 0) {
+        if (Array.isArray(data?.documents)) {
           const session = getSubscriberSession();
-          const primaryDriver = session?.user?.name || 'Jeremiah J. Morris';
+          const primaryDriver = session?.user?.name || '';
           const backendDocs: DotDocumentRecord[] = data.documents.map((d: any): DotDocumentRecord => ({
             id: d.id,
             documentTitle: d.title || 'Official Compliance Document',
@@ -67,25 +66,20 @@ class DotDocumentsService {
             cfrReference: d.type === 'CDL' ? '49 CFR § 383.23' : (d.type === 'MEDICAL_CARD' ? '49 CFR § 391.43' : '49 CFR § 390.31'),
             documentNumber: d.id,
             driverName: d.driverName || primaryDriver,
-            unitNumber: d.unitNumber || 'TRK-904',
-            issuingAuthority: 'FMCSA Certified Custody Repository',
+            unitNumber: d.unitNumber || '',
+            issuingAuthority: 'Fleet Document Repository',
             issuedDate: d.uploadedAt ? d.uploadedAt.substring(0, 10) : new Date().toISOString().substring(0, 10),
-            expirationDate: '2028-09-15',
+            expirationDate: d.expirationDate || '',
             status: d.status === 'EXPIRED' ? 'EXPIRED' : (d.status === 'PENDING' ? 'EXPIRING_SOON' : 'VALID'),
-            merkleProofHash: generateSecureToken(32),
-            fileSizeBytes: d.fileSizeBytes || 350000,
-            fileFormat: d.fileFormat || 'PDF / FIPS-180 Signed',
-            notes: `Verified backend repository record [${d.type}]`,
+            documentHash: d.documentHash || generateSecureToken(32),
+            fileSizeBytes: d.fileSizeBytes || 0,
+            fileFormat: d.fileFormat || 'PDF',
+            notes: `Backend repository record [${d.type}]`,
             certified: d.status === 'VERIFIED',
           }));
 
-          // Merge without duplicate IDs
-          const existingIds = new Set(this.documents.map((x) => x.id));
-          const toAdd = backendDocs.filter((b) => !existingIds.has(b.id));
-          if (toAdd.length > 0) {
-            this.documents = [...toAdd, ...this.documents];
-            this.notifyListeners();
-          }
+          this.documents = backendDocs;
+          this.notifyListeners();
         }
       }
     } catch {
@@ -121,25 +115,25 @@ class DotDocumentsService {
     };
   }
 
-  public addDocument(doc: Omit<DotDocumentRecord, 'id' | 'merkleProofHash'>): DotDocumentRecord {
+  public addDocument(doc: Omit<DotDocumentRecord, 'id' | 'documentHash'>): DotDocumentRecord {
     const randomHex = generateSecureToken(32);
     const newDocId = `doc-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     const newDoc: DotDocumentRecord = {
       ...doc,
       id: newDocId,
-      merkleProofHash: randomHex,
+      documentHash: randomHex,
     };
 
     this.documents = [newDoc, ...this.documents];
     this.notifyListeners();
 
-    // Async computation of genuine SHA-256 merkle hash and backend persistence
+    // Async computation of genuine SHA-256 document hash and backend persistence
     const digestPayload = `${newDoc.documentTitle}::${newDoc.documentNumber}::${newDoc.cfrReference}::${newDoc.issuedDate}::${newDoc.expirationDate}`;
     computeSha256(digestPayload).then((exactSha256) => {
       const idx = this.documents.findIndex((d) => d.id === newDocId);
       if (idx !== -1) {
-        this.documents[idx].merkleProofHash = exactSha256;
+        this.documents[idx].documentHash = exactSha256;
         this.notifyListeners();
       }
 
@@ -175,12 +169,12 @@ class DotDocumentsService {
     this.documents[index] = updated;
     this.notifyListeners();
 
-    // Compute updated Merkle proof and dispatch to backend
+    // Compute updated document hash and dispatch to backend
     const digestPayload = `RENEWAL::${updated.id}::${updated.documentTitle}::${updated.expirationDate}`;
     computeSha256(digestPayload).then((exactSha256) => {
       const idx = this.documents.findIndex((d) => d.id === docId);
       if (idx !== -1) {
-        this.documents[idx].merkleProofHash = exactSha256;
+        this.documents[idx].documentHash = exactSha256;
         this.notifyListeners();
       }
 
@@ -212,11 +206,9 @@ class DotDocumentsService {
   public exportFullAuditDossierJSON(): string {
     const session = getSubscriberSession();
     const carrier = session?.user?.carrierName
-      ? `${session.user.carrierName} (USDOT #${session.user.usdotNumber || '000000'} / MC-${session.user.mcNumber || '000000'})`
-      : 'Vance Freightlines (USDOT #8877665 / MC-887766)';
-    const assignedDriver = session?.user?.name
-      ? `${session.user.name} (CDL Verified)`
-      : 'David Vance (CDL Verified)';
+      ? `${session.user.carrierName} (USDOT #${session.user.usdotNumber || ''} / MC-${session.user.mcNumber || ''})`
+      : '';
+    const assignedDriver = session?.user?.name || '';
 
     const dossier = {
       timestamp: new Date().toISOString(),

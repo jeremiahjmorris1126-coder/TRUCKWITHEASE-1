@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { TabId } from '../types';
-import {
-  ENABLE_BLUETOOTH_ELD,
-  ENABLE_TELEMETRY_10HZ,
-} from '../config/featureFlags';
 import { offlineSyncService, SyncState } from '../services/offlineSyncService';
 
 interface HeaderProps {
@@ -16,8 +12,6 @@ interface HeaderProps {
   alertnessScore?: number;
   onOpenAlertnessModal?: () => void;
   onToggleMobileSidebar?: () => void;
-  onOpenBluetoothModal?: () => void;
-  isBluetoothConnected?: boolean;
   onOpenAuthLogin?: () => void;
   currentUser?: any;
   driverName?: string;
@@ -33,8 +27,6 @@ export const Header: React.FC<HeaderProps> = ({
   alertnessScore = 98,
   onOpenAlertnessModal,
   onToggleMobileSidebar,
-  onOpenBluetoothModal,
-  isBluetoothConnected = false,
   onOpenAuthLogin,
   currentUser = null,
   driverName,
@@ -109,7 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => offlineSyncService.processQueue()}
             title={
               !syncState.isOnline
-                ? 'Offline mode: All duty changes, DVIRs & events saved locally.'
+                ? 'Offline mode: All DVIRs, receipts & detention events saved locally.'
                 : syncState.pendingCount > 0
                 ? `${syncState.pendingCount} records waiting to sync. Click to retry now.`
                 : 'All records synced to server.'
@@ -162,45 +154,10 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Bluetooth ELD Telemetry Gateway Pill */}
-          {ENABLE_BLUETOOTH_ELD && onOpenBluetoothModal && (
-            <button
-              onClick={onOpenBluetoothModal}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 text-xs font-mono font-bold ${
-                isBluetoothConnected
-                  ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-                  : 'bg-amber-950/40 text-[#FFE500] border-amber-500/50 hover:bg-amber-900/50'
-              }`}
-              title="Commercial Bluetooth ELD & 10Hz J1939 Telemetry Suite"
-            >
-              <span className="material-symbols-outlined text-[15px] animate-pulse">
-                {isBluetoothConnected ? 'bluetooth_connected' : 'bluetooth'}
-              </span>
-              <span className="font-['Space_Grotesk'] text-[11px] font-black uppercase tracking-wider">
-                {isBluetoothConnected ? 'ELD PAIRED' : 'PAIR ELD'}
-              </span>
-            </button>
-          )}
-
-          {/* GPS Rate Pill */}
-          {ENABLE_TELEMETRY_10HZ && (
-            <div
-              className="flex items-center gap-space-2xs bg-surface-container px-space-xs py-1 rounded border border-surface-container-high"
-              title="ECM J1939 CAN-Bus 10Hz High-Fidelity Telemetry"
-            >
-              <span className="material-symbols-outlined text-primary text-[14px] animate-pulse">
-                satellite_alt
-              </span>
-              <span className="font-telemetry-label text-telemetry-label text-on-surface">
-                10Hz
-              </span>
-            </div>
-          )}
-
           {/* Speed Indicator */}
           <div
             className="flex items-center gap-space-2xs bg-surface-container px-space-xs py-1 rounded border border-surface-container-high"
-            title="Current J1939 Wheel Speed (MPH)"
+            title="Current Speed (MPH)"
           >
             <span className="material-symbols-outlined text-secondary-fixed-dim text-[14px]">
               speed

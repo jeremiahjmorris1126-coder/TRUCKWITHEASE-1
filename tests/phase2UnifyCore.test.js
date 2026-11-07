@@ -65,7 +65,7 @@ describe('Phase 2: Unify the Core - Integration Tests', () => {
     });
 
     expect(dotDocumentsService.getDocuments().length).toBe(initialCount + 1);
-    expect(newDoc.merkleProofHash).toHaveLength(64);
+    expect(newDoc.documentHash).toHaveLength(64);
 
     // Test renewal
     const renewed = dotDocumentsService.renewDocument(newDoc.id, '2028-03-01', 'Biennial re-inspection');

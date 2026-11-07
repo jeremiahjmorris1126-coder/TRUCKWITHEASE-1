@@ -4,6 +4,7 @@ import { TripPlannerScreen } from './TripPlannerScreen';
 import { Radar54bScreen } from './Radar54bScreen';
 import { DispatchEtaScreen } from './DispatchEtaScreen';
 import { MasterMechanicScreen } from './MasterMechanicScreen';
+import { ENABLE_RADAR_54B } from '../../config/featureFlags';
 
 interface RouteDispatchHubProps {
   initialSubTab?: 'planner' | 'weigh-scales' | 'dispatch' | 'clearance';
@@ -19,7 +20,7 @@ export const RouteDispatchHub: React.FC<RouteDispatchHubProps> = ({
   speed = 65,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'planner' | 'weigh-scales' | 'dispatch' | 'clearance'>(
-    initialSubTab
+    initialSubTab === 'weigh-scales' && !ENABLE_RADAR_54B ? 'planner' : initialSubTab
   );
 
   return (
@@ -40,17 +41,19 @@ export const RouteDispatchHub: React.FC<RouteDispatchHubProps> = ({
               <span>Trip & Stops</span>
             </button>
 
-            <button
-              onClick={() => setActiveSubTab('weigh-scales')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer whitespace-nowrap flex-1 ${
-                activeSubTab === 'weigh-scales'
-                  ? 'bg-primary text-on-primary shadow-md'
-                  : 'bg-surface-container/60 hover:bg-surface-container text-outline hover:text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">radar</span>
-              <span>Weigh Scales (54B)</span>
-            </button>
+            {ENABLE_RADAR_54B && (
+              <button
+                onClick={() => setActiveSubTab('weigh-scales')}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer whitespace-nowrap flex-1 ${
+                  activeSubTab === 'weigh-scales'
+                    ? 'bg-primary text-on-primary shadow-md'
+                    : 'bg-surface-container/60 hover:bg-surface-container text-outline hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">radar</span>
+                <span>Weigh Scales (54B)</span>
+              </button>
+            )}
 
             <button
               onClick={() => setActiveSubTab('dispatch')}
@@ -84,7 +87,7 @@ export const RouteDispatchHub: React.FC<RouteDispatchHubProps> = ({
         {activeSubTab === 'planner' && (
           <TripPlannerScreen onShowToast={onShowToast} onNavigateToTab={onNavigateToTab} />
         )}
-        {activeSubTab === 'weigh-scales' && (
+        {ENABLE_RADAR_54B && activeSubTab === 'weigh-scales' && (
           <Radar54bScreen onShowToast={onShowToast} speed={speed} />
         )}
         {activeSubTab === 'dispatch' && (

@@ -6,7 +6,7 @@
 // - 3-Axis Collision & Crash Impact Pulse with 5s Pre-Crash Black Box
 // - When Stopped & Stop Duration Stopwatch (00:00:00) + Idle Fuel Burn ($/gal)
 // - Automated FMCSA §395.26 Driving ( >5 mph ) and 5-min Stationary On-Duty Prompts
-// - CAN-bus SAE J1939 / GPS Telemetry Stream Fusion & Live Driver Safety Score (0-100)
+// - Vehicle / GPS Telemetry Stream Fusion & Live Driver Safety Score (0-100)
 // ============================================================================
 
 export type MotionStatus = 'DRIVING' | 'ROLLING_SLOW' | 'STOPPED' | 'IDLING' | 'ACCELERATING' | 'DECELERATING';
