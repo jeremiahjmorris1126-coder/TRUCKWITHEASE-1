@@ -1,0 +1,37 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/:catchall*",
+      "mountPath": "/api",
+      "method": "",
+      "module": [
+        "api/[[catchall]].ts:onRequest"
+      ]
+    },
+    {
+      "routePath": "/v1/:catchall*",
+      "mountPath": "/v1",
+      "method": "",
+      "module": [
+        "v1/[[catchall]].ts:onRequest"
+      ]
+    },
+    {
+      "routePath": "/health",
+      "mountPath": "/",
+      "method": "",
+      "module": [
+        "health.ts:onRequest"
+      ]
+    },
+    {
+      "routePath": "/ready",
+      "mountPath": "/",
+      "method": "",
+      "module": [
+        "ready.ts:onRequest"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}
