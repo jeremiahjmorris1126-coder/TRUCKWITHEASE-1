@@ -8,6 +8,7 @@ const testFiles = [
   'tests/phase3EndToEnd.test.js',
   'tests/phase3NewRoutes.test.ts',
   'tests/phase4OfflineSync.test.ts',
+  'tests/eldTelematics.test.ts',
   'tests/bundleEldAudit.test.ts',
 ];
 

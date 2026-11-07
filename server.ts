@@ -109,7 +109,7 @@ async function startServer() {
         }
       },
       credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-carrier-token', 'x-tenant-id'],
     })
   );
@@ -625,10 +625,34 @@ async function startServer() {
   // ==========================================
   // PHASE 3: FLEET MONITORING & TELEMATICS
   // ==========================================
+  // ELD data is read-only, fleet-scoped (TELEMATICS_FLEET_ID), and never fabricated.
+  // Every response carries per-provider status so clients can tell
+  // "not connected" / "provider error" apart from "no vehicles".
+  // Provider status (counts, errors) belongs to the owning fleet; other fleets only learn "not connected".
+  const telematicsMeta = (caller: CallerIdentity) => {
+    const connected = telematicsManager.canAccess(caller);
+    return { connected, providers: connected ? telematicsManager.getAdapterStatus() : {} };
+  };
+
+  app.get('/api/telematics/status', (req, res) => {
+    const caller: CallerIdentity = (req as any).user;
+    if (!caller || caller.role === 'driver') {
+      return res.status(403).json({ error: 'Forbidden', message: 'ELD connection status is restricted to fleet admins.' });
+    }
+    const owning = telematicsManager.getOwningFleetId();
+    res.json({
+      success: true,
+      ...telematicsMeta(caller),
+      owningFleetConfigured: Boolean(owning),
+      callerFleetMatches: Boolean(owning && caller.fleetId === owning),
+    });
+  });
+
   app.get('/api/telematics/vehicles', async (req, res) => {
     try {
-      const vehicles = await telematicsManager.getAllVehicles();
-      res.json({ success: true, count: vehicles.length, vehicles });
+      const caller: CallerIdentity = (req as any).user;
+      const vehicles = await telematicsManager.getAllVehicles(caller);
+      res.json({ success: true, count: vehicles.length, vehicles, ...telematicsMeta(caller) });
     } catch (err) {
       res.status(500).json({ success: false, error: (err as Error).message });
     }
@@ -636,7 +660,8 @@ async function startServer() {
 
   app.get('/api/telematics/vehicles/:id', async (req, res) => {
     try {
-      const vehicle = await telematicsManager.getVehicle(req.params.id);
+      const caller: CallerIdentity = (req as any).user;
+      const vehicle = await telematicsManager.getVehicle(req.params.id, caller);
       if (!vehicle) {
         return res.status(404).json({ success: false, error: 'Vehicle not found' });
       }
@@ -652,8 +677,8 @@ async function startServer() {
       return res.status(403).json({ error: 'Forbidden', message: 'Drivers cannot view telematics drivers list.' });
     }
     try {
-      const drivers = await telematicsManager.getAllDrivers();
-      res.json({ success: true, count: drivers.length, drivers });
+      const drivers = await telematicsManager.getAllDrivers(caller);
+      res.json({ success: true, count: drivers.length, drivers, ...telematicsMeta(caller) });
     } catch (err) {
       res.status(500).json({ success: false, error: (err as Error).message });
     }
@@ -873,7 +898,12 @@ async function startServer() {
     }
   });
 
-  app.put(['/api/driver/profile', '/api/driver/profile/:id'], async (req, res) => {
+  // PUT and PATCH share one handler: both apply a partial update. The HOS screen
+  // saves the driver's ELD provider choice with PATCH.
+  app.put(['/api/driver/profile', '/api/driver/profile/:id'], handleDriverProfileUpdate);
+  app.patch(['/api/driver/profile', '/api/driver/profile/:id'], handleDriverProfileUpdate);
+
+  async function handleDriverProfileUpdate(req: express.Request, res: express.Response) {
     try {
       const caller: CallerIdentity = (req as any).user;
       if (req.body?.fleetId && req.body.fleetId !== caller.fleetId) {
@@ -889,6 +919,11 @@ async function startServer() {
         });
       }
 
+      const eldChoices = ['SAMSARA', 'MOTIVE', 'GEOTAB', 'OTHER', 'DONT_KNOW'];
+      if (req.body?.preferredEldProvider !== undefined && !eldChoices.includes(req.body.preferredEldProvider)) {
+        return res.status(400).json({ error: 'BadRequest', message: `preferredEldProvider must be one of: ${eldChoices.join(', ')}` });
+      }
+
       const updated = await updateDriverProfile(caller, driverId, req.body);
       if (!updated) {
         return res.status(404).json({ error: 'NotFound', message: 'Driver profile not found.' });
@@ -897,7 +932,7 @@ async function startServer() {
     } catch (err: any) {
       res.status(err.statusCode || 500).json({ success: false, error: err.message });
     }
-  });
+  }
 
   app.get('/api/driver/documents', async (req, res) => {
     try {

@@ -23,24 +23,38 @@ test('1. Firestore Read & Write Diagnostic Test', async () => {
   assert.ok(['CONNECTED', 'MOCK_FALLBACK'].includes(health.status));
 });
 
-test('2. Telematics Adapters Matrix (Samsara, Motive, Geotab)', async () => {
-  const status = telematicsManager.getAdapterStatus();
-  assert.ok(status.samsara);
-  assert.ok(status.motive);
-  assert.ok(status.geotab);
+test('2. Telematics Adapters Matrix (Samsara, Motive, Geotab) — demo fixtures only when explicitly enabled', async () => {
+  const saved = { demo: process.env.TELEMATICS_DEMO_DATA, sam: process.env.SAMSARA_API_TOKEN, mot: process.env.MOTIVE_API_KEY };
+  delete process.env.SAMSARA_API_TOKEN;
+  delete process.env.MOTIVE_API_KEY;
+  try {
+    // Without credentials and without demo mode: no data at all, never fabricated.
+    delete process.env.TELEMATICS_DEMO_DATA;
+    const status = telematicsManager.getAdapterStatus();
+    assert.equal(status.samsara.mode, 'NOT_CONFIGURED');
+    assert.equal(status.motive.mode, 'NOT_CONFIGURED');
+    assert.equal(status.geotab.mode, 'NOT_CONFIGURED');
+    assert.equal((await telematicsManager.getAllVehicles()).length, 0);
+    assert.equal((await telematicsManager.getAllDrivers()).length, 0);
 
-  const vehicles = await telematicsManager.getAllVehicles();
-  assert.ok(vehicles.length >= 3, `Expected at least 3 vehicles, got ${vehicles.length}`);
+    // Demo mode (dev/test only): fixtures are served and flagged demo:true.
+    process.env.TELEMATICS_DEMO_DATA = 'true';
+    const vehicles = await telematicsManager.getAllVehicles();
+    assert.ok(vehicles.length >= 3, `Expected at least 3 demo vehicles, got ${vehicles.length}`);
+    assert.ok(vehicles.every(v => v.demo === true), 'every demo vehicle must be flagged demo');
+    const unit101 = vehicles.find(v => v.unitNumber === 'UNIT-101');
+    assert.ok(unit101, 'Unit 101 must exist');
+    assert.equal(unit101.provider, 'samsara');
 
-  const unit101 = vehicles.find(v => v.unitNumber === 'UNIT-101');
-  assert.ok(unit101, 'Unit 101 must exist');
-  assert.equal(unit101.provider, 'samsara');
-  assert.ok(unit101.diagnostics);
-
-  const drivers = await telematicsManager.getAllDrivers();
-  assert.ok(drivers.length >= 1, 'At least 1 driver must exist');
-  assert.equal(drivers[0].name, 'Marcus Vance');
-  assert.ok(drivers[0].hosClocks.drivingRemainingMins > 0);
+    const drivers = await telematicsManager.getAllDrivers();
+    assert.ok(drivers.length >= 1);
+    assert.ok(drivers.every(d => d.demo === true));
+    assert.equal(telematicsManager.getAdapterStatus().samsara.mode, 'DEMO');
+  } finally {
+    for (const [k, v] of [['TELEMATICS_DEMO_DATA', saved.demo], ['SAMSARA_API_TOKEN', saved.sam], ['MOTIVE_API_KEY', saved.mot]]) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+  }
 });
 
 test('3. Auxiliary-Input Alert Engine End-to-End Flow', async () => {
@@ -487,9 +501,9 @@ test('13. Credential Status Map & Secret Manager Mapping', () => {
   const status = getCredentialConfigurationStatus();
   assert.ok(typeof status === 'object');
 
-  // Verify all 20 expected secrets are tracked (including commercial routing & maps: TRIMBLE_API_KEY, TRIMBLE_MAPS_API_KEY, TOMTOM_API_KEY, HERE_API_KEY, GOOGLE_MAPS_API_KEY)
+  // Verify all 21 expected secrets are tracked (including GEOTAB_PASSWORD and commercial routing & maps: TRIMBLE_API_KEY, TRIMBLE_MAPS_API_KEY, TOMTOM_API_KEY, HERE_API_KEY, GOOGLE_MAPS_API_KEY)
   const expectedSecrets = Object.keys(EXPECTED_SECRET_MANAGER_NAMES);
-  assert.equal(expectedSecrets.length, 20);
+  assert.equal(expectedSecrets.length, 21);
 
   for (const secretName of expectedSecrets) {
     assert.ok(secretName in status, `Missing secret in status map: ${secretName}`);

@@ -335,6 +335,57 @@ async function fullChecks() {
     expectStatus(await api('POST', '/api/detention/one-tap', { token: A2, body: { loadId: 'load-tx-01' } }), [400, 403, 404]);
   });
 
+  section('ELD / telematics (read-only, never fabricated)');
+  await check('HOS screen saves ELD provider via PATCH /api/driver/profile', async () => {
+    const r = await api('PATCH', '/api/driver/profile', {
+      token: D1, body: { preferredEldProvider: 'SAMSARA', preferredEldOtherName: null, eldPreferenceSavedAt: new Date().toISOString() },
+    });
+    expectStatus(r, 200);
+    const g = await api('GET', '/api/driver/profile', { token: D1 });
+    assert(g.json?.profile?.preferredEldProvider === 'SAMSARA', 'ELD preference not persisted');
+  });
+  await check('CORS preflight allows PATCH from app origin', async () => {
+    const res = await fetch(`${BASE_URL}/api/driver/profile`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://truckwithease.com', 'Access-Control-Request-Method': 'PATCH' },
+    });
+    const allowed = res.headers.get('access-control-allow-methods') || '';
+    assert(allowed.includes('PATCH'), `allow-methods: ${allowed}`);
+  });
+  await check('Invalid ELD provider value rejected → 400', async () => {
+    expectStatus(await api('PATCH', '/api/driver/profile', { token: D1, body: { preferredEldProvider: 'MADE_UP_ELD' } }), 400);
+  });
+  await check('GET /api/telematics/status reports provider modes', async () => {
+    const r = await api('GET', '/api/telematics/status', { token: A1 });
+    expectStatus(r, 200);
+    const modes = Object.values(r.json?.providers || {}).map((p) => `${p.provider}=${p.mode}`);
+    assert(modes.length === 3, `expected 3 providers, got ${JSON.stringify(r.json).slice(0, 200)}`);
+    return modes.join(', ');
+  });
+  await check('Driver cannot read ELD connection status → 403', async () => {
+    expectStatus(await api('GET', '/api/telematics/status', { token: D1 }), 403);
+  });
+  await check('Vehicles never fabricated: every record is LIVE provider data or flagged demo', async () => {
+    const r = await api('GET', '/api/telematics/vehicles', { token: A1 });
+    expectStatus(r, 200);
+    const providers = r.json?.providers || {};
+    for (const v of r.json?.vehicles || []) {
+      const mode = providers[v.provider]?.mode;
+      assert(v.demo === true || mode === 'LIVE', `vehicle ${v.id} from ${v.provider} in mode ${mode} is not flagged demo`);
+    }
+    return `${r.json.count} vehicles, connected=${r.json.connected}`;
+  });
+  await check('FLEET2 receives no FLEET1 ELD data', async () => {
+    const r = await api('GET', '/api/telematics/vehicles', { token: A2 });
+    expectStatus(r, 200);
+    const fleet1 = await api('GET', '/api/telematics/vehicles', { token: A1 });
+    const f1Ids = new Set((fleet1.json?.vehicles || []).filter((v) => !v.demo).map((v) => v.id));
+    assert(!(r.json?.vehicles || []).some((v) => f1Ids.has(v.id)), 'FLEET1 live vehicles visible to FLEET2');
+    if (r.json?.connected === false) {
+      assert(Object.keys(r.json.providers || {}).length === 0, 'FLEET1 provider status leaked to FLEET2');
+    }
+  });
+
   section('Alerts, telematics, routing, misc');
   let alertId;
   await check('Trigger alert', async () => {

@@ -1,151 +1,172 @@
-import { NormalizedDriver, NormalizedVehicle, TelematicsProviderAdapter } from './types';
+import { fetchProviderJson, msToMins, num, round } from './http';
+import { DutyStatus, NormalizedDriver, NormalizedVehicle, TelematicsProviderAdapter } from './types';
 
-const MOCK_SAMSARA_VEHICLES: NormalizedVehicle[] = [
-  {
-    id: 'sam-trk-101',
-    unitNumber: 'UNIT-101',
-    vin: '1FUJBBCK9KL123456',
-    makeModel: '2024 Freightliner Cascadia 126',
-    provider: 'samsara',
-    status: 'DRIVING',
-    speedMph: 64.5,
-    engineRpm: 1250,
-    fuelPercent: 82,
-    defLevelPercent: 78,
-    odometerMiles: 142850,
-    engineHours: 3410,
-    location: {
-      latitude: 38.6270,
-      longitude: -90.1994,
-      address: 'I-44 Eastbound, St. Louis, MO',
-      heading: 85,
-      updatedAt: new Date().toISOString(),
-    },
-    diagnostics: {
-      checkEngineLight: false,
-      oilPressurePsi: 44,
-      coolantTempF: 194,
-      activeDtcCount: 0,
-      dtcCodes: [],
-    },
-  },
-  {
-    id: 'sam-trk-102',
-    unitNumber: 'UNIT-102',
-    vin: '1XPFDP9X8MD654321',
-    makeModel: '2023 Peterbilt 579 UltraLoft',
-    provider: 'samsara',
-    status: 'IDLE',
-    speedMph: 0,
-    engineRpm: 650,
-    fuelPercent: 54,
-    defLevelPercent: 62,
-    odometerMiles: 218900,
-    engineHours: 5120,
-    location: {
-      latitude: 39.7684,
-      longitude: -86.1581,
-      address: 'Love\'s Travel Stop #420, Indianapolis, IN',
-      heading: 0,
-      updatedAt: new Date().toISOString(),
-    },
-    diagnostics: {
-      checkEngineLight: true,
-      oilPressurePsi: 38,
-      coolantTempF: 198,
-      activeDtcCount: 1,
-      dtcCodes: ['SPN 3251 FMI 0 (DPF Differential Pressure High)'],
-    },
-  },
+/**
+ * Samsara REST API adapter (read-only).
+ *   Vehicles: GET /fleet/vehicles/stats?types=...   (cursor-paginated)
+ *   HOS:      GET /fleet/hos/clocks                 (cursor-paginated)
+ * Auth: Authorization: Bearer <SAMSARA_API_TOKEN>
+ * Token scopes needed: "Read Vehicle Statistics" and "Read ELD Hours of Service".
+ */
+
+// Samsara limits how many stat types one request may ask for, so they are split into groups.
+const STAT_TYPE_GROUPS = [
+  ['gps', 'engineStates', 'engineRpm'],
+  ['fuelPercents', 'defLevelMilliPercent', 'obdOdometerMeters'],
+  ['obdEngineSeconds', 'engineCoolantTemperatureMilliC', 'engineOilPressureKPa'],
+  ['faultCodes'],
 ];
 
-const MOCK_SAMSARA_DRIVERS: NormalizedDriver[] = [
-  {
-    id: 'sam-drv-01',
-    name: 'Marcus Vance',
-    licenseNumber: 'CDL-TX-8849201',
-    dutyStatus: 'DRIVING',
-    currentVehicleId: 'sam-trk-101',
-    hosClocks: {
-      drivingRemainingMins: 385,
-      shiftRemainingMins: 540,
-      cycleRemainingMins: 2180,
-      breakWindowMins: 145,
-    },
-  },
-];
+const MAX_PAGES = 50;
+
+const HOS_STATUS: Record<string, DutyStatus> = {
+  offDuty: 'OFF_DUTY',
+  sleeperBed: 'SLEEPER_BERTH',
+  driving: 'DRIVING',
+  onDuty: 'ON_DUTY',
+  yardMove: 'YARD_MOVE',
+  personalConveyance: 'PERSONAL_CONVEYANCE',
+};
 
 export class SamsaraAdapter implements TelematicsProviderAdapter {
+  id = 'samsara' as const;
   name = 'Samsara';
 
+  private get token(): string | undefined {
+    const t = process.env.SAMSARA_API_TOKEN?.trim();
+    return t ? t : undefined;
+  }
+
+  private get baseUrl(): string {
+    return (process.env.SAMSARA_API_BASE || 'https://api.samsara.com').replace(/\/$/, '');
+  }
+
   isConfigured(): boolean {
-    return Boolean(process.env.SAMSARA_API_TOKEN && process.env.SAMSARA_API_TOKEN.trim().length > 0);
+    return Boolean(this.token);
+  }
+
+  private async getAllPages(path: string, params: Record<string, string> = {}): Promise<any[]> {
+    const rows: any[] = [];
+    let after: string | undefined;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const qs = new URLSearchParams({ ...params, ...(after ? { after } : {}) });
+      const body = await fetchProviderJson<any>('samsara', `${this.baseUrl}${path}?${qs}`, {
+        headers: { Authorization: `Bearer ${this.token}`, Accept: 'application/json' },
+      });
+      if (!Array.isArray(body?.data)) {
+        throw new Error(`Samsara ${path} response missing "data" array.`);
+      }
+      rows.push(...body.data);
+      if (!body.pagination?.hasNextPage || !body.pagination?.endCursor) break;
+      after = body.pagination.endCursor;
+    }
+    return rows;
   }
 
   async getFleetVehicles(): Promise<NormalizedVehicle[]> {
-    if (!this.isConfigured()) {
-      return MOCK_SAMSARA_VEHICLES;
-    }
-
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch('https://api.samsara.com/fleet/vehicles/stats', {
-        headers: {
-          Authorization: `Bearer ${process.env.SAMSARA_API_TOKEN}`,
-          Accept: 'application/json',
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        throw new Error(`Samsara API returned status ${res.status}`);
+    const merged = new Map<string, any>();
+    for (const types of STAT_TYPE_GROUPS) {
+      const rows = await this.getAllPages('/fleet/vehicles/stats', { types: types.join(',') });
+      for (const row of rows) {
+        if (!row?.id) continue;
+        merged.set(row.id, { ...(merged.get(row.id) || {}), ...row });
       }
-
-      const data = await res.json() as any;
-      if (!Array.isArray(data?.data)) return MOCK_SAMSARA_VEHICLES;
-
-      return data.data.map((item: any): NormalizedVehicle => ({
-        id: item.id || `sam-${Date.now()}`,
-        unitNumber: item.name || 'SAMSARA-UNIT',
-        vin: item.vin || 'UNKNOWN-VIN',
-        makeModel: item.model || 'Heavy Duty Commercial Tractor',
-        provider: 'samsara',
-        status: (item.gps?.speedMilesPerHour || 0) > 3 ? 'DRIVING' : 'PARKED',
-        speedMph: item.gps?.speedMilesPerHour || 0,
-        engineRpm: item.engineRpm?.value || 0,
-        fuelPercent: item.fuelPercent?.value || 100,
-        defLevelPercent: item.defLevelMilliPercent?.value ? item.defLevelMilliPercent.value / 1000 : 80,
-        odometerMiles: item.obdOdometerMeters?.value ? Math.round(item.obdOdometerMeters.value / 1609.34) : 0,
-        engineHours: 0,
-        location: {
-          latitude: item.gps?.latitude || 38.6270,
-          longitude: item.gps?.longitude || -90.1994,
-          address: item.gps?.reverseGeo?.formattedLocation || 'Midwest Interstate Corridor',
-          heading: item.gps?.headingDegrees || 0,
-          updatedAt: item.gps?.time || new Date().toISOString(),
-        },
-        diagnostics: {
-          checkEngineLight: Boolean(item.checkEngineLightIsOn),
-          oilPressurePsi: 45,
-          coolantTempF: 195,
-          activeDtcCount: 0,
-          dtcCodes: [],
-        },
-      }));
-    } catch (err) {
-      console.warn('[SamsaraAdapter] Real API call failed, using normalized mock:', (err as Error).message);
-      return MOCK_SAMSARA_VEHICLES;
     }
-  }
-
-  async getVehicleById(id: string): Promise<NormalizedVehicle | null> {
-    const list = await this.getFleetVehicles();
-    return list.find(v => v.id === id || v.unitNumber === id) || null;
+    return [...merged.values()].map(mapSamsaraVehicle);
   }
 
   async getDrivers(): Promise<NormalizedDriver[]> {
-    return MOCK_SAMSARA_DRIVERS;
+    const retrievedAt = new Date().toISOString();
+    const rows = await this.getAllPages('/fleet/hos/clocks');
+    return rows
+      .filter((r) => r?.driver?.id)
+      .map((r): NormalizedDriver => ({
+        id: String(r.driver.id),
+        name: r.driver.name || String(r.driver.id),
+        provider: 'samsara',
+        licenseNumber: null,
+        dutyStatus: HOS_STATUS[r.currentDutyStatus?.hosStatusType] || 'UNKNOWN',
+        currentVehicleId: r.currentVehicle?.id ? String(r.currentVehicle.id) : null,
+        hosClocks: {
+          drivingRemainingMins: msToMins(r.clocks?.drive?.driveRemainingDurationMs),
+          shiftRemainingMins: msToMins(r.clocks?.shift?.shiftRemainingDurationMs),
+          cycleRemainingMins: msToMins(r.clocks?.cycle?.cycleRemainingDurationMs),
+          breakWindowMins: msToMins(r.clocks?.break?.timeUntilBreakDurationMs),
+        },
+        hosAsOf: retrievedAt,
+      }));
   }
+}
+
+export function mapSamsaraVehicle(item: any): NormalizedVehicle {
+  const gps = item.gps;
+  const speed = num(gps?.speedMilesPerHour);
+  const engineState: string | undefined = item.engineStates?.value ?? item.engineState?.value;
+  let status: NormalizedVehicle['status'] = 'UNKNOWN';
+  if (engineState === 'Off') status = 'PARKED';
+  else if (speed !== null && speed > 3) status = 'DRIVING';
+  else if (engineState === 'Idle' || engineState === 'On') status = 'IDLE';
+
+  const coolantMilliC = num(item.engineCoolantTemperatureMilliC?.value);
+  const oilKpa = num(item.engineOilPressureKPa?.value);
+  const odoMeters = num(item.obdOdometerMeters?.value);
+  const engineSec = num(item.obdEngineSeconds?.value);
+  const defMilli = num(item.defLevelMilliPercent?.value);
+
+  const { checkEngineLight, codes } = parseSamsaraFaults(item.faultCodes);
+
+  return {
+    id: String(item.id),
+    unitNumber: item.name || String(item.id),
+    vin: item.externalIds?.['samsara.vin'] || item.vin || null,
+    makeModel: null,
+    provider: 'samsara',
+    status,
+    speedMph: round(speed),
+    engineRpm: num(item.engineRpm?.value),
+    fuelPercent: num(item.fuelPercents?.value ?? item.fuelPercent?.value),
+    defLevelPercent: defMilli === null ? null : round(defMilli / 1000),
+    odometerMiles: odoMeters === null ? null : Math.round(odoMeters / 1609.344),
+    engineHours: engineSec === null ? null : Math.round(engineSec / 3600),
+    location:
+      num(gps?.latitude) !== null && num(gps?.longitude) !== null
+        ? {
+            latitude: gps.latitude,
+            longitude: gps.longitude,
+            address: gps.reverseGeo?.formattedLocation || null,
+            heading: num(gps.headingDegrees),
+            updatedAt: gps.time || new Date().toISOString(),
+          }
+        : null,
+    diagnostics: {
+      checkEngineLight,
+      oilPressurePsi: oilKpa === null ? null : round(oilKpa * 0.145038),
+      coolantTempF: coolantMilliC === null ? null : Math.round((coolantMilliC / 1000) * 9 / 5 + 32),
+      activeDtcCount: item.faultCodes ? codes.length : null,
+      dtcCodes: codes,
+    },
+  };
+}
+
+/** Fault codes arrive grouped by protocol (obdii / heavy-duty); read every group generically. */
+function parseSamsaraFaults(faultCodes: any): { checkEngineLight: boolean | null; codes: string[] } {
+  if (!faultCodes || typeof faultCodes !== 'object') return { checkEngineLight: null, codes: [] };
+  let cel: boolean | null = null;
+  const codes: string[] = [];
+  for (const group of Object.values(faultCodes)) {
+    if (!group || typeof group !== 'object') continue;
+    const g = group as any;
+    if (typeof g.checkEngineLightIsOn === 'boolean') cel = Boolean(cel) || g.checkEngineLightIsOn;
+    if (g.checkEngineLights && typeof g.checkEngineLights === 'object') {
+      cel = Boolean(cel) || Object.values(g.checkEngineLights).some((v) => v === true);
+    }
+    for (const dtc of Array.isArray(g.diagnosticTroubleCodes) ? g.diagnosticTroubleCodes : []) {
+      if (dtc.spnId !== undefined) {
+        codes.push(`SPN ${dtc.spnId} FMI ${dtc.fmiId ?? '?'}${dtc.spnDescription ? ` (${dtc.spnDescription})` : ''}`);
+      } else if (dtc.dtcShortCode || dtc.dtcId !== undefined) {
+        codes.push(`${dtc.dtcShortCode || dtc.dtcId}${dtc.dtcDescription ? ` (${dtc.dtcDescription})` : ''}`);
+      }
+    }
+  }
+  return { checkEngineLight: cel, codes };
 }
