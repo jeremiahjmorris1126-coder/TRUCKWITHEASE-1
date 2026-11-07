@@ -17,7 +17,15 @@ routes = [
   { pattern = "truckwithease.com/v1/*", zone_name = "truckwithease.com" },
   { pattern = "www.truckwithease.com/v1/*", zone_name = "truckwithease.com" },
   { pattern = "morrishive.com/v1/*", zone_name = "morrishive.com" },
-  { pattern = "www.morrishive.com/v1/*", zone_name = "morrishive.com" }
+  { pattern = "www.morrishive.com/v1/*", zone_name = "morrishive.com" },
+  { pattern = "truckwithease.com/health", zone_name = "truckwithease.com" },
+  { pattern = "www.truckwithease.com/health", zone_name = "truckwithease.com" },
+  { pattern = "morrishive.com/health", zone_name = "morrishive.com" },
+  { pattern = "www.morrishive.com/health", zone_name = "morrishive.com" },
+  { pattern = "truckwithease.com/ready", zone_name = "truckwithease.com" },
+  { pattern = "www.truckwithease.com/ready", zone_name = "truckwithease.com" },
+  { pattern = "morrishive.com/ready", zone_name = "morrishive.com" },
+  { pattern = "www.morrishive.com/ready", zone_name = "morrishive.com" }
 ]
 
 # 1. Cloudflare D1 Database Binding
