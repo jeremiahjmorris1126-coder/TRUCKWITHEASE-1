@@ -30,6 +30,10 @@ import { MasterSynchronizerScreen } from './components/screens/MasterSynchronize
 import { FleetExpensesInvoiceScreen } from './components/screens/FleetExpensesInvoiceScreen';
 import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
+import { SignupScreen } from './components/screens/SignupScreen';
+import { LandingScreen } from './components/entry/LandingScreen';
+import { SignInScreen } from './components/entry/SignInScreen';
+import { authenticatedFetch } from './services/firebaseClientAuth';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 // Deployment modals removed from driver app build
@@ -89,6 +93,15 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  // Entry flow: landing -> sign in / sign up -> plan -> app.
+  const [authReady, setAuthReady] = useState<boolean>(false);
+  const [accountGate, setAccountGate] = useState<'checking' | 'needs_plan' | 'ready' | 'offline'>('checking');
+  const [entryView, setEntryView] = useState<'landing' | 'signin' | 'signup'>(() => {
+    if (typeof window === 'undefined') return 'landing';
+    const p = new URLSearchParams(window.location.search);
+    return p.get('tab') === 'signup' || p.get('checkout') ? 'signup' : 'landing';
+  });
+  const [gateCheck, setGateCheck] = useState<number>(0);
   const [driverProfile, setDriverProfile] = useState<{ name?: string; cdlNumber?: string } | null>(null);
   const [tenantInfo, setTenantInfo] = useState<{ carrierName?: string; usdotNumber?: string; tenantId?: string } | null>(null);
 
@@ -123,10 +136,35 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!firebaseUser) {
+      setAccountGate('checking');
+      return;
+    }
+    let cancelled = false;
+    setAccountGate('checking');
+    authenticatedFetch('/api/billing/subscription')
+      .then(async (res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setAccountGate(res.status === 401 || res.status === 403 ? 'needs_plan' : 'offline');
+          return;
+        }
+        const d = await res.json();
+        // Anyone attached to a fleet (paid, trial, or added by their fleet admin) goes into the app.
+        setAccountGate(d?.user?.fleetId ? 'ready' : 'needs_plan');
+      })
+      .catch(() => !cancelled && setAccountGate('offline'));
+    return () => {
+      cancelled = true;
+    };
+  }, [firebaseUser, gateCheck]);
+
   // Synchronize Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(clientAuth, (user) => {
       setFirebaseUser(user);
+      setAuthReady(true);
     });
     return () => unsubscribe();
   }, []);
@@ -347,12 +385,56 @@ export default function App() {
             }}
           />
         );
+      case 'signup':
+        return <SignupScreen />;
       case 'haptics':
         return <HapticsScreen onShowToast={showToast} />;
       default:
         return null;
     }
   };
+
+  // ── Entry gate ──────────────────────────────────────────────
+  if (!authReady || (firebaseUser && accountGate === 'checking')) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <span className="material-symbols-outlined text-[40px] text-[#FFE500] animate-pulse">local_shipping</span>
+      </div>
+    );
+  }
+  if (!firebaseUser) {
+    if (entryView === 'signin') {
+      return <SignInScreen onBack={() => setEntryView('landing')} onCreateAccount={() => setEntryView('signup')} />;
+    }
+    if (entryView === 'signup') {
+      return (
+        <div className="min-h-screen bg-black">
+          <SignupScreen onBack={() => setEntryView('landing')} onSignIn={() => setEntryView('signin')} onComplete={() => setGateCheck((n) => n + 1)} />
+        </div>
+      );
+    }
+    return <LandingScreen onSignIn={() => setEntryView('signin')} onGetStarted={() => setEntryView('signup')} />;
+  }
+  if (accountGate === 'needs_plan') {
+    return (
+      <div className="min-h-screen bg-black">
+        <SignupScreen onComplete={() => setGateCheck((n) => n + 1)} />
+      </div>
+    );
+  }
+  if (accountGate === 'offline') {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-[#FFE500] text-sm">Can&apos;t reach TruckWithEase right now. Check your connection.</p>
+        <button
+          onClick={() => setGateCheck((n) => n + 1)}
+          className="px-6 py-3 rounded-lg bg-[#FFE500] text-black font-black uppercase tracking-wider cursor-pointer"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-surface-container-lowest text-on-surface antialiased select-none font-body selection:bg-primary-container selection:text-on-primary-container">

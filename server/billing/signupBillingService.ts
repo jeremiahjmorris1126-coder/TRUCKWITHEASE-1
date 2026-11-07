@@ -2,13 +2,19 @@ import crypto from 'crypto';
 import { fleetStore, type CallerIdentity } from '../data/fleetStore';
 import {
   getOrCreateUserDocument,
-  issueSignedSessionToken,
   updateUserProfile,
   type UserProfile,
   type UserRole,
 } from '../auth/firebaseAuthService';
 import { updateDriverProfile } from '../driver/driverProfileService';
-import { provisionFleetLine } from '../telephony/telephonyService';
+import {
+  StripeError,
+  createBillingPortalSession,
+  createCheckoutSession,
+  getStripePriceId,
+  isStripeConfigured,
+} from './stripeClient';
+
 
 export type SubscriptionTierId =
   | 'TRIAL_14_DAY'
@@ -237,102 +243,61 @@ export const CANONICAL_SUBSCRIPTION_TIERS: CanonicalPricingTier[] = [
   },
 ];
 
-export interface CreditCardInput {
-  cardholderName: string;
-  cardNumber: string;
-  expMonth: string | number;
-  expYear: string | number;
-  cvc: string;
-  billingZip: string;
+export function getCanonicalTierById(tierId: string): CanonicalPricingTier | undefined {
+  return CANONICAL_SUBSCRIPTION_TIERS.find((t) => t.id === tierId);
 }
 
-export interface ValidatedPaymentMethod {
-  token: string;
-  brand: 'VISA' | 'MASTERCARD' | 'AMEX' | 'DISCOVER';
-  last4: string;
-  expMonth: number;
-  expYear: number;
-  expiryFormatted: string;
-  cardholderName: string;
-  billingZip: string;
-  luhnVerified: boolean;
-  verifiedAt: string;
-}
+/**
+ * ─── Sign-up & subscription lifecycle ────────────────────────────────────────
+ *
+ * 1. The user creates a Firebase account in the app and is signed in.
+ * 2. POST /api/auth/signup (authenticated). The uid comes ONLY from the verified
+ *    token, never from the request body.
+ *      - Free trial tier: activated immediately.
+ *      - Paid tier: a pending sign-up is stored and a Stripe Checkout URL is
+ *        returned. Card entry happens on Stripe's page.
+ * 3. Stripe calls POST /api/webhooks/stripe (signature verified). Only then is
+ *    the paid account activated with its role, fleet and permissions.
+ *
+ * Every new account gets a fresh random fleet ID, so nobody can join an
+ * existing fleet by typing its USDOT number.
+ */
 
-export interface SubscriptionInvoiceRecord {
-  id: string;
-  uid: string;
-  fleetId: string;
-  email: string;
-  customerName: string;
-  carrierName: string;
-  tierId: SubscriptionTierId;
-  tierName: string;
-  baseAmountUsd: number;
-  additionalLinesCount: number;
-  additionalLinesAmountUsd: number;
-  totalAmountUsd: number;
-  currency: 'USD';
-  status: 'PAID' | 'TRIAL_VERIFIED';
-  paymentMethod: ValidatedPaymentMethod;
-  transactionHash: string;
-  createdAt: string;
-}
-
-export interface ConfirmationEmailRecord {
-  id: string;
-  messageId: string;
-  uid: string;
-  fleetId: string;
-  recipientEmail: string;
-  recipientName: string;
-  subject: string;
-  tierId: SubscriptionTierId;
-  tierName: string;
-  assignedRole: UserRole;
-  permissions: string[];
-  amountChargedUsd: number;
-  invoiceId: string;
-  cardBrand: string;
-  cardLast4: string;
-  verificationToken: string;
-  verificationUrl: string;
-  verified: boolean;
-  verifiedAt?: string;
-  deliveryProvider: 'RESEND_LIVE' | 'SENDGRID_LIVE' | 'TRANSACTIONAL_OUTBOX_VERIFIED';
-  sentAt: string;
-  textBody: string;
-  htmlBody: string;
-}
+export type SubscriptionStatus = 'PENDING_PAYMENT' | 'TRIAL_ACTIVE' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
 
 export interface SignupRequestInput {
-  uid?: string;
   accountType: AccountSignupType;
+  tierId: SubscriptionTierId;
   fullName: string;
-  email: string;
   phone?: string;
   carrierName?: string;
   usdotNumber?: string;
   mcNumber?: string;
   cdlNumber?: string;
   cdlState?: string;
-  fleetSize?: '1' | '2-10' | '11-50' | '50+';
-  tierId: SubscriptionTierId;
-  additionalPhoneLines?: number;
-  preferredAreaCode?: string;
-  creditCard: CreditCardInput;
 }
 
-export interface SignupResponsePayload {
-  success: true;
-  sessionToken: string;
-  user: UserProfile;
-  tier: CanonicalPricingTier;
-  paymentMethod: ValidatedPaymentMethod;
-  invoice: SubscriptionInvoiceRecord;
-  confirmationEmail: ConfirmationEmailRecord;
-  provisionedLines: string[];
+export interface PendingSignupRecord {
+  id: string; // = uid
+  uid: string;
+  email: string;
+  fleetId: string; // reserved random fleet ID, applied on activation
+  accountType: AccountSignupType;
+  tierId: SubscriptionTierId;
+  fullName: string;
+  phone: string | null;
+  carrierName: string;
+  usdotNumber: string | null;
+  mcNumber: string | null;
+  cdlNumber: string | null;
+  cdlState: string | null;
+  checkoutSessionId: string | null;
+  createdAt: string;
 }
+
+export type SignupStartResult =
+  | { status: 'TRIAL_ACTIVE'; user: UserProfile; tier: CanonicalPricingTier }
+  | { status: 'CHECKOUT_REQUIRED'; checkoutUrl: string; tier: CanonicalPricingTier };
 
 export class SignupValidationError extends Error {
   statusCode: number;
@@ -345,585 +310,250 @@ export class SignupValidationError extends Error {
   }
 }
 
-/**
- * ISO/IEC 7812 Luhn Checksum Algorithm for truthful credit card number verification.
- */
-export function verifyLuhnChecksum(digitsOnly: string): boolean {
-  if (!/^\d{13,19}$/.test(digitsOnly)) {
-    return false;
-  }
-  // Reject all-zeros or single repeated digit strings
-  if (/^(\d)\1+$/.test(digitsOnly)) {
-    return false;
-  }
+const SYSTEM: CallerIdentity = { uid: 'system', role: 'owner', fleetId: null };
+/** System writes must carry the record's own fleetId (fleetStore invariant). */
+const systemFor = (fleetId: string): CallerIdentity => ({ uid: 'system', role: 'owner', fleetId });
+const clean = (v: unknown, max = 120): string | null => {
+  if (typeof v !== 'string') return null;
+  const s = v.trim().slice(0, max);
+  return s ? s : null;
+};
 
-  let sum = 0;
-  let shouldDouble = false;
-
-  for (let i = digitsOnly.length - 1; i >= 0; i--) {
-    let digit = parseInt(digitsOnly.charAt(i), 10);
-    if (shouldDouble) {
-      digit *= 2;
-      if (digit > 9) {
-        digit -= 9;
-      }
-    }
-    sum += digit;
-    shouldDouble = !shouldDouble;
-  }
-
-  return sum % 10 === 0;
+function newFleetId(accountType: AccountSignupType): string {
+  const rand = crypto.randomBytes(5).toString('hex').toUpperCase();
+  return accountType === 'fleet_manager' ? `FLEET-${rand}` : `FLEET-SOLO-${rand}`;
 }
 
-/**
- * Detects card network from IIN/BIN prefix and length rules.
- */
-export function detectCardBrand(
-  digitsOnly: string
-): 'VISA' | 'MASTERCARD' | 'AMEX' | 'DISCOVER' | null {
-  if (/^4\d{12}(\d{3})?(\d{3})?$/.test(digitsOnly)) {
-    return 'VISA';
-  }
-  if (
-    /^(5[1-5]\d{14}|2(22[1-9]\d{12}|2[3-9]\d{13}|[3-6]\d{14}|7[0-1]\d{13}|720\d{12}))$/.test(
-      digitsOnly
-    )
-  ) {
-    return 'MASTERCARD';
-  }
-  if (/^3[47]\d{13}$/.test(digitsOnly)) {
-    return 'AMEX';
-  }
-  if (/^(6011\d{12,15}|65\d{14}|64[4-9]\d{13})$/.test(digitsOnly)) {
-    return 'DISCOVER';
-  }
-  return null;
+function appUrl(): string {
+  return (process.env.APP_URL || 'https://truckwithease.com').replace(/\/$/, '');
 }
 
-/**
- * Validates credit card details using Luhn checksum, network IIN rules, expiry date, CVC, and ZIP,
- * and returns a tokenized payment method record (never storing raw PAN or CVC).
- */
-export function validateAndTokenizeCreditCard(card: CreditCardInput): ValidatedPaymentMethod {
-  if (!card || typeof card !== 'object') {
-    throw new SignupValidationError('Credit card details are required.', 'creditCard');
-  }
-
-  const cardholderName = (card.cardholderName || '').trim();
-  if (cardholderName.length < 3) {
-    throw new SignupValidationError(
-      'Cardholder full name is required (minimum 3 characters).',
-      'cardholderName'
-    );
-  }
-
-  const rawNumber = String(card.cardNumber || '').replace(/[\s-]/g, '');
-  if (!/^\d{13,19}$/.test(rawNumber)) {
-    throw new SignupValidationError(
-      'Card number must be between 13 and 19 digits.',
-      'cardNumber'
-    );
-  }
-
-  const brand = detectCardBrand(rawNumber);
-  if (!brand) {
-    throw new SignupValidationError(
-      'Unsupported card network. Please provide a valid Visa, Mastercard, American Express, or Discover card.',
-      'cardNumber'
-    );
-  }
-
-  if (!verifyLuhnChecksum(rawNumber)) {
-    throw new SignupValidationError(
-      'Credit card number failed ISO/IEC 7812 Luhn checksum verification.',
-      'cardNumber'
-    );
-  }
-
-  const expMonth = parseInt(String(card.expMonth || ''), 10);
-  if (isNaN(expMonth) || expMonth < 1 || expMonth > 12) {
-    throw new SignupValidationError(
-      'Expiration month must be between 01 and 12.',
-      'expMonth'
-    );
-  }
-
-  let expYear = parseInt(String(card.expYear || ''), 10);
-  if (isNaN(expYear)) {
-    throw new SignupValidationError('Expiration year is required.', 'expYear');
-  }
-  if (expYear < 100) {
-    expYear += 2000;
-  }
-
-  const now = new Date();
-  const currentYear = now.getUTCFullYear();
-  const currentMonth = now.getUTCMonth() + 1;
-  if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
-    throw new SignupValidationError('Credit card is expired.', 'expYear');
-  }
-  if (expYear > currentYear + 20) {
-    throw new SignupValidationError('Expiration year is out of valid range.', 'expYear');
-  }
-
-  const cvc = String(card.cvc || '').trim();
-  const expectedCvcLength = brand === 'AMEX' ? 4 : 3;
-  if (!new RegExp(`^\\d{${expectedCvcLength}}$`).test(cvc)) {
-    throw new SignupValidationError(
-      `${brand} security code (CVC) must be ${expectedCvcLength} digits.`,
-      'cvc'
-    );
-  }
-
-  const billingZip = String(card.billingZip || '').trim();
-  if (!/^\d{5}(-\d{4})?$/.test(billingZip)) {
-    throw new SignupValidationError(
-      'Billing ZIP code must be a valid 5-digit US postal code.',
-      'billingZip'
-    );
-  }
-
-  const last4 = rawNumber.slice(-4);
-  const tokenHash = crypto
-    .createHash('sha256')
-    .update(`${brand}:${rawNumber}:${expMonth}:${expYear}:${billingZip}`)
-    .digest('hex')
-    .slice(0, 28);
-
-  const isLuhnValid = Boolean(1);
-  return {
-    token: `tok_${brand.toLowerCase()}_${tokenHash}`,
-    brand,
-    last4,
-    expMonth,
-    expYear,
-    expiryFormatted: `${String(expMonth).padStart(2, '0')}/${expYear}`,
-    cardholderName,
-    billingZip,
-    luhnVerified: isLuhnValid,
-    verifiedAt: new Date().toISOString(),
-  };
-}
-
-export function getCanonicalTierById(tierId: string): CanonicalPricingTier | undefined {
-  return CANONICAL_SUBSCRIPTION_TIERS.find((t) => t.id === tierId);
-}
-
-/**
- * Dispatches and persists a verifiable confirmation email with a cryptographic verification token.
- */
-export async function dispatchSignupConfirmationEmail(params: {
-  uid: string;
-  fleetId: string;
-  recipientEmail: string;
-  recipientName: string;
-  carrierName: string;
+export function validateSignupInput(input: any): {
+  accountType: AccountSignupType;
   tier: CanonicalPricingTier;
-  invoice: SubscriptionInvoiceRecord;
-  paymentMethod: ValidatedPaymentMethod;
-}): Promise<ConfirmationEmailRecord> {
-  const timestamp = new Date().toISOString();
-  const verificationToken = `ver_${crypto
-    .createHash('sha256')
-    .update(`${params.uid}:${params.recipientEmail}:${params.invoice.id}:${timestamp}`)
-    .digest('hex')
-    .slice(0, 32)}`;
+  fullName: string;
+} {
+  if (!input || typeof input !== 'object') throw new SignupValidationError('Signup request body is required.');
 
-  const emailId = `eml-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
-  const messageId = `<${emailId}@truckwithease.com>`;
-  const appUrl = (process.env.APP_URL || 'https://truckwithease.com').replace(/\/$/, '');
-  const verificationUrl = `${appUrl}/api/auth/signup/verify-email?token=${verificationToken}`;
-
-  const subject = `[TruckWithEase] Subscription Confirmed — ${params.tier.name} ($${params.invoice.totalAmountUsd.toFixed(2)}/mo)`;
-
-  const textBody = [
-    `Hello ${params.recipientName},`,
-    ``,
-    `Your TruckWithEase subscription and operating credentials have been provisioned.`,
-    ``,
-    `--- SUBSCRIPTION & CREDENTIAL SUMMARY ---`,
-    `Account Holder: ${params.recipientName} (${params.recipientEmail})`,
-    `Carrier / Fleet: ${params.carrierName} (Fleet ID: ${params.fleetId})`,
-    `Subscribed Tier: ${params.tier.name} (${params.tier.id})`,
-    `Assigned System Role: ${params.tier.assignedRole}`,
-    `Granted Permissions: ${params.tier.permissions.join(', ')}`,
-    `Payment Method: ${params.paymentMethod.brand} ending in ${params.paymentMethod.last4} (Exp ${params.paymentMethod.expiryFormatted})`,
-    `Amount Settled: $${params.invoice.totalAmountUsd.toFixed(2)} USD`,
-    `Invoice ID: ${params.invoice.id}`,
-    `Transaction Hash: ${params.invoice.transactionHash}`,
-    ``,
-    `Verify your email address using the link below:`,
-    verificationUrl,
-  ].join('\n');
-
-  const htmlBody = `
-    <div style="font-family: monospace; background: #05080E; color: #FFFFFF; padding: 24px; border: 2px solid #FFE500; border-radius: 12px;">
-      <h2 style="color: #FFE500; text-transform: uppercase; margin-top: 0;">TruckWithEase Subscription &amp; Credential Confirmation</h2>
-      <p>Hello <strong>${params.recipientName}</strong>,</p>
-      <p>Your TruckWithEase subscription and operating credentials are now active.</p>
-      <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;">
-        <tr><td style="padding: 6px; color: #9CA3AF;">Carrier / Fleet:</td><td style="padding: 6px; color: #FFFFFF;"><strong>${params.carrierName}</strong> (${params.fleetId})</td></tr>
-        <tr><td style="padding: 6px; color: #9CA3AF;">Subscription Tier:</td><td style="padding: 6px; color: #FFE500;"><strong>${params.tier.name} (${params.tier.id})</strong></td></tr>
-        <tr><td style="padding: 6px; color: #9CA3AF;">Assigned Role:</td><td style="padding: 6px; color: #10B981;"><strong>${params.tier.assignedRole}</strong></td></tr>
-        <tr><td style="padding: 6px; color: #9CA3AF;">Permissions Granted:</td><td style="padding: 6px; color: #FFFFFF;">${params.tier.permissions.join(', ')}</td></tr>
-        <tr><td style="padding: 6px; color: #9CA3AF;">Payment Method:</td><td style="padding: 6px; color: #FFFFFF;">${params.paymentMethod.brand} •••• ${params.paymentMethod.last4} (Exp ${params.paymentMethod.expiryFormatted})</td></tr>
-        <tr><td style="padding: 6px; color: #9CA3AF;">Total Charged:</td><td style="padding: 6px; color: #FFE500;"><strong>$${params.invoice.totalAmountUsd.toFixed(2)} USD</strong> (Invoice ${params.invoice.id})</td></tr>
-      </table>
-      <p><a href="${verificationUrl}" style="display: inline-block; padding: 12px 20px; background: #FFE500; color: #000000; font-weight: 900; text-decoration: none; border-radius: 8px; text-transform: uppercase;">Confirm Email Address</a></p>
-    </div>
-  `.trim();
-
-  let deliveryProvider: ConfirmationEmailRecord['deliveryProvider'] =
-    'TRANSACTIONAL_OUTBOX_VERIFIED';
-
-  // If Resend API key is configured in environment, send live transactional email
-  if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim()) {
-    try {
-      const resp = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'TruckWithEase Dispatch <onboarding@truckwithease.com>',
-          to: [params.recipientEmail],
-          subject,
-          text: textBody,
-          html: htmlBody,
-        }),
-      });
-      if (resp.ok) {
-        deliveryProvider = 'RESEND_LIVE';
-      }
-    } catch {
-      // Fallback to verified transactional outbox ledger
-    }
-  }
-
-  const emailRecord: ConfirmationEmailRecord = {
-    id: emailId,
-    messageId,
-    uid: params.uid,
-    fleetId: params.fleetId,
-    recipientEmail: params.recipientEmail,
-    recipientName: params.recipientName,
-    subject,
-    tierId: params.tier.id,
-    tierName: params.tier.name,
-    assignedRole: params.tier.assignedRole,
-    permissions: params.tier.permissions,
-    amountChargedUsd: params.invoice.totalAmountUsd,
-    invoiceId: params.invoice.id,
-    cardBrand: params.paymentMethod.brand,
-    cardLast4: params.paymentMethod.last4,
-    verificationToken,
-    verificationUrl,
-    verified: false,
-    deliveryProvider,
-    sentAt: timestamp,
-    textBody,
-    htmlBody,
-  };
-
-  const systemOwner: CallerIdentity = {
-    uid: 'system',
-    role: 'owner',
-    fleetId: params.fleetId,
-  };
-  await fleetStore.createScopedDocument(
-    systemOwner,
-    'signup_confirmations',
-    emailId,
-    emailRecord
-  );
-
-  return emailRecord;
-}
-
-/**
- * Verifies an email confirmation token and marks both the confirmation record and UserProfile as emailVerified.
- */
-export async function verifyConfirmationEmailToken(
-  token: string
-): Promise<{ verified: boolean; emailRecord?: ConfirmationEmailRecord; user?: UserProfile }> {
-  if (!token || typeof token !== 'string' || !token.trim()) {
-    throw new SignupValidationError('Verification token is required.', 'token');
-  }
-
-  const systemOwner: CallerIdentity = { uid: 'system', role: 'owner', fleetId: null };
-  const allConfirmations = await fleetStore.listScopedCollection<ConfirmationEmailRecord>(
-    systemOwner,
-    'signup_confirmations',
-    { limit: 500 }
-  );
-
-  const match = allConfirmations.find((c) => c.verificationToken === token.trim());
-  if (!match) {
-    return { verified: false };
-  }
-
-  const verifiedAt = new Date().toISOString();
-  const isEmailConfirmed = Boolean(1);
-  const updatedEmail = await fleetStore.updateScopedDocument<ConfirmationEmailRecord>(
-    systemOwner,
-    'signup_confirmations',
-    match.id,
-    {
-      verified: isEmailConfirmed,
-      verifiedAt,
-    }
-  );
-
-  const updatedUser = await updateUserProfile(match.uid, {
-    emailVerified: isEmailConfirmed,
-  });
-
-  return {
-    verified: isEmailConfirmed,
-    emailRecord: updatedEmail || { ...match, verified: isEmailConfirmed, verifiedAt },
-    user: updatedUser || undefined,
-  };
-}
-
-/**
- * Full End-to-End Subscriber Sign-Up, Credit Card Settlement, Role/Tier Credential Provisioning,
- * and Transactional Email Confirmation.
- */
-export async function completeSubscriberSignup(
-  input: SignupRequestInput
-): Promise<SignupResponsePayload> {
-  if (!input || typeof input !== 'object') {
-    throw new SignupValidationError('Signup request body is required.');
-  }
-
-  const fullName = (input.fullName || '').trim();
-  if (fullName.length < 2) {
-    throw new SignupValidationError('Full legal name is required.', 'fullName');
-  }
-
-  const email = (input.email || '').trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new SignupValidationError('A valid email address is required.', 'email');
-  }
+  const fullName = clean(input.fullName, 100);
+  if (!fullName || fullName.length < 2) throw new SignupValidationError('Full name is required.', 'fullName');
 
   const accountType = input.accountType;
   if (accountType !== 'driver' && accountType !== 'fleet_manager') {
-    throw new SignupValidationError(
-      'accountType must be either "driver" or "fleet_manager".',
-      'accountType'
-    );
+    throw new SignupValidationError('Choose Driver or Fleet Manager.', 'accountType');
   }
 
   const tier = getCanonicalTierById(input.tierId);
-  if (!tier) {
+  if (!tier) throw new SignupValidationError('Choose a plan.', 'tierId');
+  if (tier.targetAccountType !== accountType) {
     throw new SignupValidationError(
-      `Invalid subscription tier "${input.tierId}". Valid tiers: ${CANONICAL_SUBSCRIPTION_TIERS.map((t) => t.id).join(', ')}.`,
+      accountType === 'driver' ? 'That plan is for fleet managers. Pick a driver plan.' : 'That plan is for drivers. Pick a fleet plan.',
       'tierId'
     );
   }
-
-  // Enforce tier <-> accountType alignment so a Fleet Manager gets a Fleet tier and a Driver gets a Driver tier
-  if (accountType === 'fleet_manager' && tier.assignedRole !== 'fleet_admin') {
-    throw new SignupValidationError(
-      `Fleet Manager sign-up requires a Fleet tier (FLEET_PRO or ENTERPRISE_SOVEREIGN). Selected tier "${tier.id}" is a driver-only tier.`,
-      'tierId'
-    );
+  if (input.usdotNumber !== undefined && input.usdotNumber !== '' && !/^\d{1,8}$/.test(String(input.usdotNumber).trim())) {
+    throw new SignupValidationError('USDOT number must be digits only (up to 8).', 'usdotNumber');
   }
-  if (accountType === 'driver' && tier.assignedRole !== 'driver') {
-    throw new SignupValidationError(
-      `Solo Driver sign-up requires a Driver tier (SOLO_PRO or TRIAL_14_DAY). Selected tier "${tier.id}" is a fleet manager tier.`,
-      'tierId'
-    );
-  }
+  return { accountType, tier, fullName };
+}
 
-  // Validate credit card using Luhn checksum & IIN rules
-  const validatedCard = validateAndTokenizeCreditCard(input.creditCard);
-
-  // Derive deterministic or caller-provided UID and Fleet ID
-  const uid =
-    input.uid && input.uid.trim()
-      ? input.uid.trim()
-      : `usr-${crypto.createHash('sha256').update(email).digest('hex').slice(0, 12)}`;
-
-  const cleanUsdot = (input.usdotNumber || '').replace(/[^0-9A-Za-z]/g, '').slice(0, 10);
-  const carrierName =
-    (input.carrierName || '').trim() ||
-    (accountType === 'fleet_manager' ? `${fullName} Logistics LLC` : `${fullName} Owner-Operator`);
-
-  const assignedFleetId =
-    accountType === 'fleet_manager'
-      ? `FLEET-${cleanUsdot || uid.slice(-6).toUpperCase()}`
-      : `FLEET-SOLO-${cleanUsdot || uid.slice(-6).toUpperCase()}`;
-
-  // Calculate exact billing math
-  const additionalLinesCount = Math.max(0, Math.floor(Number(input.additionalPhoneLines) || 0));
-  const baseAmountUsd = tier.monthlyPriceUsd;
-  const additionalLinesAmountUsd = +(additionalLinesCount * tier.extraLineMonthlyUsd).toFixed(2);
-  const totalAmountUsd = +(baseAmountUsd + additionalLinesAmountUsd).toFixed(2);
-
-  // Create cryptographically signed Invoice Record
-  const createdAt = new Date().toISOString();
-  const invoiceId = `INV-${new Date().getUTCFullYear()}-${crypto
-    .randomBytes(3)
-    .toString('hex')
-    .toUpperCase()}`;
-  const transactionHash =
-    '0x' +
-    crypto
-      .createHash('sha256')
-      .update(`${invoiceId}:${uid}:${tier.id}:${totalAmountUsd}:${validatedCard.token}:${createdAt}`)
-      .digest('hex');
-
-  const invoice: SubscriptionInvoiceRecord = {
-    id: invoiceId,
-    uid,
-    fleetId: assignedFleetId,
-    email,
-    customerName: fullName,
-    carrierName,
-    tierId: tier.id,
-    tierName: tier.name,
-    baseAmountUsd,
-    additionalLinesCount,
-    additionalLinesAmountUsd,
-    totalAmountUsd,
-    currency: 'USD',
-    status: totalAmountUsd > 0 ? 'PAID' : 'TRIAL_VERIFIED',
-    paymentMethod: validatedCard,
-    transactionHash,
-    createdAt,
-  };
-
-  const systemOwner: CallerIdentity = {
-    uid: 'system',
-    role: 'owner',
-    fleetId: assignedFleetId,
-  };
-  await fleetStore.createScopedDocument(systemOwner, 'billing_invoices', invoice.id, invoice);
-
-  // Provision Twilio phone lines included in the tier + any additional lines ordered
-  const totalLinesToProvision = tier.includedPhoneLines + additionalLinesCount;
-  const provisionedLines: string[] = [];
-  for (let i = 0; i < totalLinesToProvision; i++) {
-    const lineRecord = provisionFleetLine(
-      `${carrierName} (Line #${i + 1})`,
-      i === 0 && accountType === 'fleet_manager' ? 'DISPATCH_PSTN' : 'DRIVER_DIRECT'
-    );
-    provisionedLines.push(lineRecord.phoneNumber);
-  }
-
-  // Dispatch Confirmation Email
-  const confirmationEmail = await dispatchSignupConfirmationEmail({
-    uid,
-    fleetId: assignedFleetId,
-    recipientEmail: email,
-    recipientName: fullName,
-    carrierName,
-    tier,
-    invoice,
-    paymentMethod: validatedCard,
-  });
-
-  // Ensure base user document exists, then update with full tier credentials, role, fleetId, and permissions
-  await getOrCreateUserDocument(uid, email);
-  const updatedUser = await updateUserProfile(uid, {
-    name: fullName,
-    email,
-    role: tier.assignedRole,
-    fleetId: assignedFleetId,
-    carrierName,
-    usdotNumber: input.usdotNumber || undefined,
-    mcNumber: input.mcNumber || undefined,
+/** Grants the tier's role, fleet and permissions. Called for trials, and for paid tiers only from the verified Stripe webhook. */
+async function activateAccount(
+  pending: PendingSignupRecord,
+  status: SubscriptionStatus,
+  stripe?: { customerId?: string | null; subscriptionId?: string | null }
+): Promise<UserProfile> {
+  const tier = getCanonicalTierById(pending.tierId)!;
+  const user = await updateUserProfile(pending.uid, {
+    name: pending.fullName,
+    email: pending.email,
+    role: tier.assignedRole as UserRole,
+    fleetId: pending.fleetId,
+    carrierName: pending.carrierName,
+    usdotNumber: pending.usdotNumber || undefined,
+    mcNumber: pending.mcNumber || undefined,
     tierId: tier.id,
     tierName: tier.name,
     permissions: tier.permissions,
     enabledModules: tier.enabledModules,
-    subscriptionStatus: totalAmountUsd > 0 ? 'ACTIVE' : 'TRIAL_ACTIVE',
-    paymentMethodSummary: {
-      brand: validatedCard.brand,
-      last4: validatedCard.last4,
-      expiry: validatedCard.expiryFormatted,
-      cardholderName: validatedCard.cardholderName,
-      token: validatedCard.token,
-    },
-    invoiceId: invoice.id,
-    confirmationEmailId: confirmationEmail.id,
-    emailVerified: false,
-    provisionedPhoneNumbers: provisionedLines,
-  });
+    subscriptionStatus: status,
+    stripeCustomerId: stripe?.customerId || undefined,
+    stripeSubscriptionId: stripe?.subscriptionId || undefined,
+    trialEndsAt: status === 'TRIAL_ACTIVE' ? new Date(Date.now() + 14 * 86400_000).toISOString() : undefined,
+  } as Partial<UserProfile>);
 
-  // If solo driver, also provision their scoped driver_profiles document
-  if (accountType === 'driver') {
-    const driverCaller: CallerIdentity = {
-      uid,
-      email,
-      role: 'driver',
-      fleetId: assignedFleetId,
-    };
-    await updateDriverProfile(driverCaller, uid, {
-      name: fullName,
-      email,
-      phone: input.phone || provisionedLines[0] || '+1-800-555-EASE',
-      cdlNumber: input.cdlNumber || `CDL-${uid.slice(-6).toUpperCase()}`,
-      cdlState: input.cdlState || 'IL',
+  if (pending.accountType === 'driver') {
+    await updateDriverProfile({ uid: pending.uid, email: pending.email, role: 'driver', fleetId: pending.fleetId }, pending.uid, {
+      name: pending.fullName,
+      email: pending.email,
+      phone: pending.phone || '',
+      cdlNumber: pending.cdlNumber || '',
+      cdlState: pending.cdlState || '',
     });
   }
 
-  const sessionToken = issueSignedSessionToken(uid, email);
-
-  return {
-    success: true,
-    sessionToken,
-    user: updatedUser!,
-    tier,
-    paymentMethod: validatedCard,
-    invoice,
-    confirmationEmail,
-    provisionedLines,
-  };
+  if (stripe?.subscriptionId) {
+    await fleetStore.createScopedDocument(systemFor(pending.fleetId), 'stripe_subscriptions', stripe.subscriptionId, {
+      id: stripe.subscriptionId,
+      fleetId: pending.fleetId,
+      uid: pending.uid,
+      customerId: stripe.customerId || null,
+    });
+  }
+  return user!;
 }
 
 /**
- * Retrieves the full subscription, invoice, and confirmation email status for a user or fleet.
+ * Starts sign-up for the signed-in caller. `caller.uid`/`caller.email` come from
+ * the verified login token.
  */
-export async function getSubscriberSignupStatus(caller: CallerIdentity, targetUid?: string) {
-  const uidToLookup =
-    caller.role === 'driver' ? caller.uid : targetUid || caller.uid;
+export async function startSignup(
+  caller: { uid: string; email?: string | null },
+  input: SignupRequestInput
+): Promise<SignupStartResult> {
+  const { accountType, tier, fullName } = validateSignupInput(input);
 
-  const userDoc = await getOrCreateUserDocument(uidToLookup, caller.email || '');
-  if (caller.role !== 'owner' && userDoc.fleetId !== caller.fleetId && uidToLookup !== caller.uid) {
-    return null;
+  const email = (caller.email || '').trim().toLowerCase();
+  if (!email) throw new SignupValidationError('Your account has no email address. Sign in with email to subscribe.', 'email');
+
+  const existing = await getOrCreateUserDocument(caller.uid, email);
+  if (existing.fleetId) {
+    const status = (existing as any).subscriptionStatus as SubscriptionStatus | undefined;
+    throw new SignupValidationError(
+      status === 'ACTIVE' || status === 'TRIAL_ACTIVE'
+        ? 'This account already has an active plan.'
+        : 'This account already belongs to a fleet. Ask your fleet admin about your plan.',
+      undefined,
+      409
+    );
   }
 
-  const systemOwner: CallerIdentity = {
-    uid: 'system',
-    role: 'owner',
-    fleetId: userDoc.fleetId,
+  // Reuse the reserved fleet ID if the user retries checkout.
+  const prior = await fleetStore.getScopedDocument<PendingSignupRecord>(SYSTEM, 'pending_signups', caller.uid);
+  const pending: PendingSignupRecord = {
+    id: caller.uid,
+    uid: caller.uid,
+    email,
+    fleetId: prior?.accountType === accountType ? prior.fleetId : newFleetId(accountType),
+    accountType,
+    tierId: tier.id,
+    fullName,
+    phone: clean(input.phone, 30),
+    carrierName: clean(input.carrierName, 120) || (accountType === 'fleet_manager' ? `${fullName} Fleet` : fullName),
+    usdotNumber: clean(input.usdotNumber, 8),
+    mcNumber: clean(input.mcNumber, 12),
+    cdlNumber: clean(input.cdlNumber, 30),
+    cdlState: clean(input.cdlState, 2)?.toUpperCase() || null,
+    checkoutSessionId: null,
+    createdAt: new Date().toISOString(),
   };
 
-  const invoice = userDoc.invoiceId
-    ? await fleetStore.getScopedDocument<SubscriptionInvoiceRecord>(
-        systemOwner,
-        'billing_invoices',
-        userDoc.invoiceId
-      )
-    : null;
+  const isFree = tier.monthlyPriceUsd === 0 && !tier.requiresCreditCard;
+  if (isFree) {
+    await fleetStore.createScopedDocument(systemFor(pending.fleetId), 'pending_signups', pending.id, pending);
+    const user = await activateAccount(pending, 'TRIAL_ACTIVE');
+    return { status: 'TRIAL_ACTIVE', user, tier };
+  }
 
-  const confirmationEmail = userDoc.confirmationEmailId
-    ? await fleetStore.getScopedDocument<ConfirmationEmailRecord>(
-        systemOwner,
-        'signup_confirmations',
-        userDoc.confirmationEmailId
-      )
-    : null;
+  if (!isStripeConfigured()) {
+    throw new SignupValidationError('Online payments are not set up yet. Please try again later.', undefined, 503);
+  }
+  const priceId = getStripePriceId(tier.id);
+  if (!priceId) {
+    throw new SignupValidationError(`The ${tier.name} plan is not available for online checkout yet.`, 'tierId', 503);
+  }
 
+  let session: { id: string; url: string };
+  try {
+    session = await createCheckoutSession({
+      priceId,
+      uid: caller.uid,
+      email,
+      tierId: tier.id,
+      successUrl: `${appUrl()}/?tab=signup&checkout=success`,
+      cancelUrl: `${appUrl()}/?tab=signup&checkout=cancelled`,
+    });
+  } catch (err) {
+    const e = err as StripeError;
+    throw new SignupValidationError(`Could not start checkout: ${e.message}`, undefined, e.httpStatus && e.httpStatus < 500 ? 502 : 503);
+  }
+  pending.checkoutSessionId = session.id;
+  await fleetStore.createScopedDocument(systemFor(pending.fleetId), 'pending_signups', pending.id, pending);
+  await updateUserProfile(caller.uid, { subscriptionStatus: 'PENDING_PAYMENT', tierId: tier.id, tierName: tier.name } as Partial<UserProfile>);
+  return { status: 'CHECKOUT_REQUIRED', checkoutUrl: session.url, tier };
+}
+
+/** Handles a Stripe webhook event whose signature has already been verified. */
+export async function handleStripeEvent(event: any): Promise<{ handled: boolean; note: string }> {
+  if (!event?.id || !event?.type) return { handled: false, note: 'malformed event' };
+
+  // Idempotency: Stripe may deliver the same event more than once.
+  const seen = await fleetStore.getScopedDocument(SYSTEM, 'stripe_events', event.id);
+  if (seen) return { handled: true, note: 'duplicate' };
+
+  const obj = event.data?.object || {};
+  let note = 'ignored';
+
+  if (event.type === 'checkout.session.completed') {
+    const uid = obj.client_reference_id || obj.metadata?.uid;
+    const pending = uid ? await fleetStore.getScopedDocument<PendingSignupRecord>(SYSTEM, 'pending_signups', uid) : null;
+    if (!pending) {
+      note = 'no pending signup';
+    } else if (pending.checkoutSessionId && pending.checkoutSessionId !== obj.id) {
+      note = 'stale checkout session';
+    } else if (obj.payment_status !== 'paid' && obj.payment_status !== 'no_payment_required') {
+      note = `payment_status ${obj.payment_status}`;
+    } else {
+      await activateAccount(pending, 'ACTIVE', { customerId: obj.customer, subscriptionId: obj.subscription });
+      note = 'activated';
+    }
+  } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+    const link = obj.id ? await fleetStore.getScopedDocument<any>(SYSTEM, 'stripe_subscriptions', obj.id) : null;
+    if (link?.uid) {
+      const status: SubscriptionStatus =
+        event.type === 'customer.subscription.deleted' || obj.status === 'canceled' || obj.status === 'unpaid'
+          ? 'CANCELED'
+          : obj.status === 'past_due'
+          ? 'PAST_DUE'
+          : obj.status === 'active' || obj.status === 'trialing'
+          ? 'ACTIVE'
+          : 'PAST_DUE';
+      await updateUserProfile(link.uid, { subscriptionStatus: status } as Partial<UserProfile>);
+      note = `status ${status}`;
+    } else {
+      note = 'unknown subscription';
+    }
+  } else if (event.type === 'invoice.payment_failed') {
+    const link = obj.subscription ? await fleetStore.getScopedDocument<any>(SYSTEM, 'stripe_subscriptions', obj.subscription) : null;
+    if (link?.uid) {
+      await updateUserProfile(link.uid, { subscriptionStatus: 'PAST_DUE' } as Partial<UserProfile>);
+      note = 'status PAST_DUE';
+    }
+  }
+
+  await fleetStore.createScopedDocument(systemFor('SYSTEM'), 'stripe_events', event.id, { id: event.id, fleetId: 'SYSTEM', type: event.type, note, at: new Date().toISOString() });
+  return { handled: true, note };
+}
+
+export async function getSubscriberSignupStatus(caller: CallerIdentity, targetUid?: string) {
+  const uidToLookup = caller.role === 'driver' ? caller.uid : targetUid || caller.uid;
+  const userDoc = await getOrCreateUserDocument(uidToLookup, caller.email || '');
+  if (caller.role !== 'owner' && uidToLookup !== caller.uid && userDoc.fleetId !== caller.fleetId) {
+    return null;
+  }
   const tier = userDoc.tierId ? getCanonicalTierById(userDoc.tierId) : undefined;
-
   return {
     user: userDoc,
     tier: tier || null,
-    invoice,
-    confirmationEmail,
+    subscriptionStatus: (userDoc as any).subscriptionStatus || null,
+    canManageBilling: Boolean((userDoc as any).stripeCustomerId),
   };
+}
+
+/** Stripe-hosted page for updating the card or cancelling. */
+export async function getBillingPortalUrl(caller: CallerIdentity): Promise<string> {
+  const userDoc = await getOrCreateUserDocument(caller.uid, caller.email || '');
+  const customerId = (userDoc as any).stripeCustomerId;
+  if (!customerId) throw new SignupValidationError('No billing account found for this user.', undefined, 404);
+  return createBillingPortalSession(customerId, `${appUrl()}/?tab=signup`);
 }

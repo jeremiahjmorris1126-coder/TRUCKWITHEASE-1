@@ -374,6 +374,11 @@ async function fullChecks() {
     const r = await api('GET', '/api/telematics/status', { token: A1 });
     expectStatus(r, 200);
     const modes = Object.values(r.json?.providers || {}).map((p) => `${p.provider}=${p.mode}`);
+    if (r.json?.connected === false) {
+      // No TELEMATICS_FLEET_ID for this fleet: provider details must stay hidden.
+      assert(modes.length === 0, 'provider status leaked to a fleet that does not own the ELD account');
+      return 'not connected for this fleet (provider details hidden)';
+    }
     assert(modes.length === 3, `expected 3 providers, got ${JSON.stringify(r.json).slice(0, 200)}`);
     return modes.join(', ');
   });
@@ -399,6 +404,41 @@ async function fullChecks() {
     if (r.json?.connected === false) {
       assert(Object.keys(r.json.providers || {}).length === 0, 'FLEET1 provider status leaked to FLEET2');
     }
+  });
+
+  section('Sign-up & subscriptions');
+  await check('Sign-up requires login → 401', async () => {
+    expectStatus(await api('POST', '/api/auth/signup', { body: { accountType: 'driver', tierId: 'TRIAL_14_DAY', fullName: 'X' } }), 401);
+  });
+  await check('Body cannot choose the uid (old account-takeover hole closed)', async () => {
+    const fresh = emulatorToken(`usr-verify-${Date.now()}`, `verify${Date.now()}@example.com`);
+    const r = await api('POST', '/api/auth/signup', {
+      token: fresh,
+      body: { uid: 'usr-fleet1-admin', accountType: 'driver', tierId: 'TRIAL_14_DAY', fullName: 'Verify Trial' },
+    });
+    expectStatus(r, 201);
+    assert(r.json?.user?.uid !== 'usr-fleet1-admin', 'signup acted on uid from body');
+    assert(/^FLEET-SOLO-[0-9A-F]{10}$/.test(r.json?.user?.fleetId || ''), `unexpected fleetId ${r.json?.user?.fleetId}`);
+    const t = await api('GET', '/api/auth/tenant', { token: A1 });
+    assert(JSON.stringify(t.json).includes('FLEET1'), 'FLEET1 admin was modified');
+    return `trial fleet ${r.json.user.fleetId}`;
+  });
+  await check('Existing fleet member cannot re-sign-up → 409', async () => {
+    expectStatus(await api('POST', '/api/auth/signup', { token: D1, body: { accountType: 'driver', tierId: 'TRIAL_14_DAY', fullName: 'Again' } }), 409);
+  });
+  await check('Paid plan without Stripe configured → 503 (no fake charge)', async () => {
+    const fresh = emulatorToken(`usr-verify-paid-${Date.now()}`, `paid${Date.now()}@example.com`);
+    const r = await api('POST', '/api/auth/signup', { token: fresh, body: { accountType: 'driver', tierId: 'SOLO_PRO', fullName: 'Paid Driver' } });
+    expectStatus(r, [200, 503]);
+    return r.status === 200 ? 'Stripe configured: checkout URL issued' : 'payments not configured';
+  });
+  await check('Unsigned Stripe webhook rejected', async () => {
+    const res = await fetch(`${BASE_URL}/api/webhooks/stripe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Stripe-Signature': 't=1,v1=deadbeef' },
+      body: JSON.stringify({ id: 'evt_forged', type: 'checkout.session.completed', data: { object: { client_reference_id: 'usr-fleet1-admin', payment_status: 'paid' } } }),
+    });
+    assert(res.status === 400 || res.status === 503, `got ${res.status}`);
   });
 
   section('Alerts, telematics, routing, misc');

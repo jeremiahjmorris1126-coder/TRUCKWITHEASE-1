@@ -11,6 +11,7 @@ const testFiles = [
   'tests/eldTelematics.test.ts',
   'tests/gpstabOrder.test.ts',
   'tests/parkingBypass.test.ts',
+  'tests/signupStripe.test.ts',
   'tests/bundleEldAudit.test.ts',
 ];
 

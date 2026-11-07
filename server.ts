@@ -51,11 +51,13 @@ import { signedUploadService } from './server/storage/signedUploadService';
 import { detentionService } from './server/detention/detentionService';
 import {
   CANONICAL_SUBSCRIPTION_TIERS,
-  completeSubscriberSignup,
-  verifyConfirmationEmailToken,
+  startSignup,
+  handleStripeEvent,
+  getBillingPortalUrl,
   getSubscriberSignupStatus,
   SignupValidationError,
 } from './server/billing/signupBillingService';
+import { verifyStripeSignature } from './server/billing/stripeClient';
 
 
 interface MemorySnapshot {
@@ -116,6 +118,33 @@ async function startServer() {
       allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-carrier-token', 'x-tenant-id'],
     })
   );
+
+  // Stripe webhook: needs the raw body for signature verification, so it is registered
+  // before express.json(). It authenticates by Stripe signature, not by user token.
+  app.post('/api/webhooks/stripe', express.raw({ type: '*/*', limit: '1mb' }), async (req, res) => {
+    const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+    if (!secret) {
+      return res.status(503).json({ error: 'Stripe webhook is not configured.' });
+    }
+    const raw: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
+    if (!verifyStripeSignature(raw, req.headers['stripe-signature'] as string | undefined, secret)) {
+      return res.status(400).json({ error: 'Invalid Stripe signature.' });
+    }
+    let event: any;
+    try {
+      event = JSON.parse(raw.toString('utf8'));
+    } catch {
+      return res.status(400).json({ error: 'Invalid JSON payload.' });
+    }
+    try {
+      const result = await handleStripeEvent(event);
+      res.json({ received: true, ...result });
+    } catch (err) {
+      console.error('[Stripe webhook] handler failed:', (err as Error).message);
+      // 500 makes Stripe retry later.
+      res.status(500).json({ error: 'Webhook handling failed.' });
+    }
+  });
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
@@ -180,8 +209,6 @@ async function startServer() {
     const authHeaderCheck = req.headers.authorization;
     if (
       (req.method === 'GET' && (req.path === '/api/health' || req.path === '/api/ready' || req.path === '/api/pricing' || req.path === '/v1/pricing')) ||
-      (req.method === 'POST' && req.path === '/api/auth/signup') ||
-      ((req.method === 'GET' || req.method === 'POST') && req.path === '/api/auth/signup/verify-email') ||
       (isPublicRoutingEndpoint && (!authHeaderCheck || !authHeaderCheck.startsWith('Bearer ')))
     ) {
       return next();
@@ -312,9 +339,7 @@ async function startServer() {
       permissions: userProfile.permissions || [],
       enabledModules: userProfile.enabledModules || null,
       subscriptionStatus: userProfile.subscriptionStatus || null,
-      paymentMethodSummary: userProfile.paymentMethodSummary || null,
       emailVerified: Boolean(userProfile.emailVerified),
-      provisionedPhoneNumbers: userProfile.provisionedPhoneNumbers || [],
     };
 
     next();
@@ -1539,62 +1564,34 @@ async function startServer() {
     });
   });
 
+  // Sign-up for the signed-in user. Identity comes only from the verified login token.
   app.post('/api/auth/signup', async (req, res) => {
+    const caller: CallerIdentity = (req as any).user;
+    if (!caller || (req as any).authType !== 'FIREBASE_AUTH') {
+      return res.status(401).json({ success: false, error: 'Create your account and sign in before choosing a plan.' });
+    }
     try {
-      const signupResult = await completeSubscriberSignup(req.body || {});
-      res.status(201).json(signupResult);
+      const result = await startSignup({ uid: caller.uid, email: caller.email }, req.body || {});
+      res.status(result.status === 'TRIAL_ACTIVE' ? 201 : 200).json({ success: true, ...result });
     } catch (err: any) {
       if (err instanceof SignupValidationError) {
-        return res.status(err.statusCode || 400).json({
-          success: false,
-          error: err.message,
-          field: err.field || null,
-          timestamp: new Date().toISOString(),
-        });
+        return res.status(err.statusCode || 400).json({ success: false, error: err.message, field: err.field || null });
       }
-      console.error('[API /api/auth/signup] Error:', err);
-      res.status(500).json({
-        success: false,
-        error: (err as Error).message || 'Failed to complete subscriber signup.',
-      });
+      console.error('[API /api/auth/signup] Error:', (err as Error).message);
+      res.status(500).json({ success: false, error: 'Sign-up failed. Please try again.' });
     }
   });
 
-  const handleVerifySignupEmail: express.RequestHandler = async (req, res) => {
+  // Stripe-hosted page to update card or cancel.
+  app.post('/api/billing/portal', async (req, res) => {
+    const caller: CallerIdentity = (req as any).user;
+    if (!caller) return res.status(401).json({ error: 'Unauthorized' });
     try {
-      const token = (req.query.token as string) || (req.body?.token as string) || '';
-      const result = await verifyConfirmationEmailToken(token);
-      if (!result.verified) {
-        return res.status(404).json({
-          success: false,
-          verified: false,
-          error: 'Invalid or expired confirmation email verification token.',
-        });
-      }
-      res.json({
-        success: true,
-        verified: Boolean(result.verified),
-        emailRecord: result.emailRecord,
-        user: result.user,
-      });
+      res.json({ success: true, url: await getBillingPortalUrl(caller) });
     } catch (err: any) {
-      if (err instanceof SignupValidationError) {
-        return res.status(err.statusCode || 400).json({
-          success: false,
-          verified: false,
-          error: err.message,
-        });
-      }
-      res.status(500).json({
-        success: false,
-        verified: false,
-        error: (err as Error).message,
-      });
+      res.status(err.statusCode || err.httpStatus || 500).json({ success: false, error: err.message });
     }
-  };
-
-  app.get('/api/auth/signup/verify-email', handleVerifySignupEmail);
-  app.post('/api/auth/signup/verify-email', handleVerifySignupEmail);
+  });
 
   app.get('/api/billing/subscription', async (req, res) => {
     const caller: CallerIdentity = (req as any).user;

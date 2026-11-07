@@ -936,17 +936,8 @@ test('31. GooglePlacesProvider: Address Geocoding & Place Search (No Truck Routi
   );
 });
 
-test('32. Subscriber Sign-Up Loop: Canonical Pricing, Luhn Credit Card Validation, Email Verification & Role/Tier Credentials', async () => {
-  const {
-    CANONICAL_SUBSCRIPTION_TIERS,
-    verifyLuhnChecksum,
-    validateAndTokenizeCreditCard,
-    completeSubscriberSignup,
-    verifyConfirmationEmailToken,
-    getSubscriberSignupStatus,
-  } = await import('../server/billing/signupBillingService.ts');
-
-  // 1. Canonical Pricing Verification
+test('32. Canonical subscription pricing (card entry and charging handled by Stripe Checkout)', async () => {
+  const { CANONICAL_SUBSCRIPTION_TIERS } = await import('../server/billing/signupBillingService.ts');
   assert.equal(CANONICAL_SUBSCRIPTION_TIERS.length, 4);
   const soloPro = CANONICAL_SUBSCRIPTION_TIERS.find(t => t.id === 'SOLO_PRO');
   const fleetPro = CANONICAL_SUBSCRIPTION_TIERS.find(t => t.id === 'FLEET_PRO');
@@ -954,88 +945,7 @@ test('32. Subscriber Sign-Up Loop: Canonical Pricing, Luhn Credit Card Validatio
   assert.equal(soloPro.assignedRole, 'driver');
   assert.equal(fleetPro.monthlyPriceUsd, 149);
   assert.equal(fleetPro.assignedRole, 'fleet_admin');
-
-  // 2. ISO/IEC 7812 Luhn Checksum Validation
-  assert.equal(verifyLuhnChecksum('4532015112830366'), true);
-  assert.equal(verifyLuhnChecksum('4532015112830367'), false);
-  assert.throws(
-    () =>
-      validateAndTokenizeCreditCard({
-        cardholderName: 'Test User',
-        cardNumber: '4532015112830367',
-        expMonth: 12,
-        expYear: 2029,
-        cvc: '321',
-        billingZip: '75201',
-      }),
-    /Luhn checksum/
-  );
-
-  // 3. Solo Driver Sign-Up (SOLO_PRO, $49/mo)
-  const driverSignup = await completeSubscriberSignup({
-    fullName: 'Raylan Givens',
-    email: 'raylan.givens@bluegrass-haul.com',
-    accountType: 'driver',
-    tierId: 'SOLO_PRO',
-    carrierName: 'Bluegrass Heavy Haul',
-    usdotNumber: '4091823',
-    cdlNumber: 'CDL-KY-8819201',
-    cdlState: 'KY',
-    creditCard: {
-      cardholderName: 'Raylan Givens',
-      cardNumber: '4532015112830366',
-      expMonth: 12,
-      expYear: 2029,
-      cvc: '418',
-      billingZip: '40507',
-    },
-  });
-  assert.equal(driverSignup.user.role, 'driver');
-  assert.equal(driverSignup.user.tierId, 'SOLO_PRO');
-  assert.equal(driverSignup.invoice.totalAmountUsd, 49);
-  assert.equal(driverSignup.paymentMethod.brand, 'VISA');
-  assert.equal(driverSignup.paymentMethod.last4, '0366');
-
-  const drvEmailVerified = await verifyConfirmationEmailToken(driverSignup.confirmationEmail.verificationToken);
-  assert.equal(drvEmailVerified.verified, true);
-  assert.equal(drvEmailVerified.user.emailVerified, true);
-
-  // 4. Fleet Manager Sign-Up (FLEET_PRO, $149/mo + 1 extra line = $161.50)
-  const fleetSignup = await completeSubscriberSignup({
-    fullName: 'Helena Shaw',
-    email: 'helena.shaw@shaw-freight-lines.com',
-    accountType: 'fleet_manager',
-    tierId: 'FLEET_PRO',
-    carrierName: 'Shaw Freight Lines LLC',
-    usdotNumber: '3910482',
-    mcNumber: 'MC-884920',
-    additionalPhoneLines: 1,
-    creditCard: {
-      cardholderName: 'Helena Shaw',
-      cardNumber: '5425233430109903',
-      expMonth: 10,
-      expYear: 2030,
-      cvc: '829',
-      billingZip: '30303',
-    },
-  });
-  assert.equal(fleetSignup.user.role, 'fleet_admin');
-  assert.equal(fleetSignup.user.tierId, 'FLEET_PRO');
-  assert.equal(fleetSignup.invoice.totalAmountUsd, 161.5);
-  assert.equal(fleetSignup.provisionedLines.length, 4);
-
-  const fleetEmailVerified = await verifyConfirmationEmailToken(fleetSignup.confirmationEmail.verificationToken);
-  assert.equal(fleetEmailVerified.verified, true);
-  assert.equal(fleetEmailVerified.user.emailVerified, true);
-
-  const status = await getSubscriberSignupStatus({
-    uid: fleetSignup.user.uid,
-    email: fleetSignup.user.email,
-    role: fleetSignup.user.role,
-    fleetId: fleetSignup.user.fleetId,
-  });
-  assert.equal(status.user.emailVerified, true);
-  assert.equal(status.invoice.totalAmountUsd, 161.5);
+  // Full sign-up / Stripe webhook flow is covered in tests/signupStripe.test.ts.
 });
 
 

@@ -19,18 +19,12 @@ export interface UserProfile {
   tierName?: string;
   permissions?: string[];
   enabledModules?: Record<string, boolean>;
-  subscriptionStatus?: 'ACTIVE' | 'TRIAL_ACTIVE' | 'PAST_DUE' | 'CANCELED';
-  paymentMethodSummary?: {
-    brand: string;
-    last4: string;
-    expiry: string;
-    cardholderName: string;
-    token: string;
-  };
-  invoiceId?: string;
-  confirmationEmailId?: string;
+  subscriptionStatus?: 'PENDING_PAYMENT' | 'ACTIVE' | 'TRIAL_ACTIVE' | 'PAST_DUE' | 'CANCELED';
+  /** Stripe identifiers; card details are held only by Stripe. */
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  trialEndsAt?: string;
   emailVerified?: boolean;
-  provisionedPhoneNumbers?: string[];
   createdAt: string;
   disabled: boolean;
 }

@@ -4,7 +4,7 @@ import { triggerAuxAlert, getActiveAlerts, getAllAlerts, resolveAlert } from '..
 import { getDriverProfile, updateDriverProfile, getDriverDocuments, addDriverDocument } from '../server/driver/driverProfileService';
 import { routingManager } from '../server/routing/routingManager';
 import { vehicleProfileService } from '../server/routing/vehicleProfileService';
-import { completeSubscriberSignup } from '../server/billing/signupBillingService';
+import { startSignup } from '../server/billing/signupBillingService';
 import { fleetStore } from '../server/data/fleetStore';
 import { computeSha256 } from '../src/services/cryptoService';
 import { dotDocumentsService } from '../src/services/dotDocumentsService';
@@ -183,26 +183,14 @@ describe('Phase 3: End-to-End System Integration & Workflow Verification', () =>
   // =========================================================================
   it('Workflow 4: Driver onboarding, immutable role assignment & cross-fleet mutation rejection', async () => {
     // 1. New Solo Driver signup
-    const signupResult = await completeSubscriberSignup({
-      tierId: 'SOLO_PRO',
-      accountType: 'driver',
-      fullName: 'Raymond Holt',
-      email: 'raymond.holt@brooklynfreight.test',
-      carrierName: '99th Express Logistics',
-      creditCard: {
-        cardNumber: '4242424242424242',
-        expMonth: 12,
-        expYear: 2028,
-        cvc: '123',
-        cardholderName: 'Raymond Holt',
-        billingZip: '11201',
-      },
-      termsAccepted: true,
-    });
+    const signupResult = await startSignup(
+      { uid: 'usr-raymond-holt', email: 'raymond.holt@brooklynfreight.test' },
+      { tierId: 'TRIAL_14_DAY', accountType: 'driver', fullName: 'Raymond Holt', carrierName: '99th Express Logistics' }
+    );
 
-    expect(signupResult.success).toBe(true);
+    expect(signupResult.status).toBe('TRIAL_ACTIVE');
     expect(signupResult.user.role).toBe('driver'); // Immutable default role for drivers
-    expect(signupResult.sessionToken).toBeDefined();
+    expect(signupResult.user.fleetId).toMatch(/^FLEET-SOLO-[0-9A-F]{10}$/);
 
     // 2. Attempt cross-tenant ID tampering: FLEET-BETA tries to update FLEET-ALPHA driver document
     const alphaDoc = await addDriverDocument(FLEET_A_ADMIN, {
