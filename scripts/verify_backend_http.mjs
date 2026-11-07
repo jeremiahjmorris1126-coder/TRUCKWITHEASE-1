@@ -352,6 +352,21 @@ async function fullChecks() {
     const allowed = res.headers.get('access-control-allow-methods') || '';
     assert(allowed.includes('PATCH'), `allow-methods: ${allowed}`);
   });
+  await check('Driver can save GPSTab as their ELD', async () => {
+    expectStatus(await api('PATCH', '/api/driver/profile', { token: D1, body: { preferredEldProvider: 'GPSTAB' } }), 200);
+    const g = await api('GET', '/api/driver/profile', { token: D1 });
+    assert(g.json?.profile?.preferredEldProvider === 'GPSTAB', 'GPSTab preference not persisted');
+  });
+  await check('GET /api/eld/order-options returns GPSTab https order link', async () => {
+    const r = await api('GET', '/api/eld/order-options', { token: D1 });
+    expectStatus(r, 200);
+    const gpstab = r.json?.options?.find((o) => o.id === 'GPSTAB');
+    assert(gpstab?.orderUrl?.startsWith('https://'), `bad order option: ${r.text.slice(0, 200)}`);
+    return gpstab.orderUrl;
+  });
+  await check('Order options require login → 401', async () => {
+    expectStatus(await api('GET', '/api/eld/order-options'), 401);
+  });
   await check('Invalid ELD provider value rejected → 400', async () => {
     expectStatus(await api('PATCH', '/api/driver/profile', { token: D1, body: { preferredEldProvider: 'MADE_UP_ELD' } }), 400);
   });

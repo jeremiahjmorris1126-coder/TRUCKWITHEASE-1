@@ -12,7 +12,17 @@ interface HosClocksScreenProps {
   onOpenEldModal?: () => void;
 }
 
-type EldChoice = 'SAMSARA' | 'MOTIVE' | 'GEOTAB' | 'OTHER' | 'DONT_KNOW';
+type EldChoice = 'GPSTAB' | 'SAMSARA' | 'MOTIVE' | 'GEOTAB' | 'OTHER' | 'DONT_KNOW';
+
+// Fallback if the order-options request fails; the server value (GPSTAB_ORDER_URL) wins.
+const GPSTAB_FALLBACK_ORDER_URL = 'https://gpstab.com/product-category/eld/';
+
+const ELD_PROVIDER_LABELS: Record<string, string> = {
+  GPSTAB: 'GPSTab',
+  SAMSARA: 'Samsara',
+  MOTIVE: 'Motive',
+  GEOTAB: 'Geotab',
+};
 
 export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
   onShowToast,
@@ -22,6 +32,23 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [savedProviderLabel, setSavedProviderLabel] = useState<string>('');
+  const [gpstabOrderUrl, setGpstabOrderUrl] = useState<string>(GPSTAB_FALLBACK_ORDER_URL);
+
+  useEffect(() => {
+    let mounted = true;
+    authenticatedFetch('/api/eld/order-options')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const gpstab = data?.options?.find((o: any) => o.id === 'GPSTAB');
+        if (mounted && typeof gpstab?.orderUrl === 'string' && gpstab.orderUrl.startsWith('https://')) {
+          setGpstabOrderUrl(gpstab.orderUrl);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Load existing preference from driver profile
   useEffect(() => {
@@ -41,7 +68,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
             ? `Other: ${profile.preferredEldOtherName || 'Unspecified'}`
             : profile.preferredEldProvider === 'DONT_KNOW'
             ? "Don't know"
-            : profile.preferredEldProvider;
+            : ELD_PROVIDER_LABELS[profile.preferredEldProvider] || profile.preferredEldProvider;
           setSavedProviderLabel(label);
         }
       })
@@ -80,7 +107,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
           ? `Other: ${otherProviderName.trim()}`
           : selectedProvider === 'DONT_KNOW'
           ? "Don't know"
-          : selectedProvider;
+          : ELD_PROVIDER_LABELS[selectedProvider] || selectedProvider;
         setSavedProviderLabel(label);
         onShowToast('ELD preference saved to your driver profile.');
       } else {
@@ -148,6 +175,7 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
 
           <div className="space-y-2 pt-1 font-mono text-xs">
             {[
+              { id: 'GPSTAB', label: 'GPSTab' },
               { id: 'SAMSARA', label: 'Samsara' },
               { id: 'MOTIVE', label: 'Motive (KeepTruckin)' },
               { id: 'GEOTAB', label: 'Geotab' },
@@ -206,6 +234,28 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
               </span>
             )}
           </div>
+        </div>
+
+        {/* Order GPSTab directly from GPSTab's store */}
+        <div className="w-full max-w-md bg-[#05080E] p-5 rounded-xl border border-primary/40 text-left space-y-3">
+          <span className="text-xs font-black uppercase text-primary tracking-wider flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
+            Need an ELD? Order GPSTab
+          </span>
+          <p className="text-[11px] text-on-surface-variant leading-relaxed">
+            GPSTab is the ELD we support. Order the ELD device and service plan directly from GPSTab.
+            Your order, billing and support are handled by GPSTab.
+          </p>
+          <a
+            href={gpstabOrderUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary-tactical inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-black font-black uppercase tracking-wider text-xs shadow-[0_0_15px_rgba(255,229,0,0.4)] hover:brightness-110 active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+            <span>Order GPSTab ELD</span>
+          </a>
+          <p className="text-[10px] font-mono text-on-surface-variant">Opens gpstab.com. Pricing and terms are set by GPSTab.</p>
         </div>
 
         <div className="pt-2 border-t border-surface-container-highest/60 w-full max-w-md text-center">

@@ -15,6 +15,7 @@ import {
 } from './server/twilioMessaging';
 import { checkFirestoreHealth, testFirestoreReadWrite } from './server/firestore';
 import { telematicsManager } from './server/telematics/telematicsManager';
+import { getEldOrderOptions } from './server/eld/gpstabOrder';
 import { triggerAuxAlert, getActiveAlerts, getAllAlerts, resolveAlert, AuxInputType } from './server/alerts/alertEngine';
 import { getLoads, createLoad, matchLoadsForDriver, dispatchLoad, getLoadById, updateLoadStatus } from './server/loadMatching/loadService';
 import { getDriverProfile, updateDriverProfile, getDriverDocuments, addDriverDocument, getDriverDocumentById } from './server/driver/driverProfileService';
@@ -634,6 +635,11 @@ async function startServer() {
     return { connected, providers: connected ? telematicsManager.getAdapterStatus() : {} };
   };
 
+  // Where users order their ELD (GPSTab's own store; TruckWithEase does not sell hardware).
+  app.get('/api/eld/order-options', (_req, res) => {
+    res.json({ success: true, options: getEldOrderOptions() });
+  });
+
   app.get('/api/telematics/status', (req, res) => {
     const caller: CallerIdentity = (req as any).user;
     if (!caller || caller.role === 'driver') {
@@ -919,7 +925,7 @@ async function startServer() {
         });
       }
 
-      const eldChoices = ['SAMSARA', 'MOTIVE', 'GEOTAB', 'OTHER', 'DONT_KNOW'];
+      const eldChoices = ['GPSTAB', 'SAMSARA', 'MOTIVE', 'GEOTAB', 'OTHER', 'DONT_KNOW'];
       if (req.body?.preferredEldProvider !== undefined && !eldChoices.includes(req.body.preferredEldProvider)) {
         return res.status(400).json({ error: 'BadRequest', message: `preferredEldProvider must be one of: ${eldChoices.join(', ')}` });
       }
