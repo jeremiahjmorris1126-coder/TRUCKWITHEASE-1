@@ -22,8 +22,17 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [savedProviderLabel, setSavedProviderLabel] = useState<string>('');
+  const [syncedClock, setSyncedClock] = useState<any | null>(null);
 
-  // Load existing preference from driver profile
+  const formatDurationHoursMins = (ms: number | null | undefined) => {
+    if (typeof ms !== 'number' || !Number.isFinite(ms)) return '—';
+    const totalMins = Math.max(0, Math.floor(ms / 60000));
+    const hrs = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    return `${hrs}h ${String(mins).padStart(2, '0')}m`;
+  };
+
+  // Load existing preference from driver profile and any read-only synced ELD clock
   useEffect(() => {
     let mounted = true;
     authenticatedFetch('/api/driver/profile')
@@ -46,6 +55,15 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
         }
       })
       .catch(() => {});
+
+    authenticatedFetch('/api/eld/clocks')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!mounted || !Array.isArray(data?.clocks) || data.clocks.length === 0) return;
+        setSyncedClock(data.clocks[0]);
+      })
+      .catch(() => {});
+
     return () => {
       mounted = false;
     };
@@ -118,6 +136,48 @@ export const HosClocksScreen: React.FC<HosClocksScreenProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Provider-Synced Read-Only Clocks (only shown when provider API has synced a clock) */}
+      {syncedClock && (
+        <div className="bg-[#0A0F14] p-6 rounded-xl border border-primary/40 shadow-xl space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-surface-container-highest pb-3">
+            <span className="font-mono text-xs font-bold text-[#10B981]">
+              {syncedClock.attributionLabel}
+            </span>
+            {syncedClock.ruleset && (
+              <span className="font-mono text-[11px] text-on-surface-variant">
+                Ruleset: {syncedClock.ruleset}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
+            <div className="bg-[#05080E] p-3 rounded-lg border border-surface-container-highest">
+              <div className="text-[10px] text-on-surface-variant uppercase">Drive Remaining</div>
+              <div className="text-lg font-black text-primary mt-1">
+                {formatDurationHoursMins(syncedClock.clocks?.driveRemainingMs)}
+              </div>
+            </div>
+            <div className="bg-[#05080E] p-3 rounded-lg border border-surface-container-highest">
+              <div className="text-[10px] text-on-surface-variant uppercase">Shift Window</div>
+              <div className="text-lg font-black text-on-surface mt-1">
+                {formatDurationHoursMins(syncedClock.clocks?.shiftRemainingMs)}
+              </div>
+            </div>
+            <div className="bg-[#05080E] p-3 rounded-lg border border-surface-container-highest">
+              <div className="text-[10px] text-on-surface-variant uppercase">Cycle Remaining</div>
+              <div className="text-lg font-black text-on-surface mt-1">
+                {formatDurationHoursMins(syncedClock.clocks?.cycleRemainingMs)}
+              </div>
+            </div>
+            <div className="bg-[#05080E] p-3 rounded-lg border border-surface-container-highest">
+              <div className="text-[10px] text-on-surface-variant uppercase">Until Break</div>
+              <div className="text-lg font-black text-on-surface mt-1">
+                {formatDurationHoursMins(syncedClock.clocks?.breakRemainingMs)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Requirement & Coming Soon Notice */}
       <div className="bg-[#0A0F14] p-8 rounded-xl border border-primary/30 shadow-[0_0_30px_rgba(0,0,0,0.7)] flex flex-col items-center justify-center text-center space-y-6">

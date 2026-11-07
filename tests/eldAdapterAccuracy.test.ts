@@ -793,3 +793,122 @@ test('Phase 3 - 5. 6-Month (184-Day) Record Retention (49 CFR ยง 395.8(k)(1) & ย
   const logsAfterOffboard = await eldSyncService.listLogs(FLEET1_ADMIN);
   assert.equal(logsAfterOffboard.length, 0);
 });
+
+test('Phase 5 - 6. End-to-End 7-Day Sandbox Sync, Record-by-Record & Clock Comparison, Disconnect & Purge', async () => {
+  fleetStore.clearMockStore();
+
+  // 1. Connect Samsara via Secret Manager reference
+  const conn = await eldSyncService.upsertConnection(FLEET1_ADMIN, {
+    provider: 'samsara',
+    secretManagerRef: 'projects/project-f0634118-be01-44f7-b36/secrets/fleet-eld-1-samsara-7d/versions/1',
+  });
+  assert.equal(conn.status, 'CONNECTED');
+
+  // 2. Build 7 full days of official-format Samsara HOS logs (28 duty transitions across 7 days)
+  const sevenDaySourceLogs: any[] = [];
+  const baseStartMs = Date.parse('2026-10-30T06:00:00Z');
+  const dayMs = 24 * 3600 * 1000;
+
+  for (let day = 0; day < 7; day++) {
+    const dayStart = baseStartMs + day * dayMs;
+    const transitions = [
+      { suffix: 'on', status: 'onDuty', offsetStartH: 0, offsetEndH: 0.5 },
+      { suffix: 'drv1', status: 'driving', offsetStartH: 0.5, offsetEndH: 8.0 },
+      { suffix: 'brk', status: 'offDuty', offsetStartH: 8.0, offsetEndH: 8.5 },
+      { suffix: 'sb', status: 'sleeperBerth', offsetStartH: 8.5, offsetEndH: 24.0 },
+    ];
+    for (const t of transitions) {
+      sevenDaySourceLogs.push({
+        id: `sam-7d-day${day + 1}-${t.suffix}`,
+        hosStatusType: t.status,
+        logStartTime: new Date(dayStart + t.offsetStartH * 3600 * 1000).toISOString(),
+        logEndTime: new Date(dayStart + t.offsetEndH * 3600 * 1000).toISOString(),
+        obdOdometerMeters: (100000 + day * 450) * 1609.344,
+        obdEngineSeconds: (2500 + day * 8) * 3600,
+        isCertified: true,
+        certifiedAtTime: new Date(dayStart + 24 * 3600 * 1000).toISOString(),
+      });
+    }
+  }
+
+  const expectedClocks = {
+    driveRemainingDurationMs: 12600000, // 3h 30m
+    shiftRemainingDurationMs: 19800000, // 5h 30m
+    cycleRemainingDurationMs: 63000000, // 17h 30m
+    timeUntilBreakDurationMs: 12600000, // 3h 30m
+  };
+
+  const sandboxAdapter = new SamsaraAdapter({
+    apiToken: 'sandbox-7day-token',
+    fetchImpl: (async (input: any) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/fleet/hos/clocks')) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                driver: { id: 'sam-drv-101', name: 'Driver Alpha', timezone: 'America/Chicago' },
+                currentDutyStatus: { hosStatusType: 'sleeperBerth' },
+                eldSettings: { rulesets: [{ cycle: 'US Property 70-hour / 8-day' }] },
+                clocks: {
+                  drive: { driveRemainingDurationMs: expectedClocks.driveRemainingDurationMs },
+                  shift: { shiftRemainingDurationMs: expectedClocks.shiftRemainingDurationMs },
+                  cycle: { cycleRemainingDurationMs: expectedClocks.cycleRemainingDurationMs },
+                  break: { timeUntilBreakDurationMs: expectedClocks.timeUntilBreakDurationMs },
+                },
+              },
+            ],
+            pagination: { endCursor: '7d-clocks', hasNextPage: false },
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              driver: { id: 'sam-drv-101', name: 'Driver Alpha', timezone: 'America/Chicago' },
+              eldSettings: { rulesets: [{ cycle: 'US Property 70-hour / 8-day' }] },
+              hosLogs: sevenDaySourceLogs,
+            },
+          ],
+          pagination: { endCursor: '7d-logs', hasNextPage: false },
+        }),
+        { status: 200 }
+      );
+    }) as any,
+  });
+
+  // 3. Sync the full 7-day log set and compare every single record and clock against the raw source
+  const syncResult = await sandboxAdapter.syncFleetHosToStore('FLEET-ELD-1');
+  assert.equal(syncResult.logsSaved.length, 28, 'All 28 duty status records across 7 days must be stored');
+
+  const storedLogs = await eldSyncService.listLogs(FLEET1_DRIVER_A);
+  assert.equal(storedLogs.length, 28);
+
+  for (let i = 0; i < sevenDaySourceLogs.length; i++) {
+    const src = sevenDaySourceLogs[i];
+    const stored = storedLogs.find((l) => l.providerLogId === src.id);
+    assert.ok(stored, `Record ${src.id} must exist`);
+    assert.equal(stored.startTimeUtc, src.logStartTime);
+    assert.equal(stored.endTimeUtc, src.logEndTime);
+    assert.equal(stored.rawDutyStatus, src.hosStatusType);
+    assert.equal(stored.certified, true);
+  }
+
+  const storedClock = await eldSyncService.getClocksForDriver(FLEET1_DRIVER_A, 'sam-drv-101');
+  assert.ok(storedClock);
+  assert.equal(storedClock.clocks.driveRemainingMs, expectedClocks.driveRemainingDurationMs);
+  assert.equal(storedClock.clocks.shiftRemainingMs, expectedClocks.shiftRemainingDurationMs);
+  assert.equal(storedClock.clocks.cycleRemainingMs, expectedClocks.cycleRemainingDurationMs);
+  assert.equal(storedClock.clocks.breakRemainingMs, expectedClocks.timeUntilBreakDurationMs);
+  assert.ok(storedClock.attributionLabel.startsWith('From Samsara, last synced '));
+
+  // 4. Disconnect and confirm connection reference and all ELD data are removed
+  const purge = await eldSyncService.disconnectAndPurgeFleetEld(FLEET1_ADMIN);
+  assert.equal(purge.connectionsPurged, 1);
+  assert.equal(purge.logsPurged, 28);
+  assert.equal(purge.clocksPurged, 1);
+  assert.equal((await eldSyncService.listLogs(FLEET1_DRIVER_A)).length, 0);
+  assert.equal(await eldSyncService.getClocksForDriver(FLEET1_DRIVER_A, 'sam-drv-101'), null);
+});
