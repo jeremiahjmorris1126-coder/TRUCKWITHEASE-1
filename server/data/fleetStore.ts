@@ -356,9 +356,18 @@ export class FleetStore {
     // Driver restrictions
     if (caller.role === 'driver') {
       if (collectionName === 'freight_loads' || collectionName === 'loads') {
-        // Drivers cannot dispatch loads or edit load terms
-        if ((updates as any).status === 'DISPATCHED' || (updates as any).grossPayUsd !== undefined) {
-          throw new TenantAccessError('Drivers are not authorized to dispatch or modify load terms.', 403);
+        // Drivers cannot edit load financial terms or assign loads to other drivers
+        if ((updates as any).grossPayUsd !== undefined) {
+          throw new TenantAccessError('Drivers are not authorized to modify load terms.', 403);
+        }
+        if ((updates as any).assignedDriverId !== undefined && (updates as any).assignedDriverId !== caller.uid) {
+          throw new TenantAccessError('Drivers are not authorized to assign loads to other drivers.', 403);
+        }
+        if ((existing as any).assignedDriverId && (existing as any).assignedDriverId !== caller.uid) {
+          throw new TenantAccessError('Drivers cannot modify loads assigned to another driver.', 403);
+        }
+        if ((updates as any).status === 'DISPATCHED' && ((existing as any).status !== 'AVAILABLE' || (existing as any).assignedDriverId)) {
+          throw new TenantAccessError('Drivers may only accept an AVAILABLE unassigned load.', 403);
         }
       }
     }

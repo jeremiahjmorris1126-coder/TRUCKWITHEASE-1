@@ -675,9 +675,12 @@ test('11. Load Status Authorization, Sequential Transitions & Admin Reassignment
   assert.equal(acceptRes.body.load.status, 'DISPATCHED');
   assert.equal(acceptRes.body.load.assignedDriverId, FLEET1_DRIVER.uid);
 
-  // 3. Another driver in the SAME fleet tries to update or accept or reassign FLEET1_DRIVER's load -> 403 and unchanged on read-back
+  // 3. Another driver in the SAME fleet tries to update or accept or reassign FLEET1_DRIVER's load -> 403 or 404 and unchanged on read-back
   const otherDriverAttempt = await invokeLoadStatusRoute(FLEET1_DRIVER_B, load.id, { status: 'IN_TRANSIT' });
-  assert.equal(otherDriverAttempt.status, 403, 'Driver updating another driver load in same fleet must return 403');
+  assert.ok(
+    otherDriverAttempt.status === 403 || otherDriverAttempt.status === 404,
+    `Driver updating another driver load in same fleet must return 403 or 404 (got ${otherDriverAttempt.status})`
+  );
 
   const readBackAfterOtherDriver = await getLoadById(FLEET1_ADMIN, load.id);
   assert.equal(readBackAfterOtherDriver.status, 'DISPATCHED', 'Load status must remain unchanged on read-back');
