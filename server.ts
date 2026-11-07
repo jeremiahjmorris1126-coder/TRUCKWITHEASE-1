@@ -15,6 +15,7 @@ import {
 } from './server/twilioMessaging';
 import { checkFirestoreHealth, testFirestoreReadWrite } from './server/firestore';
 import { telematicsManager } from './server/telematics/telematicsManager';
+import { eldSyncService } from './server/telematics/eldSyncService';
 import { triggerAuxAlert, getActiveAlerts, getAllAlerts, resolveAlert, AuxInputType } from './server/alerts/alertEngine';
 import { getLoads, createLoad, matchLoadsForDriver, dispatchLoad, getLoadById, updateLoadStatus } from './server/loadMatching/loadService';
 import { getDriverProfile, updateDriverProfile, getDriverDocuments, addDriverDocument, getDriverDocumentById } from './server/driver/driverProfileService';
@@ -657,6 +658,47 @@ async function startServer() {
     } catch (err) {
       res.status(500).json({ success: false, error: (err as Error).message });
     }
+  });
+
+  // Read-Only ELD Sync Mirror Routes (49 CFR Part 395 — Never create, edit, or delete ELD logs/clocks)
+  app.get('/api/eld/logs', async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      const logs = await eldSyncService.listLogs(caller);
+      res.json({ success: true, count: logs.length, logs });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/eld/logs/:id', async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      const log = await eldSyncService.getLogById(caller, req.params.id);
+      if (!log) {
+        return res.status(404).json({ error: 'NotFound', message: 'ELD log record not found.' });
+      }
+      res.json({ success: true, log });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/eld/clocks', async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      const clocks = await eldSyncService.listClocks(caller);
+      res.json({ success: true, count: clocks.length, clocks });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  });
+
+  app.all(['/api/eld/logs', '/api/eld/logs/:id', '/api/eld/clocks', '/api/eld/clocks/:id'], (req, res) => {
+    res.status(405).json({
+      error: 'MethodNotAllowed',
+      message: 'TruckWithEase is not an ELD. Duty status records and HOS clocks are read-only copies from your ELD provider.',
+    });
   });
 
   app.post('/api/telematics/idle-alert', limitTwilioNotifications, async (req, res) => {

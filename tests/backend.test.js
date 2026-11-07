@@ -29,18 +29,70 @@ test('2. Telematics Adapters Matrix (Samsara, Motive, Geotab)', async () => {
   assert.ok(status.motive);
   assert.ok(status.geotab);
 
-  const vehicles = await telematicsManager.getAllVehicles();
-  assert.ok(vehicles.length >= 3, `Expected at least 3 vehicles, got ${vehicles.length}`);
+  // Unconfigured adapters must return empty arrays, never fake vehicles or drivers
+  const unconfiguredVehicles = await telematicsManager.getAllVehicles();
+  assert.equal(Array.isArray(unconfiguredVehicles), true);
 
-  const unit101 = vehicles.find(v => v.unitNumber === 'UNIT-101');
-  assert.ok(unit101, 'Unit 101 must exist');
-  assert.equal(unit101.provider, 'samsara');
-  assert.ok(unit101.diagnostics);
+  const { SamsaraAdapter } = await import('../server/telematics/samsaraAdapter.js');
+  const sampleSamsara = new SamsaraAdapter({
+    apiToken: 'test-sandbox-samsara-token',
+    fetchImpl: async (url) => {
+      const u = String(url);
+      if (u.includes('/fleet/vehicles/stats')) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'sam-trk-101',
+                name: 'UNIT-101',
+                vin: '1FUJBBCK9KL123456',
+                model: 'Freightliner Cascadia',
+                gps: {
+                  latitude: 38.627,
+                  longitude: -90.1994,
+                  speedMilesPerHour: 64.5,
+                  headingDegrees: 85,
+                  time: '2026-11-06T12:00:00Z',
+                },
+                obdOdometerMeters: { value: 229896780 },
+              },
+            ],
+            pagination: { endCursor: 'cur-1', hasNextPage: false },
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              driver: { id: 'sam-drv-01', name: 'Marcus Vance', timezone: 'America/Chicago' },
+              currentDutyStatus: { hosStatusType: 'driving' },
+              clocks: {
+                drive: { driveRemainingDurationMs: 23100000 },
+                shift: { shiftRemainingDurationMs: 32400000 },
+                cycle: { cycleRemainingDurationMs: 130800000 },
+                break: { timeUntilBreakDurationMs: 8700000 },
+              },
+            },
+          ],
+          pagination: { endCursor: 'cur-1', hasNextPage: false },
+        }),
+        { status: 200 }
+      );
+    },
+  });
 
-  const drivers = await telematicsManager.getAllDrivers();
-  assert.ok(drivers.length >= 1, 'At least 1 driver must exist');
+  const vehicles = await sampleSamsara.getFleetVehicles();
+  assert.equal(vehicles.length, 1);
+  assert.equal(vehicles[0].unitNumber, 'UNIT-101');
+  assert.equal(vehicles[0].provider, 'samsara');
+  assert.ok(vehicles[0].diagnostics);
+
+  const drivers = await sampleSamsara.getDrivers();
+  assert.equal(drivers.length, 1);
   assert.equal(drivers[0].name, 'Marcus Vance');
-  assert.ok(drivers[0].hosClocks.drivingRemainingMins > 0);
+  assert.equal(drivers[0].hosClocks.drivingRemainingMins, 385);
 });
 
 test('3. Auxiliary-Input Alert Engine End-to-End Flow', async () => {

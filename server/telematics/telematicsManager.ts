@@ -18,7 +18,7 @@ export class TelematicsManager {
       const configured = adapter.isConfigured();
       status[key] = {
         configured,
-        mode: configured ? 'LIVE_API' : 'NORMALIZED_MOCK',
+        mode: configured ? 'LIVE_API' : 'DISCONNECTED',
       };
     }
     return status;
