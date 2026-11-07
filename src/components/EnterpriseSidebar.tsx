@@ -263,18 +263,14 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
               <span>{isListening ? 'Listening...' : 'Voice Command'}</span>
             </button>
 
-            {/* Driver Alertness Score Side Command */}
+            {/* Rest prompt (no alertness score: the app cannot measure fatigue) */}
             <button
               onClick={onOpenAlertnessModal}
-              className={`p-2 rounded-lg text-[10px] font-mono font-bold uppercase flex items-center justify-center gap-1 transition-all cursor-pointer border ${
-                alertnessScore < 75
-                  ? 'bg-error/20 text-error border-error/50 animate-pulse'
-                  : 'bg-surface-container text-emerald-400 border-surface-container-high hover:bg-surface-container-high'
-              }`}
-              title="Driver Alertness Index & Advisory"
+              className="p-2 rounded-lg text-[10px] font-mono font-bold uppercase flex items-center justify-center gap-1 transition-all cursor-pointer border bg-surface-container text-primary border-primary/30 hover:bg-surface-container-high"
+              title="Find a place to rest"
             >
-              <span className="material-symbols-outlined text-[14px]">psychology</span>
-              <span>{alertnessScore}% Alert</span>
+              <span className="material-symbols-outlined text-[14px]">bed</span>
+              <span>Take a Break</span>
             </button>
           </div>
 

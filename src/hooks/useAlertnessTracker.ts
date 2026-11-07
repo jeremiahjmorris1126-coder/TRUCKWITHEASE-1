@@ -93,13 +93,8 @@ export function useAlertnessTracker(
     setLatencyHistory([240, 250, 260, 230, 270]);
     setFatigueFlagged(false);
     setIsRestModalOpen(false);
-    if (onShowToast) {
-      onShowToast(
-        'DRIVER ALERTNESS INDEX RESET: Optimal cognitive reaction speed restored (250ms)',
-        'sentiment_very_satisfied'
-      );
-    }
-  }, [onShowToast]);
+    // No toast: the app cannot measure alertness, so it never claims it was "restored".
+  }, []);
 
   const dismissRestAreaAlert = useCallback(() => {
     setIsRestModalOpen(false);
