@@ -18,6 +18,7 @@ import { telematicsManager } from './server/telematics/telematicsManager';
 import { getEldOrderOptions } from './server/eld/gpstabOrder';
 import { getBypassPrograms } from './server/bypass/bypassPrograms';
 import { tpimsService } from './server/parking/tpimsService';
+import { findClockSafeParking } from './server/parking/clockSafeParking';
 import { triggerAuxAlert, getActiveAlerts, getAllAlerts, resolveAlert, AuxInputType } from './server/alerts/alertEngine';
 import { getLoads, createLoad, matchLoadsForDriver, dispatchLoad, getLoadById, updateLoadStatus } from './server/loadMatching/loadService';
 import { getDriverProfile, updateDriverProfile, getDriverDocuments, addDriverDocument, getDriverDocumentById } from './server/driver/driverProfileService';
@@ -646,6 +647,21 @@ async function startServer() {
   // Weigh station bypass enrollment links. The app never issues a bypass signal itself.
   app.get('/api/weigh-bypass/programs', (_req, res) => {
     res.json({ success: true, programs: getBypassPrograms() });
+  });
+
+  // Clock-Safe Parking: parking the driver can legally reach before their ELD hours run out.
+  app.get('/api/parking/clock-safe', async (req, res) => {
+    const lat = Number(req.query.lat);
+    const lon = Number(req.query.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+      return res.status(400).json({ error: 'BadRequest', message: 'lat and lon are required.' });
+    }
+    try {
+      const result = await findClockSafeParking((req as any).user, { lat, lon });
+      res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
   });
 
   // Real-time truck parking from state DOT TPIMS feeds. Optional ?lat=&lon= sorts by distance.

@@ -14,6 +14,7 @@ const testFiles = [
   'tests/signupStripe.test.ts',
   'tests/messaging.test.ts',
   'tests/truckRouting.test.ts',
+  'tests/clockSafeParking.test.ts',
   'tests/bundleEldAudit.test.ts',
 ];
 

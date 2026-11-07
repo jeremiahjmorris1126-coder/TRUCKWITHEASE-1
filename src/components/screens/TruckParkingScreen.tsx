@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { authenticatedFetch } from '../../services/firebaseClientAuth';
+import { ClockSafeParkingPanel } from '../ClockSafeParkingPanel';
 
 interface ParkingSite {
   siteId: string;
@@ -55,6 +56,7 @@ export const TruckParkingScreen: React.FC = () => {
   const [sites, setSites] = useState<ParkingSite[]>([]);
   const [feeds, setFeeds] = useState<FeedStatus[]>([]);
   const [usingLocation, setUsingLocation] = useState<boolean>(false);
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
 
   const load = useCallback(async (coords?: { lat: number; lon: number }) => {
     setState('loading');
@@ -80,6 +82,7 @@ export const TruckParkingScreen: React.FC = () => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setUsingLocation(true);
+        setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
         load({ lat: pos.coords.latitude, lon: pos.coords.longitude });
       },
       () => {
@@ -118,6 +121,8 @@ export const TruckParkingScreen: React.FC = () => {
           <span className="material-symbols-outlined text-[16px] align-middle">refresh</span>
         </button>
       </div>
+
+      {coords && <ClockSafeParkingPanel coords={coords} />}
 
       {state === 'loading' && (
         <p className="text-center font-mono text-[12px] text-on-surface-variant py-8">Loading parking availability…</p>
