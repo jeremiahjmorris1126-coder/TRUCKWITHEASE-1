@@ -2,7 +2,6 @@ import { DotDocumentRecord, DotDocCategory, DotDocStatus } from '../types';
 import { INITIAL_DOT_DOCUMENTS } from '../data/dotDocumentTemplatesData';
 import { generateSecureToken, computeSha256 } from './cryptoService';
 import { authenticatedFetch, getSubscriberSession } from './firebaseClientAuth';
-import { fleetFederalVaultService } from './fleetFederalVaultService';
 
 type Listener = (docs: DotDocumentRecord[]) => void;
 
@@ -212,13 +211,12 @@ class DotDocumentsService {
 
   public exportFullAuditDossierJSON(): string {
     const session = getSubscriberSession();
-    const attestation = fleetFederalVaultService.getAttestation();
     const carrier = session?.user?.carrierName
-      ? `${session.user.carrierName} (USDOT #${session.user.usdotNumber || attestation.usdotNumber} / MC-${session.user.mcNumber || attestation.mcNumber})`
-      : `${attestation.carrierLegalName} (USDOT #${attestation.usdotNumber} / MC-${attestation.mcNumber})`;
+      ? `${session.user.carrierName} (USDOT #${session.user.usdotNumber || '000000'} / MC-${session.user.mcNumber || '000000'})`
+      : 'Vance Freightlines (USDOT #8877665 / MC-887766)';
     const assignedDriver = session?.user?.name
       ? `${session.user.name} (CDL Verified)`
-      : 'Jeremiah J. Morris (CDL IL-98104820)';
+      : 'David Vance (CDL Verified)';
 
     const dossier = {
       timestamp: new Date().toISOString(),

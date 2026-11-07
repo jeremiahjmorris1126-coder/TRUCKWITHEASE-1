@@ -7,7 +7,6 @@ import { vehicleProfileService } from '../server/routing/vehicleProfileService';
 import { completeSubscriberSignup } from '../server/billing/signupBillingService';
 import { fleetStore } from '../server/data/fleetStore';
 import { computeSha256 } from '../src/services/cryptoService';
-import { fleetFederalVaultService } from '../src/services/fleetFederalVaultService';
 import { dotDocumentsService } from '../src/services/dotDocumentsService';
 import { saveSubscriberSession, clearSubscriberSession } from '../src/services/firebaseClientAuth';
 
@@ -180,50 +179,9 @@ describe('Phase 3: End-to-End System Integration & Workflow Verification', () =>
   });
 
   // =========================================================================
-  // WORKFLOW 4: COMPLETE FEDERAL COMPLIANCE VAULT & ATTESTATION
+  // WORKFLOW 4: SUBSCRIBER ONBOARDING, ROLE ASSIGNMENT & STRICT ISOLATION
   // =========================================================================
-  it('Workflow 4: End-to-end 49 CFR § 390.31 legal custody attestation & audit packet export', async () => {
-    // Set active subscriber session
-    saveSubscriberSession({
-      sessionToken: 'sess-token-44',
-      user: {
-        uid: 'usr-driver-fa',
-        name: 'Marcus Vance',
-        email: 'marcus@fleetalpha.com',
-        role: 'fleet_admin',
-        fleetId: 'FLEET-ALPHA',
-        carrierName: 'Alpha Logistics Express LLC',
-        usdotNumber: '3948102',
-        mcNumber: 'MC-849201',
-      },
-    });
-
-    // 1. Sign statutory attestation
-    const custodian = 'Marcus Vance';
-    const title = 'Director of Fleet Safety';
-    const signed = fleetFederalVaultService.signLegalAttestation(custodian, title);
-
-    expect(signed.certifiedCustodianName).toBe(custodian);
-    expect(signed.carrierLegalName).toBe('Alpha Logistics Express LLC');
-    expect(signed.usdotNumber).toBe('3948102');
-    expect(signed.tamperEvidentSealVerified).toBe(true);
-    expect(signed.digitalSignatureSha256).toHaveLength(64);
-
-    // 2. Generate FMCSA Roadside Audit Package JSON
-    const auditJson = fleetFederalVaultService.generateRoadsideAuditPackageJSON();
-    const packet = JSON.parse(auditJson);
-
-    expect(packet.certificationHeader.carrierName).toBe('Alpha Logistics Express LLC');
-    expect(packet.certificationHeader.usdotNumber).toBe('3948102');
-    expect(packet.certificationHeader.cryptographicProofSha256).toHaveLength(64);
-    expect(packet.driverQualificationFile.medicalExaminerCertificate.nationalRegistryStatus).toBe('VALID_CERTIFIED');
-    expect(packet.vehicleComplianceSummary.length).toBeGreaterThan(0);
-  });
-
-  // =========================================================================
-  // WORKFLOW 5: SUBSCRIBER ONBOARDING, ROLE ASSIGNMENT & STRICT ISOLATION
-  // =========================================================================
-  it('Workflow 5: Driver onboarding, immutable role assignment & cross-fleet mutation rejection', async () => {
+  it('Workflow 4: Driver onboarding, immutable role assignment & cross-fleet mutation rejection', async () => {
     // 1. New Solo Driver signup
     const signupResult = await completeSubscriberSignup({
       tierId: 'SOLO_PRO',

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/apiClient';
 import { clientAuth } from '../services/firebaseClientAuth';
-import { CheckrBackgroundCheckModal } from './CheckrBackgroundCheckModal';
 
 interface DriverProfileModalProps {
   isOpen: boolean;
@@ -42,7 +41,6 @@ export const DriverProfileModal: React.FC<DriverProfileModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [showCheckrModal, setShowCheckrModal] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -258,30 +256,6 @@ export const DriverProfileModal: React.FC<DriverProfileModalProps> = ({
               </span>
             </div>
 
-            {/* Checkr Class A Background & Continuous MVR Section */}
-            <div className="bg-surface-container-lowest p-3 rounded-xl border border-primary/40 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-primary font-black uppercase tracking-wider flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">verified_user</span>
-                  Checkr Class A Screening
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[9px] font-bold">
-                  CONTINUOUS MVR ACTIVE
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300">
-                FMCSA Drug &amp; Alcohol Clearinghouse, AAMVA MVR, and multi-state criminal screening connected via Checkr.
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowCheckrModal(true)}
-                className="w-full py-2 px-3 rounded-lg btn-tactical-yellow font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer shadow-[0_0_15px_rgba(255,229,0,0.35)]"
-              >
-                <span className="material-symbols-outlined text-[14px]">radar</span>
-                <span>Open Checkr Screening Radar</span>
-              </button>
-            </div>
-
             {/* Actions */}
             <div className="pt-2 flex items-center gap-2">
               {isEditing ? (
@@ -320,15 +294,6 @@ export const DriverProfileModal: React.FC<DriverProfileModalProps> = ({
         >
           Close
         </button>
-
-        {/* Checkr Background Screening Modal */}
-        <CheckrBackgroundCheckModal
-          isOpen={showCheckrModal}
-          onClose={() => setShowCheckrModal(false)}
-          onShowToast={() => {}}
-          initialCdl={profile.cdlNumber}
-          initialState={profile.cdlState}
-        />
       </div>
     </div>
   );

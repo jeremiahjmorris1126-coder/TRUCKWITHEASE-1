@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { computeSha256, generateSecureToken } from '../src/services/cryptoService';
-import { fleetFederalVaultService } from '../src/services/fleetFederalVaultService';
 import { dotDocumentsService } from '../src/services/dotDocumentsService';
 import { saveSubscriberSession, clearSubscriberSession } from '../src/services/firebaseClientAuth';
 import crypto from 'crypto';
@@ -35,55 +34,9 @@ describe('Phase 2: Unify the Core - Integration Tests', () => {
   });
 
   // =========================================================================
-  // 2. FLEET FEDERAL VAULT SERVICE & LEGAL CUSTODY
+  // 2. DOT DOCUMENTS SERVICE & RECORD INTEGRITY
   // =========================================================================
-  it('2. FleetFederalVaultService binds dynamically to active subscriber session', () => {
-    saveSubscriberSession({
-      sessionToken: 'test-token',
-      user: {
-        uid: 'usr-dynamic-01',
-        name: 'Alexander Sterling',
-        email: 'alex@apexlogistics.com',
-        role: 'fleet_admin',
-        fleetId: 'FLEET-APEX',
-        carrierName: 'Apex Transport Global LLC',
-        usdotNumber: '9988776',
-        mcNumber: 'MC-554433',
-      },
-    });
-
-    const attestation = fleetFederalVaultService.getAttestation();
-    expect(attestation.carrierLegalName).toBe('Apex Transport Global LLC');
-    expect(attestation.usdotNumber).toBe('9988776');
-    expect(attestation.mcNumber).toBe('MC-554433');
-  });
-
-  it('3. FleetFederalVaultService executes tamper-evident legal custody attestation', async () => {
-    const custodian = 'Sarah Jenkins';
-    const title = 'Chief Compliance Officer';
-    const signed = fleetFederalVaultService.signLegalAttestation(custodian, title);
-
-    expect(signed.certifiedCustodianName).toBe(custodian);
-    expect(signed.custodianTitle).toBe(title);
-    expect(signed.tamperEvidentSealVerified).toBe(true);
-    expect(signed.legalCustodyResponsibilityAccepted).toBe(true);
-    expect(signed.digitalSignatureSha256).toHaveLength(64);
-
-    // Verify Roadside Audit Package JSON contains legal custody headers
-    const auditPackageJson = fleetFederalVaultService.generateRoadsideAuditPackageJSON();
-    const parsed = JSON.parse(auditPackageJson);
-
-    expect(parsed.certificationHeader.statutoryAuthority).toContain('49 CFR § 390.31');
-    expect(parsed.certificationHeader.custodianOfRecords).toBe(custodian);
-    expect(parsed.driverQualificationFile.medicalExaminerCertificate.cfrAuthority).toBe('49 CFR § 391.43');
-    expect(parsed.hoursOfServiceCustody.cfrAuthority).toBe('49 CFR § 395.8');
-    expect(parsed.vehicleComplianceSummary.length).toBeGreaterThan(0);
-  });
-
-  // =========================================================================
-  // 3. DOT DOCUMENTS SERVICE & MERKLE RECORD INTEGRITY
-  // =========================================================================
-  it('4. DotDocumentsService generates SHA-256 proofs and handles renewals', () => {
+  it('2. DotDocumentsService generates SHA-256 proofs and handles renewals', () => {
     saveSubscriberSession({
       sessionToken: 'test-token',
       user: {
@@ -130,9 +83,9 @@ describe('Phase 2: Unify the Core - Integration Tests', () => {
   });
 
   // =========================================================================
-  // 4. DIRECTIVE 2 COMPLIANCE
+  // 3. DIRECTIVE 2 COMPLIANCE
   // =========================================================================
-  it('5. Invariant Directive 2: Zero occurrences of legacy string in src and server', () => {
+  it('3. Invariant Directive 2: Zero occurrences of legacy string in src and server', () => {
     const forbidden = 'the' + '-g-o-a-t' + '-';
     const scanDir = (dir) => {
       const files = fs.readdirSync(dir, { withFileTypes: true });

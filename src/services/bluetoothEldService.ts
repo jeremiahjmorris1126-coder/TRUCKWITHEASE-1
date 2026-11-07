@@ -169,7 +169,6 @@ class BluetoothEldService {
   private listeners: Array<(telemetry: J1939LiveTelemetry, status: BluetoothConnectionStatus) => void> = [];
   private packetHistory: BluetoothRawPacket[] = [];
   private simulationInterval: any = null;
-  private fmcsaAutoDutyTrigger: ((isMoving: boolean) => void) | null = null;
 
   constructor() {
     this.initDefaultPackets();
@@ -233,10 +232,6 @@ class BluetoothEldService {
     return () => {
       this.listeners = this.listeners.filter((l) => l !== fn);
     };
-  }
-
-  public setFmcsaDutyTrigger(fn: (isMoving: boolean) => void) {
-    this.fmcsaAutoDutyTrigger = fn;
   }
 
   private notify() {
@@ -337,12 +332,6 @@ class BluetoothEldService {
       const targetSpeed = Math.min(70, Math.max(0, Math.round(this.telemetry.wheelSpeedMph + jitter * 0.4)));
       const targetRpm = targetSpeed > 0 ? Math.round(1100 + targetSpeed * 4.2 + (Math.random() - 0.5) * 20) : 650;
       const targetBoost = targetSpeed > 0 ? parseFloat((24.0 + (targetSpeed / 70) * 12.0 + Math.random() * 1.5).toFixed(1)) : 1.2;
-
-      // FMCSA 49 CFR § 395.26 Motion Detection
-      const isMoving = targetSpeed >= 5.0;
-      if (this.fmcsaAutoDutyTrigger) {
-        this.fmcsaAutoDutyTrigger(isMoving);
-      }
 
       // Update Live Telemetry State
       this.telemetry = {

@@ -201,11 +201,6 @@ export const TripPlannerHudOverlay: React.FC<TripPlannerHudOverlayProps> = ({
                       <span className={`font-bold px-1.5 py-0.2 rounded text-[8px] ${wp.weighStationStatus === 'OPEN' ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'}`}>
                         {wp.weighStationStatus}
                       </span>
-                      {wp.prePassAuthorized && (
-                        <span className="text-[8px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40 font-bold">
-                          Sample bypass estimate ({wp.bypassProbabilityPct}%) — not provider authorization
-                        </span>
-                      )}
                     </div>
                     <span className="text-outline text-[9px] truncate max-w-[100px]">{wp.scaleType}</span>
                   </>

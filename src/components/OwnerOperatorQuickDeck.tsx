@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import {
-  bypassClientService,
-  WeighStation,
-  BypassCarrierCredentials,
-  BypassEvaluationResult,
-} from '../services/bypassClientService';
 import { fuelDiscountClientService, FuelOffer } from '../services/fuelDiscountClientService';
 import { ENABLE_ONE_TAP_DVIR } from '../config/featureFlags';
 import { clientAuth } from '../services/firebaseClientAuth';
-import { TabId } from '../types';
+import { TabId, WeighStation } from '../types';
 import { fleetInvoicesService } from '../services/fleetInvoicesService';
 import { dvirClientService, MANDATORY_DVIR_COMPONENTS, DvirRecord, DvirDefectItem } from '../services/dvirClientService';
 
@@ -52,11 +46,18 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
   });
   const [dvirSafeToOperate, setDvirSafeToOperate] = useState<boolean>(true);
   const [dvirCertifiedBy, setDvirCertifiedBy] = useState<string>(clientAuth.currentUser?.displayName || 'Authorized Driver');
-  const [carrierCreds, setCarrierCreds] = useState<BypassCarrierCredentials | null>(null);
-  const [nearbyStations, setNearbyStations] = useState<WeighStation[]>([]);
+  const [nearbyStations, setNearbyStations] = useState<WeighStation[]>([
+    {
+      id: 'ws-effingham',
+      name: 'Effingham Eastbound DOT Inspection Station',
+      corridor: 'I-70 Eastbound',
+      mileMarker: 96.4,
+      milesAway: 18.4,
+      status: 'OPEN',
+      scaleType: 'Static + WIM Axle Scales',
+    },
+  ]);
   const [selectedStation, setSelectedStation] = useState<WeighStation | null>(null);
-  const [bypassResult, setBypassResult] = useState<BypassEvaluationResult | null>(null);
-  const [isEvaluatingBypass, setIsEvaluatingBypass] = useState<boolean>(false);
   const [liveFuelOffers, setLiveFuelOffers] = useState<FuelOffer[]>([]);
 
   useEffect(() => {
@@ -68,43 +69,10 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
   }, [activeModal]);
 
   useEffect(() => {
-    if (activeModal === 'SCALE') {
-      bypassClientService.getCarrierStatus().then((cred) => {
-        setCarrierCreds(cred);
-      });
-      bypassClientService.getWeighStations().then((stations) => {
-        setNearbyStations(stations);
-        if (stations.length > 0 && !selectedStation) {
-          setSelectedStation(stations[0]);
-        }
-      });
+    if (activeModal === 'SCALE' && nearbyStations.length > 0 && !selectedStation) {
+      setSelectedStation(nearbyStations[0]);
     }
   }, [activeModal]);
-
-  const handleEvaluateBypass = async () => {
-    if (!selectedStation) return;
-    setIsEvaluatingBypass(true);
-    try {
-      const res = await bypassClientService.evaluateBypass({
-        stationId: selectedStation.id,
-        steerLbs: 11800,
-        driveLbs: 32400,
-        trailerLbs: 32200,
-        apuCreditLbs: 400,
-      });
-      setBypassResult(res);
-      onShowToast(
-        res.decision === 'BYPASS_APPROVED'
-          ? `BYPASS APPROVED (${res.activeProvider}) // GREEN LIGHT`
-          : `PULL-IN REQUIRED // RED LIGHT`,
-        res.decision === 'BYPASS_APPROVED' ? 'check_circle' : 'warning'
-      );
-    } catch (err: any) {
-      onShowToast(`Bypass Error: ${err.message}`, 'error');
-    } finally {
-      setIsEvaluatingBypass(false);
-    }
-  };
   const [dvirGeneralNotes, setDvirGeneralNotes] = useState<string>('');
   const [dvirSigned, setDvirSigned] = useState<boolean>(false);
   const [dvirSubmitting, setDvirSubmitting] = useState<boolean>(false);
@@ -516,7 +484,7 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
                   >
                     <span className="text-[11px] font-bold text-white block">Highway Toll</span>
                     <span className="text-[13px] font-bold text-primary block">$24.50</span>
-                    <span className="text-[9px] text-outline block">PrePass / Bestpass</span>
+                    <span className="text-[9px] text-outline block">Commercial Electronic Toll</span>
                   </button>
                 </div>
               </div>
@@ -667,23 +635,8 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
             </div>
 
             <div className="space-y-3">
-              <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-bold text-emerald-400 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    PREPASS CVISN ACTIVE &bull; {carrierCreds?.prePassTransponderId || 'PP-TX-99210-A'}
-                  </span>
-                  <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded bg-emerald-500/30">
-                    VERIFIED CVISN
-                  </span>
-                </div>
-                <p className="text-[10px] text-emerald-300">
-                  PrePass transponder verified with FMCSA ISS safety score {carrierCreds?.issScore ?? 18} (PASS). Electronic WIM screening active.
-                </p>
-              </div>
-
               {/* Station Details */}
-              <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container-high space-y-2 text-[11px]">
+              <div className="p-3.5 rounded-xl bg-surface-container-low border border-surface-container-high space-y-2 text-[11px]">
                 <div className="flex items-center justify-between border-b border-surface-container-high pb-1.5">
                   <span className="text-outline">Scale Station:</span>
                   <span className="text-white font-bold">{selectedStation?.name || 'Effingham Eastbound DOT Inspection Station'}</span>
@@ -702,9 +655,9 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
                 </div>
               </div>
 
-              {/* Real WIM Axle Weights Adjudication */}
+              {/* Real WIM Axle Weights Display */}
               <div className="p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high space-y-1.5 text-[10px]">
-                <span className="text-outline uppercase font-bold block">Telemetry WIM Axle Readings:</span>
+                <span className="text-outline uppercase font-bold block">Vehicle Axle Readings:</span>
                 <div className="grid grid-cols-4 gap-1.5 text-center font-bold">
                   <div className="p-1.5 bg-surface-container-high rounded">
                     <span className="text-outline block text-[8px]">STEER</span>
@@ -725,54 +678,14 @@ export const OwnerOperatorQuickDeck: React.FC<OwnerOperatorQuickDeckProps> = ({
                 </div>
               </div>
 
-              {/* Bypass Adjudication Result Card */}
-              {bypassResult && (
-                <div
-                  className={`p-3 rounded-xl border space-y-1 animate-in fade-in ${
-                    bypassResult.decision === 'BYPASS_APPROVED'
-                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                      : 'bg-red-500/15 border-red-500/40 text-red-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[16px]">
-                        {bypassResult.decision === 'BYPASS_APPROVED' ? 'check_circle' : 'warning'}
-                      </span>
-                      {bypassResult.decision === 'BYPASS_APPROVED'
-                        ? 'GREEN LIGHT // PREPASS BYPASS APPROVED'
-                        : 'RED LIGHT // PULL-IN REQUIRED'}
-                    </span>
-                    <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-black/40 border border-white/20">
-                      {bypassResult.activeProvider}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-white/90">{bypassResult.decisionReason}</p>
-                  <div className="text-[9px] font-mono text-outline flex items-center justify-between">
-                    <span>Token: {bypassResult.clearanceToken}</span>
-                    <span>Transponder: {bypassResult.transponderOrAccountId}</span>
-                  </div>
-                </div>
-              )}
-
-              <button
-                disabled={isEvaluatingBypass}
-                onClick={handleEvaluateBypass}
-                className="w-full py-2.5 rounded-xl bg-primary text-black font-bold text-[11px] uppercase tracking-wider hover:brightness-110 cursor-pointer shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[16px]">sensors</span>
-                <span>{isEvaluatingBypass ? 'Adjudicating PrePass WIM...' : 'Run PrePass WIM Adjudication'}</span>
-              </button>
-
-
               <button
                 onClick={() => {
-                  onShowToast('PREPASS ROADSIDE STATUS LOGGED // AUDIT VERIFIED', 'check_circle');
+                  onShowToast('WEIGH STATION STATUS ACKNOWLEDGED', 'check_circle');
                   setActiveModal(null);
                 }}
-                className="w-full py-3 rounded-xl bg-amber-500 text-on-primary font-bold text-[11px] uppercase tracking-wider hover:brightness-110 cursor-pointer shadow-md transition-all"
+                className="w-full py-3 rounded-xl btn-tactical-yellow text-black font-black text-[11px] uppercase tracking-wider hover:brightness-110 cursor-pointer shadow-md transition-all"
               >
-                Acknowledge PrePass Status
+                Acknowledge Station Information
               </button>
             </div>
           </div>

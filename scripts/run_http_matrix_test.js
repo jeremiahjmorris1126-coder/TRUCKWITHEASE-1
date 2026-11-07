@@ -602,45 +602,7 @@ async function main() {
         expected: { unauthenticated: 401, driver: 403, fleet_admin: 200, owner: 200 },
       },
 
-      // Subsystem 11: Predictive Analytics & Annealing (restrictDriver)
-      {
-        name: 'POST /api/predictive/resolve-states (Driver blocked 403)',
-        method: 'POST',
-        path: '/api/predictive/resolve-states',
-        body: { speedMph: 65 },
-        expected: { unauthenticated: 401, driver: 403, fleet_admin: 200, owner: 200 },
-      },
-      {
-        name: 'POST /api/predictive/anneal (Driver blocked 403)',
-        method: 'POST',
-        path: '/api/predictive/anneal',
-        body: {},
-        expected: { unauthenticated: 401, driver: 403, fleet_admin: 200, owner: 200 },
-      },
-
-      // Subsystem 12: Quantum Computing Engine (restrictDriver)
-      {
-        name: 'POST /api/quantum/telemetry-physics (Driver blocked 403)',
-        method: 'POST',
-        path: '/api/quantum/telemetry-physics',
-        body: { speedMph: 65, axleWeightLbs: 70000 },
-        expected: { unauthenticated: 401, driver: 403, fleet_admin: 200, owner: 200 },
-      },
-      {
-        name: 'POST /api/quantum/hos-optimizer (Driver blocked 403)',
-        method: 'POST',
-        path: '/api/quantum/hos-optimizer',
-        body: {},
-        expected: { unauthenticated: 401, driver: 403, fleet_admin: 200, owner: 200 },
-      },
-      {
-        name: 'GET /api/quantum/all-functions (Driver blocked 403)',
-        method: 'GET',
-        path: '/api/quantum/all-functions',
-        expected: { unauthenticated: 401, driver: 403, fleet_admin: 200, owner: 200 },
-      },
-
-      // Subsystem 13: Regional Weather Hazards
+      // Subsystem 11: Regional Weather Hazards
       {
         name: 'GET /api/weather/regional-hazards',
         method: 'GET',

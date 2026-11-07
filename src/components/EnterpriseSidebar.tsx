@@ -3,7 +3,6 @@ import { TabId } from '../types';
 import {
   ENABLE_TELEMETRY_10HZ,
   ENABLE_HAPTICS_SCREEN,
-  ENABLE_QUANTUM_ALERTNESS_CARD,
 } from '../config/featureFlags';
 import { User } from 'firebase/auth';
 
@@ -82,14 +81,6 @@ const COMMAND_MENU_ITEMS: CommandMenuItem[] = [
     label: 'SAFETY HAPTICS',
     sublabel: 'Steering Wheel Tactile Alert',
     icon: 'vibration',
-  },
-  {
-    id: 'hardware-store',
-    label: 'ELD HARDWARE & FULFILLMENT',
-    sublabel: 'Azuga, Geotab, GPSTab, Samsara',
-    icon: 'router',
-    badge: 'BYOD',
-    badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
   },
 ];
 
@@ -205,7 +196,9 @@ export const EnterpriseSidebar: React.FC<EnterpriseSidebarProps> = ({
             )}
           </div>
 
-          {COMMAND_MENU_ITEMS.filter((item) => enabledModules ? enabledModules[item.id] !== false : true).map((item) => {
+          {COMMAND_MENU_ITEMS.filter((item) => {
+            return enabledModules ? enabledModules[item.id] !== false : true;
+          }).map((item) => {
             const isActive = activeTab === item.id;
             return (
               <button

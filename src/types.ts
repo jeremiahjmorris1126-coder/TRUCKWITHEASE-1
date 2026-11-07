@@ -1,4 +1,4 @@
-export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'quantum-index' | 'fleet-expenses' | 'trip-planner' | 'hardware-store';
+export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'fleet-expenses' | 'trip-planner';
 
 export type DutyStatus = 'OFF' | 'SB' | 'D' | 'ON' | 'YM' | 'PC';
 
@@ -26,7 +26,6 @@ export interface WeighStation {
   mileMarker: number;
   milesAway: number;
   status: 'OPEN' | 'CLOSED' | 'BYPASS_ACTIVE';
-  prePassAuthorized: boolean;
   scaleType: string;
 }
 
@@ -63,7 +62,7 @@ export interface FleetCustomizationSettings {
 }
 
 export type InspectionActionType = 'PDF_GENERATED' | 'PRINTED' | 'ROADSIDE_AUDIT' | 'VOICE_TRIGGERED' | 'FMCSA_PORTAL_SYNC' | 'DVIR_SIGNOFF';
-export type InspectionTriggerSource = 'VOICE_CONTROL' | 'MANUAL_HUD' | 'OFFICER_REQUEST' | 'CAB_PRINTER' | 'SCHEDULED_DISPATCH' | 'QUANTUM_INDEX_AUDIT' | 'ONE_TAP_COCKPIT';
+export type InspectionTriggerSource = 'VOICE_CONTROL' | 'MANUAL_HUD' | 'OFFICER_REQUEST' | 'CAB_PRINTER' | 'SCHEDULED_DISPATCH' | 'ONE_TAP_COCKPIT';
 
 export interface InspectionLogEntry {
   id: string;
@@ -270,7 +269,6 @@ export interface TripWaypoint {
   
   // Specific attributes for Weigh Stations
   weighStationStatus?: 'OPEN' | 'CLOSED' | 'BYPASS_ACTIVE';
-  prePassAuthorized?: boolean;
   scaleType?: string;
   bypassProbabilityPct?: number;
 

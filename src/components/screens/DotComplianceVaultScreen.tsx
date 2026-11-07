@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { FEATURE_FLAGS } from '../../config/featureFlags';
 import { DotDocumentRecord, DotDocCategory, DotDocStatus, InspectionTriggerSource, FleetDriverFileRecord } from '../../types';
 import { dotDocumentsService } from '../../services/dotDocumentsService';
 import { CARRIER_INFO, DRIVER_INFO, EQUIPMENT_INFO } from '../../data/mockData';
-import { fleetFederalVaultService } from '../../services/fleetFederalVaultService';
-import { FleetVehicleRecord } from '../../data/mockFleetDqfData';
-import { CheckrBackgroundCheckModal } from '../CheckrBackgroundCheckModal';
-import { checkrClientService } from '../../services/checkrClientService';
-import { CheckrScreeningRecord } from '../../../server/checkr/types';
+import { FleetVehicleRecord, INITIAL_FLEET_DRIVER_FILES, INITIAL_FLEET_VEHICLES } from '../../data/mockFleetDqfData';
 
 interface DotComplianceVaultScreenProps {
   onShowToast: (msg: string, icon?: string) => void;
@@ -14,7 +11,7 @@ interface DotComplianceVaultScreenProps {
   onGenerateNewPdf?: (source?: InspectionTriggerSource, notes?: string) => void;
 }
 
-type VaultSubModule = 'CHECKR_BACKGROUND' | 'DRIVER_DQF' | 'VEHICLE_FLEET' | 'ELD_HOS_LOGS' | 'ALL_RECORDS' | 'FEDERAL_CUSTODY';
+type VaultSubModule = 'DRIVER_DQF' | 'VEHICLE_FLEET' | 'ELD_HOS_LOGS' | 'ALL_RECORDS';
 
 export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> = ({
   onShowToast,
@@ -29,34 +26,17 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
 
   // Fleet Driver and Vehicle files
   const [driverFiles, setDriverFiles] = useState<FleetDriverFileRecord[]>(() =>
-    fleetFederalVaultService.getDriverFiles()
+    INITIAL_FLEET_DRIVER_FILES
   );
   const [vehicleFiles, setVehicleFiles] = useState<FleetVehicleRecord[]>(() =>
-    fleetFederalVaultService.getVehicleFiles()
+    INITIAL_FLEET_VEHICLES
   );
-  const [attestation, setAttestation] = useState(() => fleetFederalVaultService.getAttestation());
   const [selectedDriverId, setSelectedDriverId] = useState<string>('drv-jeremiah-904');
 
   // Modals state
   const [selectedDocForDetail, setSelectedDocForDetail] = useState<DotDocumentRecord | null>(null);
   const [selectedDocForRenew, setSelectedDocForRenew] = useState<DotDocumentRecord | null>(null);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
-  const [showCustodySignModal, setShowCustodySignModal] = useState<boolean>(false);
-  const [showCheckrModal, setShowCheckrModal] = useState<boolean>(false);
-  const [checkrScreenings, setCheckrScreenings] = useState<CheckrScreeningRecord[]>(() =>
-    checkrClientService.getScreenings()
-  );
-
-  useEffect(() => {
-    const unsub = checkrClientService.subscribe((list) => setCheckrScreenings(list));
-    return () => unsub();
-  }, []);
-
-  // Sign custody form
-  const [custodianNameInput, setCustodianNameInput] = useState<string>(
-    () => fleetFederalVaultService.getAttestation().certifiedCustodianName || DRIVER_INFO.name
-  );
-  const [custodianTitleInput, setCustodianTitleInput] = useState<string>('Director of Fleet Safety & Compliance Custodian');
 
   // Renewal form state
   const [renewDate, setRenewDate] = useState<string>('2028-09-15');
@@ -168,40 +148,25 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
   };
 
   const handleExportFullDossier = () => {
-    const jsonStr = fleetFederalVaultService.generateRoadsideAuditPackageJSON(selectedDriverId);
+    const jsonStr = dotDocumentsService.exportFullAuditDossierJSON();
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `FMCSA_DOT_Certified_Audit_Dossier_USDOT_${attestation.usdotNumber}_${new Date().toISOString().substring(0, 10)}.json`;
+    a.download = `FMCSA_DOT_Compliance_Dossier_${new Date().toISOString().substring(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
 
-    onShowToast('EXPORTED OFFICIAL 49 CFR FLEET AUDIT DOSSIER & DQF RECORD (JSON/HASH-SEALED)', 'download');
+    onShowToast('EXPORTED OFFICIAL 49 CFR COMPLIANCE DOSSIER (JSON)', 'download');
     if (onGenerateNewPdf) {
-      onGenerateNewPdf('OFFICER_REQUEST', 'Full 49 CFR Fleet Compliance Audit Dossier Package Generated.');
-    }
-  };
-
-  const handleSignCustodySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const updated = fleetFederalVaultService.signLegalAttestation(custodianNameInput, custodianTitleInput);
-    setAttestation(updated);
-    setShowCustodySignModal(false);
-    onShowToast('OFFICIAL LEGAL CUSTODY ATTESTATION SIGNED UNDER 49 CFR § 390.31', 'verified');
-    if (onRecordInspectionLog) {
-      onRecordInspectionLog(
-        'ROADSIDE_AUDIT',
-        'QUANTUM_INDEX_AUDIT',
-        `EXECUTED FORMAL FEDERAL CUSTODY ATTESTATION: ${custodianNameInput} (${custodianTitleInput}) // USDOT #${attestation.usdotNumber} // Hash: ${updated.digitalSignatureSha256.substring(0, 16)}...`
-      );
+      onGenerateNewPdf('OFFICER_REQUEST', 'Full 49 CFR Compliance Dossier Package Generated.');
     }
   };
 
   return (
     <div className="space-y-space-md font-mono text-on-surface pb-space-2xl">
       {/* ==================================================================== */}
-      {/* 1. FEDERAL CUSTODY RESPONSIBILITY & CERTIFICATION BANNER            */}
+      {/* 1. COMPLIANCE RECORDS VAULT BANNER                                  */}
       {/* ==================================================================== */}
       <div className="bg-[#0A0F14] p-4 sm:p-5 rounded-2xl border-2 border-primary/60 shadow-2xl space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#1E2532] pb-4">
@@ -215,31 +180,23 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
                   UNITED STATES DOT &amp; FMCSA COMPLIANCE FLEET VAULT
                 </span>
                 <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold border border-emerald-500/40">
-                  49 CFR § 390.31 COMPLIANT
+                  49 CFR PARTS 391 &amp; 396
                 </span>
               </div>
               <p className="text-[11px] text-slate-300 mt-0.5">
-                Full Legal Custody of Federal Motor Carrier Records: Driver Qualification Files (Part 391), ELD HOS Logs (Part 395) &amp; Vehicle Inspections (Part 396)
+                Driver Qualification Files (Part 391) &amp; Vehicle Maintenance Inspections (Part 396)
               </p>
             </div>
           </div>
 
-          {/* Major One-Click Action Buttons */}
+          {/* Major Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
             <button
-              onClick={() => setShowCheckrModal(true)}
-              className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(255,229,0,0.45)] flex items-center gap-1.5 cursor-pointer border-2 border-black"
+              onClick={() => setShowAddModal(true)}
+              className="px-3 py-2 rounded-xl bg-primary text-black font-black text-[11px] uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
             >
-              <span className="material-symbols-outlined text-[16px]">verified_user</span>
-              <span>Checkr Class A Screening</span>
-            </button>
-
-            <button
-              onClick={() => setShowCustodySignModal(true)}
-              className="px-3 py-2 rounded-xl bg-surface-container-high text-primary border border-primary/40 font-bold text-[11px] uppercase tracking-wider hover:bg-surface-container-highest transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
-            >
-              <span className="material-symbols-outlined text-[16px]">draw</span>
-              <span>Sign Legal Custody</span>
+              <span className="material-symbols-outlined text-[16px]">add_circle</span>
+              <span>+ Add Document</span>
             </button>
 
             <button
@@ -247,28 +204,16 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
               className="px-3 py-2 rounded-xl btn-tactical-yellow font-black text-[11px] uppercase tracking-wider transition-all shadow-lg flex items-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[16px]">verified</span>
-              <span>Official DOT Officer Dossier</span>
+              <span>Export Compliance Dossier</span>
             </button>
           </div>
         </div>
 
-        {/* Legal Custody Attestation Statement Box */}
-        <div className="p-3.5 rounded-xl bg-[#05080E] border border-emerald-500/40 space-y-1.5 text-xs">
-          <div className="flex items-center justify-between text-[10px] text-emerald-400 font-bold uppercase">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>FEDERALLY ATTESTED LEGAL CUSTODIAN OF RECORDS // CARRIER RESPONSIBILITY DECLARED</span>
-            </span>
-            <span>EXPIRY: {attestation.retentionExpiryDate}</span>
-          </div>
+        {/* Policy Statement Box */}
+        <div className="p-3.5 rounded-xl bg-[#05080E] border border-slate-800 space-y-1 text-xs">
           <p className="text-[11px] text-slate-300 leading-relaxed">
-            Carrier <strong>{attestation.carrierLegalName}</strong> (USDOT #{attestation.usdotNumber} / {attestation.mcNumber}) accepts statutory custody of all electronic commercial vehicle files under <strong>49 CFR § 390.31</strong>. Electronic signatures, tamper-evident SHA-256 Merkle root hashes, and original document scans are maintained and retrievable within 48 hours for federal roadside and compliance audits.
+            Motor carrier records, vehicle maintenance logs, and commercial driver qualification files are maintained and organized for regulatory review under 49 CFR Parts 391 and 396.
           </p>
-          <div className="text-[10px] text-slate-400 flex items-center gap-3 pt-1 border-t border-slate-800">
-            <span>Custodian: <strong className="text-white">{attestation.certifiedCustodianName} ({attestation.custodianTitle})</strong></span>
-            <span>&bull;</span>
-            <span className="text-emerald-400 truncate">SHA-256 Seal: {attestation.digitalSignatureSha256.substring(0, 24)}...</span>
-          </div>
         </div>
 
         {/* Audit Readiness Summary KPI Strip */}
@@ -317,19 +262,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
       {/* 2. SUB-MODULE TABS FOR STREAMLINED FLEET MANAGEMENT                  */}
       {/* ==================================================================== */}
       <div className="bg-[#0A0F14] p-1.5 rounded-2xl border border-[#1E2532] shadow-xl">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-1.5 text-xs">
-          <button
-            onClick={() => setActiveSubModule('CHECKR_BACKGROUND')}
-            className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeSubModule === 'CHECKR_BACKGROUND'
-                ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.4)]'
-                : 'text-amber-300 hover:text-white bg-amber-500/10 border border-amber-500/30'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">verified_user</span>
-            <span className="truncate">1. Checkr Screening</span>
-          </button>
-
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 text-xs">
           <button
             onClick={() => setActiveSubModule('DRIVER_DQF')}
             className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 ${
@@ -377,106 +310,10 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
             <span className="material-symbols-outlined text-[16px]">folder_special</span>
             <span>All Federal Records</span>
           </button>
-
-          <button
-            onClick={() => setActiveSubModule('FEDERAL_CUSTODY')}
-            className={`py-2 px-2.5 rounded-xl font-bold uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 col-span-2 md:col-span-1 ${
-              activeSubModule === 'FEDERAL_CUSTODY'
-                ? 'bg-[#FFE500] text-black font-black shadow-[0_0_15px_rgba(255,229,0,0.35)]'
-                : 'text-slate-400 hover:text-white bg-slate-900/40'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">policy</span>
-            <span>Custody Attestation</span>
-          </button>
         </div>
       </div>
 
-      {/* ==================================================================== */}
-      {/* TOP PRIORITY MODULE: CHECKR CLASS A DRIVER SCREENING & MVR          */}
-      {/* ==================================================================== */}
-      {activeSubModule === 'CHECKR_BACKGROUND' && (
-        <div className="space-y-4 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0A0F14] p-4 rounded-2xl border-2 border-primary/40 shadow-xl">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-primary text-black font-black text-[9px] uppercase tracking-wider">
-                  TOP PRIORITY #1
-                </span>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  Checkr Class A Commercial Driver Screening &amp; Continuous MVR
-                </h3>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Connected background checks &bull; 49 CFR Part 391 &amp; Part 382 &bull; Pre-employment &amp; Continuous MVR
-              </p>
-            </div>
-            <button
-              onClick={() => setShowCheckrModal(true)}
-              className="px-4 py-2 rounded-xl btn-tactical-yellow font-black text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-[0_0_20px_rgba(255,229,0,0.4)]"
-            >
-              <span className="material-symbols-outlined text-[16px]">person_add</span>
-              <span>Launch Checkr Screening Radar</span>
-            </button>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {checkrScreenings.map((scr) => (
-              <div
-                key={scr.id}
-                className="p-4 rounded-2xl bg-[#0A0F14] border border-[#1E2532] shadow-xl space-y-3"
-              >
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <div>
-                    <h4 className="text-sm font-bold text-white">
-                      {scr.firstName} {scr.lastName}
-                    </h4>
-                    <span className="text-[10px] text-slate-400">
-                      CDL: {scr.cdlNumber} ({scr.cdlState}) &bull; Class {scr.cdlClass}
-                    </span>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                    scr.status === 'CLEAR'
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                      : scr.status === 'CONSIDER'
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                      : 'bg-primary/20 text-primary border border-primary/40'
-                  }`}>
-                    {scr.status}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <div className="p-2 rounded-lg bg-[#05080E] border border-slate-800">
-                    <span className="text-slate-500 uppercase block font-bold">PHYSICAL ADDRESS</span>
-                    <strong className="text-white block truncate">{scr.currentAddress.street}</strong>
-                    <span className="text-slate-400 text-[9px] block">{scr.currentAddress.city}, {scr.currentAddress.state}</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-[#05080E] border border-slate-800">
-                    <span className="text-slate-500 uppercase block font-bold">PORTAL REDIRECT</span>
-                    <strong className="text-primary block truncate">Hosted FCRA Consent</strong>
-                    <span className="text-slate-400 text-[9px] block">Checkr Candidate URL</span>
-                  </div>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-[#05080E] border border-slate-800/80 flex items-center justify-between text-[9px]">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="material-symbols-outlined text-emerald-400 text-[12px]">verified</span>
-                    <span className="text-slate-500 uppercase font-bold">SHA-256 SEAL:</span>
-                    <span className="text-emerald-400 font-mono font-bold truncate">{scr.merkleProofSha256}</span>
-                  </div>
-                  <button
-                    onClick={() => setShowCheckrModal(true)}
-                    className="text-primary hover:underline font-bold uppercase shrink-0 cursor-pointer ml-2"
-                  >
-                    View Details &rarr;
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ==================================================================== */}
       {/* MODULE 1: DRIVER QUALIFICATION FILES (DQF 49 CFR PART 391)           */}
@@ -664,50 +501,25 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Hours of Service Records (8-Day FMCSA Packages)
+                Hours of Service Records
               </h3>
               <p className="text-[11px] text-slate-400">
-                Statutory 6-Month Retention Mandate under 49 CFR § 395.8 &bull; Cryptographically Verified Duty Grids
+                Official Records of Duty Status (RODS) under 49 CFR Part 395
               </p>
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[#0A0F14] border border-[#1E2532] shadow-xl space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <span className="text-xs font-bold text-white">
-                CURRENT 8-DAY CYCLE LEDGER // {driverFiles[0]?.driverName || DRIVER_INFO.name} ({vehicleFiles[0]?.unitNumber || EQUIPMENT_INFO.powerUnit})
-              </span>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold">
-                0 HOS VIOLATIONS DETECTED
-              </span>
+          <div className="p-8 rounded-2xl bg-[#0A0F14] border border-[#1E2532] shadow-xl flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/40 flex items-center justify-center text-primary shadow-[0_0_15px_rgba(255,229,0,0.25)]">
+              <span className="material-symbols-outlined text-[28px]">schedule</span>
             </div>
-
-            <div className="space-y-2 text-xs">
-              {[
-                { date: 'Oct 24, 2026', drive: '08h 15m', onDuty: '10h 20m', off: '13h 40m', miles: 512, status: 'COMPLIANT' },
-                { date: 'Oct 23, 2026', drive: '07h 45m', onDuty: '09h 50m', off: '14h 10m', miles: 488, status: 'COMPLIANT' },
-                { date: 'Oct 22, 2026', drive: '08h 30m', onDuty: '10h 40m', off: '13h 20m', miles: 534, status: 'COMPLIANT' },
-                { date: 'Oct 21, 2026', drive: '06h 10m', onDuty: '08h 15m', off: '15h 45m', miles: 382, status: 'COMPLIANT' },
-                { date: 'Oct 20, 2026', drive: '09h 00m', onDuty: '11h 00m', off: '13h 00m', miles: 560, status: 'COMPLIANT' },
-              ].map((day, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 rounded-xl bg-[#05080E] border border-slate-800 flex items-center justify-between gap-3"
-                >
-                  <div>
-                    <strong className="text-white block">{day.date}</strong>
-                    <span className="text-[10px] text-slate-400">Total Miles: {day.miles} mi</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-[11px]">
-                    <span>Drive: <strong className="text-primary">{day.drive}</strong></span>
-                    <span>On-Duty: <strong className="text-slate-200">{day.onDuty}</strong></span>
-                    <span>Off-Duty: <strong className="text-slate-400">{day.off}</strong></span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                    {day.status}
-                  </span>
-                </div>
-              ))}
+            <div className="space-y-2 max-w-md">
+              <h4 className="text-base font-black text-primary uppercase tracking-wide">
+                Hours of service come from your ELD. Connect your ELD to view them here.
+              </h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                TruckWithEase stores a read-only copy of certified logs directly from your telematics provider. We do not generate or alter duty status records.
+              </p>
             </div>
           </div>
         </div>
@@ -862,129 +674,7 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
         </div>
       )}
 
-      {/* ==================================================================== */}
-      {/* MODULE 5: FEDERAL CUSTODY ATTESTATION & OFFICER PACKAGE              */}
-      {/* ==================================================================== */}
-      {activeSubModule === 'FEDERAL_CUSTODY' && (
-        <div className="space-y-4 animate-fade-in">
-          <div className="p-5 rounded-2xl bg-[#0A0F14] border-2 border-primary/60 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-              <span className="material-symbols-outlined text-primary text-[28px]">policy</span>
-              <div>
-                <h3 className="text-base font-bold text-white uppercase">
-                  49 CFR § 390.31 Legal Custody &amp; Electronic Signature Declaration
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Carrier Responsibility and Electronic Records Integrity Attestation
-                </p>
-              </div>
-            </div>
 
-            <div className="space-y-3 text-xs leading-relaxed text-slate-300">
-              <p>
-                Under Title 49, Code of Federal Regulations, § 390.31, commercial motor carriers are authorized to generate, sign, and maintain records in electronic formats, provided that the electronic storage system ensures:
-              </p>
-              <ul className="list-disc pl-5 space-y-1 text-slate-400 text-[11px]">
-                <li>Accurate representation of the original information and signatures</li>
-                <li>Tamper-evident preservation against unauthorized alteration, deletion, or loss</li>
-                <li>Immediate availability for inspection by authorized FMCSA safety investigators and state law enforcement personnel within 48 hours</li>
-                <li>Cryptographic integrity and audit trails for all renewals, attestations, and certified inspections</li>
-              </ul>
-              <div className="p-3 rounded-xl bg-[#05080E] border border-slate-800 space-y-1">
-                <div className="text-[10px] text-primary font-bold uppercase">ACTIVE LEGAL CUSTODIAN OF RECORD:</div>
-                <div className="text-sm font-bold text-white">{attestation.certifiedCustodianName}</div>
-                <div className="text-[11px] text-slate-400">{attestation.custodianTitle} &bull; {attestation.carrierLegalName}</div>
-                <div className="text-[10px] text-emerald-400 pt-1">
-                  Digital Signature Hash: {attestation.digitalSignatureSha256}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
-              <button
-                onClick={() => setShowCustodySignModal(true)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-primary font-bold text-xs uppercase cursor-pointer"
-              >
-                Re-Attest / Update Custodian
-              </button>
-              <button
-                onClick={handleExportFullDossier}
-                className="px-4 py-2 rounded-xl btn-tactical-yellow font-black text-xs uppercase cursor-pointer shadow-lg"
-              >
-                Export Complete Audit Dossier
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Custody Signature Modal */}
-      {showCustodySignModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-mono">
-          <div className="bg-[#0A0F14] p-6 rounded-2xl border-2 border-primary shadow-2xl max-w-lg w-full space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-[20px]">draw</span>
-                <span>Sign Federal Custody Attestation</span>
-              </h3>
-              <button
-                onClick={() => setShowCustodySignModal(false)}
-                className="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
-            </div>
-
-            <form onSubmit={handleSignCustodySubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">
-                  Designated Custodian of Records Name:
-                </label>
-                <input
-                  type="text"
-                  value={custodianNameInput}
-                  onChange={(e) => setCustodianNameInput(e.target.value)}
-                  className="w-full bg-[#05080E] border border-slate-800 rounded-lg p-2 text-white font-bold focus:border-primary focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">
-                  Official Title:
-                </label>
-                <input
-                  type="text"
-                  value={custodianTitleInput}
-                  onChange={(e) => setCustodianTitleInput(e.target.value)}
-                  className="w-full bg-[#05080E] border border-slate-800 rounded-lg p-2 text-white font-bold focus:border-primary focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="p-3 rounded-lg bg-[#05080E] border border-slate-800 text-[10px] text-slate-400">
-                By clicking &quot;Cryptographically Sign &amp; Accept Legal Responsibility&quot;, you attest under penalty of 49 U.S.C. § 521 that this motor carrier maintains genuine, tamper-evident custody of all commercial vehicle and driver files in compliance with 49 CFR § 390.31.
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowCustodySignModal(false)}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 font-bold uppercase text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl btn-tactical-yellow font-black uppercase text-xs cursor-pointer"
-                >
-                  Cryptographically Sign &amp; Accept Legal Responsibility
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Add Document Modal */}
       {showAddModal && (
@@ -1264,14 +954,6 @@ export const DotComplianceVaultScreen: React.FC<DotComplianceVaultScreenProps> =
           </div>
         </div>
       )}
-
-      {/* Checkr Class A Screening Modal */}
-      <CheckrBackgroundCheckModal
-        isOpen={showCheckrModal}
-        onClose={() => setShowCheckrModal(false)}
-        onShowToast={onShowToast}
-        initialDriverId={selectedDriverId}
-      />
     </div>
   );
 };

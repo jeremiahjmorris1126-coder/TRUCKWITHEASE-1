@@ -83,7 +83,6 @@ export const CANONICAL_SUBSCRIPTION_TIERS: CanonicalPricingTier[] = [
       'ecosystem': false,
       'telemetry': false,
       'master-sync': false,
-      'quantum-index': false,
     },
   },
   {
@@ -132,7 +131,6 @@ export const CANONICAL_SUBSCRIPTION_TIERS: CanonicalPricingTier[] = [
       'ecosystem': false,
       'telemetry': true,
       'master-sync': false,
-      'quantum-index': false,
     },
   },
   {
@@ -184,7 +182,6 @@ export const CANONICAL_SUBSCRIPTION_TIERS: CanonicalPricingTier[] = [
       'ecosystem': true,
       'telemetry': true,
       'master-sync': true,
-      'quantum-index': false,
     },
   },
   {
@@ -201,13 +198,13 @@ export const CANONICAL_SUBSCRIPTION_TIERS: CanonicalPricingTier[] = [
     extraLineMonthlyUsd: 12.5,
     requiresCreditCard: true,
     description:
-      'Full-capacity multi-terminal enterprise carrier suite with Samsara/Motive/Geotab ingestion, predictive annealing, and cryptographic audit trails.',
+      'Full-capacity multi-terminal enterprise carrier suite with telematics ingestion and secure compliance audit trails.',
     features: [
-      'Unlimited Power Units & 10 Dedicated Twilio Super-Network Lines Included',
+      'Unlimited Power Units & Dedicated Phone Lines Included',
       'Full Dispatch Zero Command Center & Multi-Terminal Carrier Governance',
-      'Multi-Provider Telematics Ingestion (Samsara, Motive, Geotab + Web Bluetooth ELD)',
-      'Predictive Load Annealing Solver & Multi-Stop Axle Weight Optimizer',
-      'SHA-256 Merkle Cryptographic Audit Vault & IFTA Multi-State Fuel Ledger',
+      'Telematics Ingestion & Read-Only Synchronization',
+      'Multi-Stop Axle Weight & Route Cost Optimizer',
+      'Compliance Document Audit Vault & IFTA Fuel Ledger',
       '24/7 Priority Safety Desk & Dedicated Fleet API Key Provisioning',
     ],
     permissions: [
@@ -221,7 +218,6 @@ export const CANONICAL_SUBSCRIPTION_TIERS: CanonicalPricingTier[] = [
       'VAULT_ADMIN',
       'MASTER_MECHANIC_ACCESS',
       'DETENTION_LEDGER_ADMIN',
-      'PREDICTIVE_ANNEALING_ADMIN',
       'ENTERPRISE_INTEGRATIONS_ADMIN',
     ],
     enabledModules: {
@@ -237,7 +233,6 @@ export const CANONICAL_SUBSCRIPTION_TIERS: CanonicalPricingTier[] = [
       'ecosystem': true,
       'telemetry': true,
       'master-sync': true,
-      'quantum-index': true,
     },
   },
 ];

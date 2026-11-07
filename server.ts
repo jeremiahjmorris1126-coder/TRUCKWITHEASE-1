@@ -46,15 +46,6 @@ import { dvirService } from './server/dvir/dvirService';
 import { invoiceService } from './server/invoices/invoiceService';
 import { signedUploadService } from './server/storage/signedUploadService';
 import { detentionService } from './server/detention/detentionService';
-import { checkrService } from './server/checkr/checkrService';
-import { bypassService } from './server/bypass/bypassService';
-import { ibmSterlingService } from './server/ibm/ibmSterlingService';
-import { hardwareOrderService } from './server/hardware/hardwareOrderService';
-import {
-  eldTimeService,
-  resolveTimezoneFromCoordinates,
-  evaluateSplitSleeperBerth,
-} from './server/eld/eldTimeService';
 import {
   CANONICAL_SUBSCRIPTION_TIERS,
   completeSubscriberSignup,
@@ -163,9 +154,7 @@ async function startServer() {
     // Webhook endpoints authenticate via provider signature
     if (
       req.path === '/api/telephony/voice' ||
-      req.path === '/voice' ||
-      req.path === '/v1/checkr/webhooks' ||
-      req.path === '/api/checkr/webhooks'
+      req.path === '/voice'
     ) {
       return next();
     }
@@ -908,38 +897,6 @@ async function startServer() {
     }
   });
 
-  app.post(['/api/driver/duty-status', '/v1/driver/duty-status'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required.' });
-      }
-      const { status, timestamp, lat, lng, speedMph, notes } = req.body || {};
-      if (!status) {
-        return res.status(400).json({ error: 'BadRequest', message: 'status is required.' });
-      }
-      const validStatuses = ['OFF', 'SB', 'D', 'ON', 'YM', 'PC', 'OFF_DUTY', 'SLEEPER', 'DRIVING', 'ON_DUTY', 'YARD_MOVE', 'PERSONAL_CONVEYANCE'];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: 'BadRequest', message: `Invalid status: ${status}. Must be a valid HOS status.` });
-      }
-      const driverId = caller.role === 'driver' ? caller.uid : (req.body?.driverId || caller.uid);
-      const updated = await updateDriverProfile(caller, driverId, {
-        currentDutyStatus: status,
-        dutyStatusChangedAt: timestamp ? new Date(timestamp).toISOString() : new Date().toISOString(),
-      } as any);
-
-      res.json({
-        success: true,
-        dutyStatus: status,
-        timestamp: timestamp || Date.now(),
-        driverId,
-        profile: updated,
-      });
-    } catch (err: any) {
-      res.status(err.statusCode || 500).json({ success: false, error: err.message });
-    }
-  });
-
   app.get('/api/driver/documents', async (req, res) => {
     try {
       const caller: CallerIdentity = (req as any).user;
@@ -1046,6 +1003,32 @@ async function startServer() {
       res.json({ success: true, dvir: record });
     } catch (err: any) {
       res.status(err.statusCode || 500).json({ error: 'DvirError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/dvir/:id/certify-repair', '/api/dvir/:id/certify-repair'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const record = await dvirService.certifyRepair(caller, req.params.id, req.body);
+      res.json({ success: true, dvir: record });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'DvirError', message: err.message });
+    }
+  });
+
+  app.post(['/v1/dvir/:id/review', '/api/dvir/:id/review'], async (req, res) => {
+    try {
+      const caller: CallerIdentity = (req as any).user;
+      if (!caller || !caller.fleetId) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
+      }
+      const record = await dvirService.reviewPreviousDvir(caller, req.params.id, req.body);
+      res.json({ success: true, dvir: record });
+    } catch (err: any) {
+      res.status(err.statusCode || 400).json({ error: 'DvirError', message: err.message });
     }
   });
 
@@ -1298,296 +1281,6 @@ async function startServer() {
       });
     } catch (err: any) {
       res.status(500).json({ error: 'StorageError', message: err.message });
-    }
-  });
-
-
-  // ==========================================
-  // TOP PRIORITY: CHECKR CLASS A DRIVER BACKGROUND CHECKS & CONTINUOUS MVR
-  // ==========================================
-  app.post(['/v1/checkr/candidates', '/api/checkr/candidates'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller || !caller.fleetId) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
-      }
-      const record = await checkrService.createCandidateScreening(caller, req.body || {});
-      res.status(201).json({ success: true, screening: record });
-    } catch (err: any) {
-      res.status(err.statusCode || 400).json({ error: 'CheckrError', message: err.message });
-    }
-  });
-
-  app.get(['/v1/checkr/screenings', '/api/checkr/screenings'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller || !caller.fleetId) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
-      }
-      const screenings = await checkrService.listScreenings(caller);
-      res.json({ success: true, screenings });
-    } catch (err: any) {
-      res.status(err.statusCode || 500).json({ error: 'CheckrError', message: err.message });
-    }
-  });
-
-  app.get(['/v1/checkr/screenings/:id', '/api/checkr/screenings/:id'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller || !caller.fleetId) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
-      }
-      const screening = await checkrService.getScreening(caller, req.params.id);
-      if (!screening) {
-        return res.status(404).json({ error: 'NotFound', message: 'Checkr screening record not found.' });
-      }
-      res.json({ success: true, screening });
-    } catch (err: any) {
-      res.status(err.statusCode || 500).json({ error: 'CheckrError', message: err.message });
-    }
-  });
-
-  app.post(['/v1/checkr/screenings/:id/simulate', '/api/checkr/screenings/:id/simulate'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller || !caller.fleetId) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Fleet authentication required.' });
-      }
-      const scenario = req.body?.scenario || 'CLEAR';
-      const updated = await checkrService.simulateScenario(caller, req.params.id, scenario);
-      res.json({ success: true, screening: updated });
-    } catch (err: any) {
-      res.status(err.statusCode || 400).json({ error: 'CheckrError', message: err.message });
-    }
-  });
-
-  app.post(['/v1/checkr/webhooks', '/api/checkr/webhooks'], async (req, res) => {
-    try {
-      const result = await checkrService.handleWebhook(req.body);
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      res.status(500).json({ error: 'WebhookError', message: err.message });
-    }
-  });
-
-  // ==========================================
-  // 49 CFR PART 395 - ELD LIVE CLOCKS & NASA TIME SYNC
-  // ==========================================
-  app.get(['/v1/eld/live-state', '/api/eld/live-state'], async (req, res) => {
-    try {
-      const lat = parseFloat((req.query.lat as string) || '41.8781');
-      const lng = parseFloat((req.query.lng as string) || '-87.6298');
-      const speed = parseFloat((req.query.speed as string) || '0');
-      const driverId = (req.query.driverId as string) || 'DRV-CURRENT';
-      const homeTz = (req.query.homeTz as any) || 'America/Chicago';
-
-      const state = eldTimeService.calculateLiveClocks({
-        driverId,
-        currentStatus: (req.query.status as any) || 'D',
-        statusSinceEpochMs: parseInt(req.query.since as string) || (Date.now() - 4 * 3600 * 1000),
-        homeTerminalTimezone: homeTz,
-        lat,
-        lng,
-        speedMph: speed,
-      });
-
-      res.json({ success: true, eldState: state });
-    } catch (err: any) {
-      res.status(500).json({ error: 'EldTimeError', message: err.message });
-    }
-  });
-
-  app.post(['/v1/eld/split-sleeper/evaluate', '/api/eld/split-sleeper/evaluate'], (req, res) => {
-    try {
-      const { period1Hours, period2Hours, period1Type, period2Type } = req.body || {};
-      const evalResult = evaluateSplitSleeperBerth(
-        typeof period1Hours === 'number' ? period1Hours : 7.0,
-        period1Type || 'SLEEPER',
-        typeof period2Hours === 'number' ? period2Hours : 3.0,
-        period2Type || 'OFF_DUTY'
-      );
-      res.json({ success: true, evaluation: evalResult });
-    } catch (err: any) {
-      res.status(400).json({ error: 'SplitSleeperEvaluationError', message: err.message });
-    }
-  });
-
-  app.get(['/v1/eld/timezone/resolve', '/api/eld/timezone/resolve'], (req, res) => {
-    try {
-      const lat = parseFloat(req.query.lat as string);
-      const lng = parseFloat(req.query.lng as string);
-      if (isNaN(lat) || isNaN(lng)) {
-        return res.status(400).json({ error: 'InvalidCoordinates', message: 'lat and lng must be valid numbers' });
-      }
-      const tzResult = resolveTimezoneFromCoordinates(lat, lng);
-      res.json({ success: true, ...tzResult });
-    } catch (err: any) {
-      res.status(500).json({ error: 'TimezoneResolutionError', message: err.message });
-    }
-  });
-
-  // ==========================================
-  // SCALE BYPASS & PREPASS / CVISN INTEGRATION
-  // ==========================================
-  app.get(['/v1/bypass/stations', '/api/bypass/stations', '/v1/prepass/stations', '/api/prepass/stations'], (req, res) => {
-    try {
-      const state = req.query.state as string | undefined;
-      const highway = req.query.highway as string | undefined;
-      const stations = bypassService.getWeighStations({ state, highway });
-      res.json({ success: true, count: stations.length, stations });
-    } catch (err: any) {
-      res.status(500).json({ error: 'BypassError', message: err.message });
-    }
-  });
-
-  app.get(['/v1/bypass/status', '/api/bypass/status', '/v1/prepass/status', '/api/prepass/status'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required.' });
-      }
-      const credentials = await bypassService.getCarrierCredentials(caller);
-      res.json({ success: true, credentials });
-    } catch (err: any) {
-      res.status(err.statusCode || 500).json({ error: 'BypassError', message: err.message });
-    }
-  });
-
-  app.post(['/v1/bypass/evaluate', '/api/bypass/evaluate', '/v1/prepass/evaluate', '/api/prepass/evaluate'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required.' });
-      }
-      const { stationId, vehicleUnit, steerLbs, driveLbs, trailerLbs, apuCreditLbs } = req.body || {};
-      if (!stationId) {
-        return res.status(400).json({ error: 'BadRequest', message: 'stationId is required for bypass evaluation.' });
-      }
-      const result = await bypassService.evaluateBypass(caller, {
-        stationId,
-        vehicleUnit,
-        steerLbs: steerLbs !== undefined ? Number(steerLbs) : undefined,
-        driveLbs: driveLbs !== undefined ? Number(driveLbs) : undefined,
-        trailerLbs: trailerLbs !== undefined ? Number(trailerLbs) : undefined,
-        apuCreditLbs: apuCreditLbs !== undefined ? Number(apuCreditLbs) : undefined,
-      });
-      res.json({ success: true, evaluation: result });
-    } catch (err: any) {
-      res.status(err.statusCode || 500).json({ error: 'BypassError', message: err.message });
-    }
-  });
-
-  app.post(['/v1/prepass/transponder/register', '/api/prepass/transponder/register'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required.' });
-      }
-      const { transponderId } = req.body || {};
-      if (!transponderId || typeof transponderId !== 'string' || !transponderId.trim()) {
-        return res.status(400).json({ error: 'BadRequest', message: 'Valid transponderId is required.' });
-      }
-      const credentials = await bypassService.updatePrePassTransponder(caller, transponderId);
-      res.json({ success: true, message: 'PrePass transponder registered successfully.', credentials });
-    } catch (err: any) {
-      res.status(err.statusCode || 500).json({ error: 'PrePassError', message: err.message });
-    }
-  });
-
-  app.get(['/v1/bypass/history', '/api/bypass/history', '/v1/prepass/history', '/api/prepass/history'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required.' });
-      }
-      const history = await bypassService.listBypassHistory(caller);
-      res.json({ success: true, count: history.length, events: history });
-    } catch (err: any) {
-      res.status(err.statusCode || 500).json({ error: 'BypassError', message: err.message });
-    }
-  });
-
-  // ==========================================
-  // HARDWARE STORE & ELD DROP-SHIP FULFILLMENT
-  // Vendors: Azuga, Geotab, GPSTab, Samsara
-  // Enforces 49 CFR § 395 user FMCSA registration disclaimer
-  // ==========================================
-  app.get(['/v1/hardware/catalog', '/api/hardware/catalog'], (req, res) => {
-    res.json({
-      success: true,
-      catalog: hardwareOrderService.getCatalog(),
-      statutoryNotice: 'Under 49 CFR Part 395, it is solely the user responsibility to register the ELD with the FMCSA ELD Registry.',
-    });
-  });
-
-  app.post(['/v1/hardware/orders', '/api/hardware/orders'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required.' });
-      }
-      const order = await hardwareOrderService.submitOrder(caller, req.body || {});
-      res.status(201).json({ success: true, order });
-    } catch (err: any) {
-      res.status(err.statusCode || 400).json({ error: 'HardwareOrderError', message: err.message });
-    }
-  });
-
-  app.get(['/v1/hardware/orders', '/api/hardware/orders'], async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (!caller) {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required.' });
-      }
-      const orders = await hardwareOrderService.listOrders(caller);
-      res.json({ success: true, count: orders.length, orders });
-    } catch (err: any) {
-      res.status(err.statusCode || 500).json({ error: 'HardwareOrderError', message: err.message });
-    }
-  });
-
-  // ==========================================
-  // IBM STERLING B2B EDI & WATSONX RISK MODELING
-  // ==========================================
-  app.get('/api/ibm/status', (req, res) => {
-    res.json({
-      success: true,
-      service: 'IBM Sterling B2B Mesh & watsonx.ai Granite 3.0 Engine',
-      supportedEdi: ['EDI 204 (Load Tender)', 'EDI 214 (Shipment Status)', 'EDI 210 (Freight Invoice)', 'EDI 990 (Tender Response)'],
-      costTier: 'ZERO_BILLABLE_OVERHEAD (Sub-10ms Local Execution)',
-      status: 'CONNECTED',
-    });
-  });
-
-  app.post('/api/ibm/edi204/parse', (req, res) => {
-    try {
-      const { rawEdi } = req.body || {};
-      if (!rawEdi || typeof rawEdi !== 'string') {
-        return res.status(400).json({ error: 'BadRequest', message: 'rawEdi string required' });
-      }
-      const parsed = ibmSterlingService.parseEdi204(rawEdi);
-      res.json({ success: true, tender: parsed });
-    } catch (err: any) {
-      res.status(500).json({ error: 'EdiParseError', message: err.message });
-    }
-  });
-
-  app.post('/api/ibm/edi214/generate', (req, res) => {
-    try {
-      const edi214 = ibmSterlingService.generateEdi214(req.body || {});
-      res.json({ success: true, rawEdi214: edi214 });
-    } catch (err: any) {
-      res.status(400).json({ error: 'EdiGenerationError', message: err.message });
-    }
-  });
-
-  app.post('/api/ibm/watsonx/risk-assessment', (req, res) => {
-    try {
-      const { loadId = 'LOAD-TWE-CURRENT', originState = 'TX', destState = 'GA', weightLbs = 42500 } = req.body || {};
-      const assessment = ibmSterlingService.evaluateWatsonxRisk(loadId, originState, destState, Number(weightLbs));
-      res.json({ success: true, assessment });
-    } catch (err: any) {
-      res.status(500).json({ error: 'WatsonxRiskError', message: err.message });
     }
   });
 
@@ -1965,78 +1658,6 @@ async function startServer() {
     };
     appliedOptimizations.unshift(newOpt);
     res.json({ status: 'SUCCESS', optimization: newOpt });
-  });
-
-  app.post('/api/predictive/resolve-states', restrictDriver, (req, res) => {
-    const { speedMph = 65, grossWeightLbs = 76220, routeCorridor = 'I-20' } = req.body || {};
-    const kineticMomentum = Math.round((grossWeightLbs * 0.453592) * (speedMph / 2.237));
-    res.json({
-      status: 'SUCCESS',
-      engine: 'TRUCKWITHEASE Predictive Analytics Engine v4.2',
-      timestamp: new Date().toISOString(),
-      resolvedState: {
-        primaryRouteEigenstate: `${routeCorridor} Express Corridor (p = 0.92)`,
-        kineticMomentumKgMs: kineticMomentum,
-        brakeRotorHeatDissipationKw: 14.8,
-        dockSlotProbability: 0.85,
-      },
-    });
-  });
-
-  app.post('/api/predictive/anneal', restrictDriver, (req, res) => {
-    res.json({
-      status: 'OPTIMIZED',
-      engine: 'TRUCKWITHEASE Fleet Load Annealing Solver',
-      timestamp: new Date().toISOString(),
-      results: {
-        optimizedStopsSequence: ['Dallas Hub (Dock A)', 'Tyler Freight Terminal', 'Shreveport Logistics Park', 'Monroe Distribution Center'],
-        energyStateJoules: 12.8,
-        estimatedFuelSavingsGallons: 9.4,
-        axleWeightDistributionLbs: [11800, 32400, 31900],
-      },
-    });
-  });
-
-  app.post('/api/quantum/telemetry-physics', restrictDriver, (req, res) => {
-    const { speedMph = 65, axleWeightLbs = 76220 } = req.body || {};
-    const kineticEnergyJoules = Math.round(0.5 * (axleWeightLbs * 0.453592) * Math.pow(speedMph / 2.237, 2));
-    res.json({
-      status: 'SUCCESS',
-      engine: 'TRUCKWITHEASE Quantum Physics Subsystem',
-      timestamp: new Date().toISOString(),
-      physics: {
-        kineticEnergyJoules,
-        brakeRotorTempEstF: Math.round(180 + speedMph * 3.2 + axleWeightLbs / 2500),
-        entropyIndex: 0.128,
-        coherenceRatio: 0.998,
-      },
-    });
-  });
-
-  app.post('/api/quantum/hos-optimizer', restrictDriver, (req, res) => {
-    res.json({
-      status: 'SUCCESS',
-      engine: 'TRUCKWITHEASE Quantum Duty Cycle Quantum Annealer',
-      timestamp: new Date().toISOString(),
-      hosOptimization: {
-        recommendedBreakWindowMins: 180,
-        fatigueProbabilityScore: 0.14,
-        complianceRisk: 'NOMINAL',
-      },
-    });
-  });
-
-  app.get('/api/quantum/all-functions', restrictDriver, (req, res) => {
-    res.json({
-      status: 'OPERATIONAL',
-      platform: 'TRUCKWITHEASE Predictive Architecture',
-      timestamp: new Date().toISOString(),
-      activeAlgorithms: [
-        { name: 'State Resolution Engine', endpoint: '/api/predictive/resolve-states' },
-        { name: 'Fleet Load Annealing Solver', endpoint: '/api/predictive/anneal' },
-        { name: 'Telemetry Physics Engine', endpoint: '/api/quantum/telemetry-physics' },
-      ],
-    });
   });
 
   // Weather Hazards

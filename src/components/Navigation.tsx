@@ -41,7 +41,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'FLEET & VAULT',
     sublabel: 'Invoices, Trust & Sync',
     icon: 'receipt_long',
-    matches: ['fleet-expenses', 'vault', 'ecosystem', 'master-sync', 'quantum-index'],
+    matches: ['fleet-expenses', 'vault', 'ecosystem', 'master-sync'],
   },
 ];
 

@@ -84,9 +84,9 @@ test('Phase 3 - 2. DVIR: Successful creation, listing, and multi-tenant isolatio
     certifiedBy: 'Marcus Vance, CDL-A',
     defects: MANDATORY_DVIR_COMPONENTS.map((c) => ({
       component: c,
-      hasDefect: c.includes('Wipers'), // Flag windshield wipers minor defect
-      severity: c.includes('Wipers') ? 'MINOR' : undefined,
-      notes: c.includes('Wipers') ? 'Left blade streaking' : undefined,
+      hasDefect: c.toLowerCase().includes('wiper'), // Flag windshield wipers minor defect
+      severity: c.toLowerCase().includes('wiper') ? 'MINOR' : undefined,
+      notes: c.toLowerCase().includes('wiper') ? 'Left blade streaking' : undefined,
     })),
     safeToOperate: true,
     defectNotes: 'Replaced wiper blade at staging lot. Safe for interstate departure.',
@@ -114,6 +114,26 @@ test('Phase 3 - 2. DVIR: Successful creation, listing, and multi-tenant isolatio
   // FLEET2 list contains 0 documents from FLEET1
   const fleet2List = await dvirService.listDvir(FLEET2_DRIVER);
   assert.equal(fleet2List.some((d) => d.id === created.id), false);
+
+  // 49 CFR § 396.11(a)(3)(i): Carrier/mechanic repair certification
+  const repaired = await dvirService.certifyRepair(FLEET1_ADMIN, created.id, {
+    certifiedBy: 'John Miller, Certified Fleet Mechanic #404',
+    repairStatus: 'REPAIR_COMPLETED',
+    notes: 'Replaced left windshield wiper blade assembly with OEM Bosch 28-inch.',
+  });
+  assert.equal(repaired.status, 'REPAIRED');
+  assert.equal(repaired.repairCertification?.certifiedBy, 'John Miller, Certified Fleet Mechanic #404');
+  assert.equal(repaired.repairCertification?.repairStatus, 'REPAIR_COMPLETED');
+
+  // 49 CFR § 396.11(a)(3)(ii): Next driver review and sign-off
+  const reviewed = await dvirService.reviewPreviousDvir(FLEET1_DRIVER, created.id, {
+    reviewedBy: 'Marcus Vance, Departing CDL-A Driver',
+    signatureAcknowledged: true,
+    notes: 'Verified new wiper blade operates cleanly with zero streaks.',
+  });
+  assert.equal(reviewed.status, 'CERTIFIED_SAFE');
+  assert.equal(reviewed.driverReview?.signatureAcknowledged, true);
+  assert.equal(reviewed.driverReview?.reviewedBy, 'Marcus Vance, Departing CDL-A Driver');
 });
 
 test('Phase 3 - 3. Fuel Logs & Expenses: Creation and tenant isolation', async () => {

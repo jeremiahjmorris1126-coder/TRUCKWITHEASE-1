@@ -347,7 +347,6 @@ export const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({
       totalParkingSpots: wpCategory === 'REST_STOP' ? Number(wpParking) * 2 : undefined,
       parkingStatus: wpCategory === 'REST_STOP' ? 'AMPLE' : undefined,
       weighStationStatus: wpCategory === 'WEIGH_STATION' ? 'OPEN' : undefined,
-      prePassAuthorized: wpCategory === 'WEIGH_STATION' ? true : undefined,
       notes: wpNotes,
     });
 

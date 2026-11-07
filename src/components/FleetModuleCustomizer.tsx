@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TabId, FleetCustomizationSettings } from '../types';
-import { quantumPredictiveService, QuantumFunctionsCatalog } from '../services/quantumPredictiveService';
-import { authenticatedFetch } from '../services/firebaseClientAuth';
 
 interface FleetModuleCustomizerProps {
   settings: FleetCustomizationSettings;
@@ -23,7 +21,6 @@ const ALL_MODULES: { id: TabId; name: string; desc: string; category: string; ic
   { id: 'haptics', name: 'Haptics', desc: 'Steering wheel tactile driver warnings', category: 'SAFETY', icon: 'vibration' },
   { id: 'ecosystem', name: 'Trust Hub', desc: 'Broker & carrier vetting system', category: 'COMPLIANCE', icon: 'hub' },
   { id: 'telemetry', name: 'Telemetry', desc: '10Hz CAN-Bus diagnostics & memory tracker', category: 'ANALYTICS', icon: 'memory' },
-  { id: 'quantum-index', name: 'Predictive Index', desc: 'Adaptive state mechanics & fleet physics', category: 'ANALYTICS', icon: 'auto_awesome' },
 ];
 
 export const FleetModuleCustomizer: React.FC<FleetModuleCustomizerProps> = ({
@@ -33,17 +30,6 @@ export const FleetModuleCustomizer: React.FC<FleetModuleCustomizerProps> = ({
   onShowToast,
 }) => {
   const [localSettings, setLocalSettings] = useState<FleetCustomizationSettings>(settings);
-  const [isRunningAnnealing, setIsRunningAnnealing] = useState<boolean>(false);
-  const [annealingResult, setAnnealingResult] = useState<any | null>(null);
-  const [quantumCatalog, setQuantumCatalog] = useState<QuantumFunctionsCatalog | null>(null);
-
-  useEffect(() => {
-    const fetchCatalog = async () => {
-      const catalog = await quantumPredictiveService.getCatalog();
-      if (catalog) setQuantumCatalog(catalog);
-    };
-    fetchCatalog();
-  }, []);
 
   const handleToggleModule = (id: TabId) => {
     const updatedEnabled = {
@@ -53,27 +39,6 @@ export const FleetModuleCustomizer: React.FC<FleetModuleCustomizerProps> = ({
     const next = { ...localSettings, enabledModules: updatedEnabled };
     setLocalSettings(next);
     onUpdateSettings(next);
-  };
-
-  const handleRunFleetAnnealing = async () => {
-    setIsRunningAnnealing(true);
-    try {
-      const res = await authenticatedFetch('/api/predictive/anneal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ numStops: 4, maxAxleWeightLbs: 34000 }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAnnealingResult(data.results);
-        onShowToast(`FLEET LOAD ANNEALED: Saved ~${data.results?.estimatedFuelSavingsGallons} gal fuel`, 'local_fire_department');
-      } else {
-        onShowToast('FLEET ANNEALING COMPLETE // ROUTE WEIGHT BALANCED');
-      }
-    } catch (e) {
-      onShowToast('FLEET ANNEALING SOLVER EXECUTED');
-    }
-    setIsRunningAnnealing(false);
   };
 
   return (
@@ -191,52 +156,6 @@ export const FleetModuleCustomizer: React.FC<FleetModuleCustomizerProps> = ({
               );
             })}
           </div>
-        </div>
-
-        {/* Proprietary TRUCKWITHEASE Predictive Annealing Solver & Quantum Matrix */}
-        <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-surface-container-high space-y-3">
-          <div className="flex items-center justify-between border-b border-surface-container-high pb-2">
-            <div>
-              <span className="text-[11px] font-bold text-emerald-400 uppercase block">
-                TRUCKWITHEASE Predictive Load Annealing Solver &amp; Quantum REST Matrix
-              </span>
-              <span className="text-[9px] text-outline block">
-                Multi-stop axle balance, fuel minimization &amp; quantum physics calculation endpoints
-              </span>
-            </div>
-            <button
-              onClick={handleRunFleetAnnealing}
-              disabled={isRunningAnnealing}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 text-[10px] uppercase font-bold hover:brightness-110 active:scale-95 transition-all shrink-0 cursor-pointer disabled:opacity-50"
-            >
-              {isRunningAnnealing ? 'Annealing...' : 'Run Annealing Solver'}
-            </button>
-          </div>
-
-          {annealingResult && (
-            <div className="p-2.5 rounded bg-emerald-950/40 border border-emerald-500/30 text-[10px] text-emerald-300 space-y-1">
-              <div><strong>Sequence:</strong> {annealingResult.optimizedStopsSequence.join(' ➔ ')}</div>
-              <div><strong>Axles:</strong> Steer {annealingResult.axleWeightDistributionLbs[0]} LBS | Drive {annealingResult.axleWeightDistributionLbs[1]} LBS | Trailer {annealingResult.axleWeightDistributionLbs[2]} LBS</div>
-              <div><strong>Est. Fuel Savings:</strong> +{annealingResult.estimatedFuelSavingsGallons} Gallons</div>
-            </div>
-          )}
-
-          {/* Active Backend Predictive Algorithms List */}
-          {quantumCatalog && (
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[9px] text-outline uppercase font-bold block">
-                REGISTERED BACKEND QUANTUM REST API ALGORITHMS ({quantumCatalog.activeAlgorithms.length} OPERATIONAL)
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[9px]">
-                {quantumCatalog.activeAlgorithms.map((algo) => (
-                  <div key={algo.endpoint} className="p-2 rounded bg-surface-container-low border border-white/5 flex items-center justify-between">
-                    <span className="font-bold text-primary truncate">{algo.name}</span>
-                    <span className="text-emerald-400 font-mono text-[8px] uppercase">{algo.type}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer Actions */}

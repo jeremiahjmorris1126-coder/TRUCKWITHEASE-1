@@ -7,6 +7,20 @@ export interface DvirDefectItem {
   notes?: string;
 }
 
+export interface DvirRepairCertification {
+  certifiedBy: string;
+  certifiedAt: string;
+  repairStatus: 'REPAIR_COMPLETED' | 'REPAIR_UNNECESSARY';
+  notes?: string;
+}
+
+export interface DvirDriverReview {
+  reviewedBy: string;
+  reviewedAt: string;
+  signatureAcknowledged: boolean;
+  notes?: string;
+}
+
 export interface DvirRecord {
   id: string;
   fleetId: string;
@@ -25,20 +39,22 @@ export interface DvirRecord {
   certifiedBy: string;
   certifiedAt: string;
   status: 'SUBMITTED' | 'REPAIRS_NEEDED' | 'REPAIRED' | 'CERTIFIED_SAFE';
+  repairCertification?: DvirRepairCertification;
+  driverReview?: DvirDriverReview;
 }
 
 export const MANDATORY_DVIR_COMPONENTS = [
-  'Service Brakes & Air Lines',
-  'Parking / Emergency Brake',
-  'Steering Mechanism',
-  'Lighting Devices & Reflectors',
-  'Tires, Wheels & Rims',
-  'Windshield & Wipers',
-  'Rear Vision Mirrors',
-  'Coupling Devices & Fifth Wheel',
-  'Emergency Equipment (Fire Extinguisher, Triangles)',
-  'Fluid Levels & Leak Check',
-  'Horn & Audio Warning Devices',
+  'Service brakes including trailer brake connections',
+  'Parking brake',
+  'Steering mechanism',
+  'Lighting devices and reflectors',
+  'Tires',
+  'Horn',
+  'Windshield wipers',
+  'Rear vision mirrors',
+  'Coupling devices',
+  'Wheels and rims',
+  'Emergency equipment',
 ];
 
 export class DvirService {
@@ -152,6 +168,99 @@ export class DvirService {
 
   async getDvirById(caller: CallerIdentity, id: string): Promise<DvirRecord | null> {
     return await fleetStore.getScopedDocument<DvirRecord>(caller, 'dvir', id);
+  }
+
+  async certifyRepair(
+    caller: CallerIdentity,
+    id: string,
+    input: {
+      certifiedBy: string;
+      repairStatus?: 'REPAIR_COMPLETED' | 'REPAIR_UNNECESSARY';
+      notes?: string;
+    }
+  ): Promise<DvirRecord> {
+    if (!caller || !caller.fleetId) {
+      const err = new Error('Fleet authentication required to certify repairs.');
+      (err as any).statusCode = 401;
+      throw err;
+    }
+
+    const existing = await this.getDvirById(caller, id);
+    if (!existing) {
+      const err = new Error('DVIR not found.');
+      (err as any).statusCode = 404;
+      throw err;
+    }
+
+    if (!input.certifiedBy?.trim()) {
+      const err = new Error(
+        'Mechanic or carrier repair certification signature required under 49 CFR § 396.11(a)(3)(i).'
+      );
+      (err as any).statusCode = 400;
+      throw err;
+    }
+
+    const repairCertification: DvirRepairCertification = {
+      certifiedBy: input.certifiedBy.trim(),
+      certifiedAt: new Date().toISOString(),
+      repairStatus: input.repairStatus === 'REPAIR_UNNECESSARY' ? 'REPAIR_UNNECESSARY' : 'REPAIR_COMPLETED',
+      notes: input.notes?.trim(),
+    };
+
+    const updated: DvirRecord = {
+      ...existing,
+      repairCertification,
+      status: 'REPAIRED',
+      safeToOperate: true,
+    };
+
+    return await fleetStore.updateScopedDocument<DvirRecord>(caller, 'dvir', id, updated);
+  }
+
+  async reviewPreviousDvir(
+    caller: CallerIdentity,
+    id: string,
+    input: {
+      reviewedBy: string;
+      signatureAcknowledged: boolean;
+      notes?: string;
+    }
+  ): Promise<DvirRecord> {
+    if (!caller || !caller.fleetId) {
+      const err = new Error('Fleet authentication required for driver review.');
+      (err as any).statusCode = 401;
+      throw err;
+    }
+
+    const existing = await this.getDvirById(caller, id);
+    if (!existing) {
+      const err = new Error('DVIR not found.');
+      (err as any).statusCode = 404;
+      throw err;
+    }
+
+    if (!input.reviewedBy?.trim() || !input.signatureAcknowledged) {
+      const err = new Error(
+        'Next driver review signature acknowledgment required under 49 CFR § 396.11(a)(3)(ii).'
+      );
+      (err as any).statusCode = 400;
+      throw err;
+    }
+
+    const driverReview: DvirDriverReview = {
+      reviewedBy: input.reviewedBy.trim(),
+      reviewedAt: new Date().toISOString(),
+      signatureAcknowledged: true,
+      notes: input.notes?.trim(),
+    };
+
+    const updated: DvirRecord = {
+      ...existing,
+      driverReview,
+      status: 'CERTIFIED_SAFE',
+    };
+
+    return await fleetStore.updateScopedDocument<DvirRecord>(caller, 'dvir', id, updated);
   }
 }
 

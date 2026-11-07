@@ -156,35 +156,13 @@ export default {
         });
       }
 
-      // 4. Quantum Telemetry Physics
-      if (url.pathname === '/api/quantum/telemetry-physics') {
-        const body = (await request.json().catch(() => ({}))) as any;
-        const speedMph = body.speedMph || 65;
-        const axleWeightLbs = body.axleWeightLbs || 76220;
-        const kineticEnergyJoules = Math.round(0.5 * (axleWeightLbs * 0.453592) * Math.pow(speedMph / 2.237, 2));
-
-        return new Response(
-          JSON.stringify({
-            status: 'SUCCESS',
-            engine: 'TRUCKWITHEASE Edge Quantum Physics',
-            physics: {
-              kineticEnergyJoules,
-              brakeRotorTempEstF: Math.round(180 + speedMph * 3.2 + axleWeightLbs / 2500),
-              entropyIndex: 0.128,
-              coherenceRatio: 0.998,
-            },
-          }),
-          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
-        );
-      }
-
       // Default API 404
       return new Response(
         JSON.stringify({
           error: 'Not Found',
           path: url.pathname,
           worker: 'truckwithease-1',
-          availableEndpoints: ['/api/health', '/api/ready', '/api/auth/tenant', '/api/weather/hazards', '/api/quantum/telemetry-physics'],
+          availableEndpoints: ['/api/health', '/api/ready', '/api/auth/tenant', '/api/weather/hazards'],
         }),
         { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );

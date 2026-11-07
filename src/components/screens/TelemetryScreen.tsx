@@ -3,7 +3,6 @@ import { MOCK_BRIDGE_GEOFENCES, EQUIPMENT_INFO } from '../../data/mockData';
 import { BridgeGeofence } from '../../types';
 import { memoryPerformanceService, MemoryStatsResponse } from '../../services/memoryPerformanceService';
 import { StateBoundaryAgent } from '../StateBoundaryAgent';
-import { QuantumAlertnessReportCard } from '../QuantumAlertnessReportCard';
 import { bluetoothEldService } from '../../services/bluetoothEldService';
 
 interface TelemetryProps {
@@ -642,13 +641,6 @@ export const TelemetryScreen: React.FC<TelemetryProps> = ({
 
       {/* TRUCKWITHEASE STATE BOUNDARY & DOT REGULATIONS AGENT */}
       <StateBoundaryAgent
-        currentSpeedMph={speed}
-        onShowToast={onShowToast}
-        onRecordInspectionLog={onRecordInspectionLog}
-      />
-
-      {/* EXTENDED MEMORY SERVICE: QUANTUM PREDICTIVE DRIVER ALERTNESS & FLEET EFFICIENCY REPORT */}
-      <QuantumAlertnessReportCard
         currentSpeedMph={speed}
         onShowToast={onShowToast}
         onRecordInspectionLog={onRecordInspectionLog}

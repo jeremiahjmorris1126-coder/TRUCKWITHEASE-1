@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CARRIER_INFO, DRIVER_INFO, EQUIPMENT_INFO, HISTORICAL_LOGS, ACTIVE_HASH } from '../data/mockData';
+import { CARRIER_INFO, DRIVER_INFO, EQUIPMENT_INFO, ACTIVE_HASH } from '../data/mockData';
 import { getSubscriberSession, authenticatedFetch } from '../services/firebaseClientAuth';
 import { computeSha256 } from '../services/cryptoService';
 
@@ -24,6 +24,8 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
   const [activeDriver, setActiveDriver] = useState({ ...DRIVER_INFO, ...customDriver });
   const [activeEquipment, setActiveEquipment] = useState({ ...EQUIPMENT_INFO, ...customEquipment });
   const [dynamicHash, setDynamicHash] = useState<string>(ACTIVE_HASH);
+  const [latestDvir, setLatestDvir] = useState<any>(null);
+  const [isLoadingDvir, setIsLoadingDvir] = useState<boolean>(true);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -75,6 +77,20 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
       })
       .catch(() => {});
 
+    // Fetch latest certified DVIR
+    setIsLoadingDvir(true);
+    authenticatedFetch('/v1/dvir')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.dvirs && Array.isArray(data.dvirs) && data.dvirs.length > 0) {
+          setLatestDvir(data.dvirs[0]);
+        } else {
+          setLatestDvir(null);
+        }
+      })
+      .catch(() => setLatestDvir(null))
+      .finally(() => setIsLoadingDvir(false));
+
     const payload = `${session?.user?.carrierName || CARRIER_INFO.name}::${session?.user?.name || DRIVER_INFO.name}::DVIR-396.11::${new Date().toISOString().substring(0, 10)}`;
     computeSha256(payload)
       .then((hex) => setDynamicHash(hex))
@@ -93,7 +109,7 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
               picture_as_pdf
             </span>
             <span className="font-headline-sm text-[16px] text-on-surface uppercase font-bold">
-              FMCSA 49 CFR § 395.8 Driver's Daily Log (8-Day Package)
+              FMCSA 49 CFR § 396.11 Driver Vehicle Inspection Report (DVIR)
             </span>
           </div>
           <button
@@ -121,7 +137,7 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
               </div>
               <div className="text-right">
                 <span className="inline-block px-2 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold">
-                  FMCSA § 396.11 DVIR & § 395.8 LOG REPORT
+                  FMCSA § 396.11 DVIR REPORT
                 </span>
                 <p className="text-[10px] text-outline mt-1 font-mono">
                   Daily Export Requirement: MET
@@ -144,58 +160,66 @@ export const InspectionPdfModal: React.FC<InspectionPdfModalProps> = ({
             </div>
 
             {/* Daily Vehicle Inspection Report (DVIR 49 CFR § 396.11) Section */}
-            <div className="border border-outline/20 p-2.5 rounded bg-surface-container-low/50 space-y-2">
-              <div className="flex justify-between items-center text-[10px] font-mono text-primary font-bold uppercase">
-                <span>FMCSA § 396.11 DAILY VEHICLE INSPECTION CHECKLIST (DVIR)</span>
-                <span>STATUS: NO DEFECTS FOUND</span>
+            <div className="border border-outline/20 p-3 rounded bg-surface-container-low/50 space-y-2">
+              <div className="flex justify-between items-center text-[10px] font-mono text-primary font-bold uppercase border-b border-outline/20 pb-1.5">
+                <span>FMCSA § 396.11 VEHICLE INSPECTION (DVIR)</span>
+                {latestDvir ? (
+                  <span className={latestDvir.hasDefects ? 'text-amber-400 font-black' : 'text-emerald-400 font-bold'}>
+                    {latestDvir.hasDefects ? 'DEFECTS RECORDED' : 'INSPECTED: NO DEFECTS'}
+                  </span>
+                ) : (
+                  <span className="text-red-400 font-bold">INSPECTION PENDING</span>
+                )}
               </div>
-              <div className="grid grid-cols-3 gap-2 text-[9px] font-mono text-outline">
-                <div>[✓] Air Brakes & Parking Brake</div>
-                <div>[✓] Steering Mechanism</div>
-                <div>[✓] Lighting Devices & Reflectors</div>
-                <div>[✓] Tires, Wheels & Rims</div>
-                <div>[✓] Rear Vision Mirrors</div>
-                <div>[✓] Windshield Wipers & Fluid</div>
-                <div>[✓] Fifth Wheel Coupling Pins</div>
-                <div>[✓] Emergency Equipment (Triangles/Extinguisher)</div>
-                <div>[✓] Axle Air Suspension</div>
-              </div>
-              <div className="text-[9px] font-mono text-emerald-400">
-                Condition of the above vehicle is Satisfactory. No safety-affecting defects identified.
-              </div>
+
+              {latestDvir ? (
+                <div className="space-y-2 text-[10px] font-mono">
+                  <div className="flex justify-between text-outline">
+                    <span>Type: {latestDvir.type} // Unit #{latestDvir.unitNumber}</span>
+                    <span>Certified by: {latestDvir.certifiedBy}</span>
+                  </div>
+
+                  {latestDvir.hasDefects ? (
+                    <div className="p-2 rounded bg-red-500/10 border border-red-500/30 space-y-1">
+                      <span className="text-red-400 font-bold block uppercase">Recorded Defect Items:</span>
+                      {latestDvir.defects.filter((d: any) => d.hasDefect).map((d: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-on-surface">
+                          <span>&bull; {d.component} ({d.severity || 'DEFECT'})</span>
+                          <span className="text-outline">{d.notes || 'Driver flagged defect'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[9px] text-emerald-400">
+                      Active evaluation complete across all safety systems. Driver certified vehicle safe to operate.
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center text-[9px] pt-1 border-t border-outline/10 text-outline">
+                    <span>Safe to Operate: <strong className={latestDvir.safeToOperate ? 'text-emerald-400' : 'text-red-400'}>{latestDvir.safeToOperate ? 'YES' : 'NO (OUT OF SERVICE)'}</strong></span>
+                    <span>Recorded: {new Date(latestDvir.timestamp).toLocaleString()}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-[10px] font-mono space-y-1 text-center">
+                  <span className="text-amber-400 font-bold block uppercase">
+                    ACTIVE INSPECTION REQUIRED (§ 396.11)
+                  </span>
+                  <p className="text-outline text-[9px]">
+                    No certified DVIR submission found for this vehicle. A DVIR can never default to "no defects" without active driver checklist evaluation.
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* 8-Day Table */}
-            <div>
-              <span className="font-label-caps text-primary text-[10px] uppercase tracking-wider block mb-2">
-                Certified 8-Day Duty Cycle Summary
+            {/* HOS Records Notice */}
+            <div className="border border-outline/20 p-3 rounded bg-surface-container-low/50 text-center space-y-1">
+              <span className="font-label-caps text-primary text-[11px] uppercase tracking-wider font-bold block">
+                Hours of service come from your ELD. Connect your ELD to view them here.
               </span>
-              <table className="w-full text-left text-[11px] font-mono border-collapse">
-                <thead>
-                  <tr className="border-b border-outline/30 text-outline">
-                    <th className="py-1">Date</th>
-                    <th className="py-1">Driving</th>
-                    <th className="py-1">On-Duty</th>
-                    <th className="py-1">Sleeper</th>
-                    <th className="py-1">Off-Duty</th>
-                    <th className="py-1">Miles</th>
-                    <th className="py-1">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline/10 text-on-surface-variant">
-                  {HISTORICAL_LOGS.map((log) => (
-                    <tr key={log.id} className="hover:bg-surface-container/40">
-                      <td className="py-1 font-bold text-on-surface">{log.shortDate}</td>
-                      <td className="py-1 text-primary">{log.driveHours}</td>
-                      <td className="py-1">{log.onDutyHours}</td>
-                      <td className="py-1">{log.sleeperHours}</td>
-                      <td className="py-1">{log.offDutyHours}</td>
-                      <td className="py-1">{log.milesTraveled}</td>
-                      <td className="py-1 text-primary font-bold">PASS</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <p className="text-[10px] text-outline font-mono">
+                Under 49 CFR Part 395, official duty status records and certified RODS are maintained directly by your registered ELD provider.
+              </p>
             </div>
 
             {/* Cryptographic Ledger Proof Footer */}

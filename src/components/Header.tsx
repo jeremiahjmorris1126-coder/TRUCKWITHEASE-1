@@ -3,7 +3,6 @@ import { TabId } from '../types';
 import {
   ENABLE_BLUETOOTH_ELD,
   ENABLE_TELEMETRY_10HZ,
-  ENABLE_QUANTUM_ALERTNESS_CARD,
 } from '../config/featureFlags';
 import { offlineSyncService, SyncState } from '../services/offlineSyncService';
 
@@ -63,7 +62,6 @@ export const Header: React.FC<HeaderProps> = ({
       case 'vault':
       case 'ecosystem':
       case 'master-sync':
-      case 'quantum-index':
         return 'Fleet Operations & Vault';
       case 'haptics':
         return 'Safety Haptics';
@@ -145,7 +143,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* Driver Alertness Index Pill */}
-          {ENABLE_QUANTUM_ALERTNESS_CARD && onOpenAlertnessModal && (
+          {onOpenAlertnessModal && (
             <button
               onClick={onOpenAlertnessModal}
               className={`flex items-center gap-space-2xs px-space-xs py-1 rounded border cursor-pointer transition-all hover:brightness-110 active:scale-95 ${

@@ -138,13 +138,6 @@ export class FleetStore {
           return null;
         }
       }
-
-      // Checkr background screenings: driver can only access their own screenings
-      if (collectionName === 'checkr_screenings') {
-        if (doc.driverId && doc.driverId !== caller.uid) {
-          return null;
-        }
-      }
     }
 
     return doc as T;
@@ -188,8 +181,7 @@ export class FleetStore {
         if (caller.role === 'driver') {
           if (
             collectionName === 'driver_documents' ||
-            collectionName === 'driver_profiles' ||
-            collectionName === 'checkr_screenings'
+            collectionName === 'driver_profiles'
           ) {
             query = query.where('driverId', '==', caller.uid);
           }

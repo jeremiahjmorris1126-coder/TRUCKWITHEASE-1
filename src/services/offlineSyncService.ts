@@ -1,7 +1,6 @@
 import { apiClient, ApiClientError } from './apiClient';
 
 export type QueuedSyncType =
-  | 'DUTY_STATUS'
   | 'DVIR'
   | 'DOCUMENT'
   | 'DETENTION_EVENT'
@@ -213,11 +212,6 @@ class OfflineSyncService {
 
   private async dispatchItem(item: QueuedSyncItem): Promise<any> {
     switch (item.type) {
-      case 'DUTY_STATUS':
-        return await apiClient.post('/api/driver/duty-status', item.payload, {
-          skipUnauthorizedRedirect: true,
-        });
-
       case 'DVIR':
         return await apiClient.post('/api/dvir', item.payload, {
           skipUnauthorizedRedirect: true,

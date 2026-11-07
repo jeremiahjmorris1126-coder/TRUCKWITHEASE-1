@@ -22,7 +22,7 @@ export const US_STATE_DOT_REGULATIONS: Record<string, StateDotRegulation> = {
     carSpeedLimitMph: 75,
     speedLimitNotes: '75 MPH Daytime (80 MPH on designated I-10 / I-20 segments in West TX). 75 MPH Nighttime.',
     laneRestrictions: 'Left lane restriction for 3+ lane highways where posted by TxDOT.',
-    weighStationPolicy: 'Check official TxDOT signage for current inspection requirements; Drivewyze/PrePass availability is not connected to this app.',
+    weighStationPolicy: 'Check official TxDOT signage for current inspection requirements and open scale stations.',
     specialDotMandates: [
       'TxDMV Oversize/Overweight permit required above 80,000 lbs GVW.',
       'Mandatory emergency reflector placement within 10 minutes of roadside shoulder stop.',
@@ -58,7 +58,7 @@ export const US_STATE_DOT_REGULATIONS: Record<string, StateDotRegulation> = {
     carSpeedLimitMph: 70,
     speedLimitNotes: '65 MPH for trucks on rural interstates (70 MPH cars). 55 MPH on urban interstates.',
     laneRestrictions: 'Trucks must stay in right two lanes on 3+ lane interstates.',
-    weighStationPolicy: 'INDOT weigh scales active on I-65, I-70, I-80/94 (Chesterton, Lowell, Richmond). PrePass enabled.',
+    weighStationPolicy: 'INDOT weigh scales active on I-65, I-70, I-80/94 (Chesterton, Lowell, Richmond). Pull in when open.',
     specialDotMandates: [
       'Cold-weather diesel APU 400 lb weight allowance applied on certified scales.',
       'I-80/94 Borman Expressway heavy traffic lane compliance enforced by ISP.',
@@ -76,7 +76,7 @@ export const US_STATE_DOT_REGULATIONS: Record<string, StateDotRegulation> = {
     carSpeedLimitMph: 70,
     speedLimitNotes: '70 MPH truck speed limit on rural interstate highways & Ohio Turnpike.',
     laneRestrictions: 'Left lane restriction for trucks on 3+ lane interstates (ORC § 4511.27).',
-    weighStationPolicy: 'Check official ODOT signage for current inspection requirements; Drivewyze bypass availability is not connected to this app.',
+    weighStationPolicy: 'Check official ODOT signage for current inspection requirements and open scale stations.',
     specialDotMandates: [
       'Ohio Turnpike E-ZPass tolling integration mandatory for electronic discounts.',
       'ODOT mandatory winter tire traction advisory when snow emergency declared.',
@@ -111,7 +111,7 @@ export const US_STATE_DOT_REGULATIONS: Record<string, StateDotRegulation> = {
     carSpeedLimitMph: 70,
     speedLimitNotes: '70 MPH on rural interstates (60 MPH urban loops in St. Louis & Kansas City).',
     laneRestrictions: 'No left lane operation on 3+ lane interstates in St. Louis and Kansas City metro areas.',
-    weighStationPolicy: 'MoDOT weigh stations active on I-44, I-70, I-55, I-35. PrePass & Drivewyze supported.',
+    weighStationPolicy: 'MoDOT weigh stations active on I-44, I-70, I-55, I-35. Pull in when open.',
     specialDotMandates: [
       'Commercial vehicle safety inspection certificate required.',
       'Strict 55 MPH construction zone speed enforcement with doubled fines.',
@@ -164,7 +164,7 @@ export const US_STATE_DOT_REGULATIONS: Record<string, StateDotRegulation> = {
     carSpeedLimitMph: 70,
     speedLimitNotes: '70 MPH rural interstates (65 MPH urban interstates like I-285 Atlanta Perimeter).',
     laneRestrictions: 'Trucks prohibited in left two lanes on interstates with 3+ lanes in Atlanta metro area.',
-    weighStationPolicy: 'DPS Weigh Stations active on I-75, I-85, I-95, I-20. PrePass bypass enabled.',
+    weighStationPolicy: 'DPS Weigh Stations active on I-75, I-85, I-95, I-20. Pull in when open.',
     specialDotMandates: [
       'Peach Pass / E-ZPass tolling transponder allowed on I-85 Express Lanes.',
       'No hazmat transport inside I-285 Atlanta Perimeter loop without permit.',

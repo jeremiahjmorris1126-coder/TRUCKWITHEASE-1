@@ -93,8 +93,8 @@ export const MinimalistCruisingOverlay: React.FC<MinimalistCruisingOverlayProps>
         {/* RIGHT: NEXT UPCOMING WAYPOINT & BYPASS STATUS */}
         <div className="flex flex-col items-center md:items-end text-center md:text-right w-full md:w-auto">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10px] font-bold mb-1.5">
-            <span className="material-symbols-outlined text-[14px]">check_circle</span>
-            <span>PREPASS BYPASS: GREEN LIGHT</span>
+            <span className="material-symbols-outlined text-[14px]">scale</span>
+            <span>WEIGH STATION: OPEN</span>
           </div>
           <span className="text-[18px] font-bold text-white uppercase">
             Joplin Scale (MM 18)

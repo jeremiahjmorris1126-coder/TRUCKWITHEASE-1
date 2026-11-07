@@ -30,17 +30,17 @@ export interface DvirRecord {
 }
 
 export const MANDATORY_DVIR_COMPONENTS = [
-  'Service Brakes & Air Lines',
-  'Parking / Emergency Brake',
-  'Steering Mechanism',
-  'Lighting Devices & Reflectors',
-  'Tires, Wheels & Rims',
-  'Windshield & Wipers',
-  'Rear Vision Mirrors',
-  'Coupling Devices & Fifth Wheel',
-  'Emergency Equipment (Fire Extinguisher, Triangles)',
-  'Fluid Levels & Leak Check',
-  'Horn & Audio Warning Devices',
+  'Service brakes including trailer brake connections',
+  'Parking brake',
+  'Steering mechanism',
+  'Lighting devices and reflectors',
+  'Tires',
+  'Horn',
+  'Windshield wipers',
+  'Rear vision mirrors',
+  'Coupling devices',
+  'Wheels and rims',
+  'Emergency equipment',
 ];
 
 const LOCAL_STORAGE_KEY = 'TRUCK_LOCAL_DVIRS_CACHE';

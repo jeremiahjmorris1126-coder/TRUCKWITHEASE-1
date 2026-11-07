@@ -29,15 +29,12 @@ import { SecurityVaultScreen } from './components/screens/SecurityVaultScreen';
 import { TelemetryScreen } from './components/screens/TelemetryScreen';
 import { DispatchEtaScreen } from './components/screens/DispatchEtaScreen';
 import { MasterSynchronizerScreen } from './components/screens/MasterSynchronizerScreen';
-import { QuantumIndexScreen } from './components/screens/QuantumIndexScreen';
 import { FleetExpensesInvoiceScreen } from './components/screens/FleetExpensesInvoiceScreen';
 import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { FleetOperationsHub } from './components/screens/FleetOperationsHub';
-import { HardwareStoreScreen } from './components/screens/HardwareStoreScreen';
 import { FleetModuleCustomizer } from './components/FleetModuleCustomizer';
 // Deployment modals removed from driver app build
-import { BluetoothEldModal } from './components/BluetoothEldModal';
 import { AuthLoginModal } from './components/AuthLoginModal';
 import { clientAuth } from './services/firebaseClientAuth';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -49,9 +46,7 @@ import {
   ENABLE_TELEMETRY_10HZ,
   ENABLE_BLUETOOTH_ELD,
   ENABLE_HAPTICS_SCREEN,
-  ENABLE_QUANTUM_INDEX,
   ENABLE_MASTER_SYNC,
-  ENABLE_MEMORY_QUANTUM_DIAGNOSTICS,
 } from './config/featureFlags';
 import { apiClient, registerApiAuthHandlers } from './services/apiClient';
 
@@ -75,7 +70,6 @@ const DEFAULT_FLEET_SETTINGS: FleetCustomizationSettings = {
     'haptics': ENABLE_HAPTICS_SCREEN,
     'ecosystem': true,
     'telemetry': ENABLE_TELEMETRY_10HZ,
-    'quantum-index': ENABLE_QUANTUM_INDEX,
   },
 };
 
@@ -173,12 +167,11 @@ export default function App() {
 
   // Background Global Memory & Performance Tracker
   useEffect(() => {
-    if (!ENABLE_MEMORY_QUANTUM_DIAGNOSTICS) return;
     const trackAppMemory = () => {
       memoryPerformanceService.trackSnapshot({ activeRoute: activeTab });
     };
     trackAppMemory();
-    const interval = setInterval(trackAppMemory, 10000);
+    const interval = setInterval(trackAppMemory, 30000);
     return () => clearInterval(interval);
   }, [activeTab]);
 
@@ -336,7 +329,6 @@ export default function App() {
       case 'vault':
       case 'ecosystem':
       case 'master-sync':
-      case 'quantum-index':
         return (
           <FleetOperationsHub
             initialSubTab={
@@ -344,7 +336,7 @@ export default function App() {
                 ? 'vault'
                 : activeTab === 'ecosystem'
                 ? 'trust'
-                : activeTab === 'master-sync' || activeTab === 'quantum-index'
+                : activeTab === 'master-sync'
                 ? 'sync'
                 : 'invoices'
             }
@@ -367,8 +359,6 @@ export default function App() {
         );
       case 'haptics':
         return <HapticsScreen onShowToast={showToast} />;
-      case 'hardware-store':
-        return <HardwareStoreScreen onShowToast={showToast} />;
       case 'telemetry':
         return (
           <TelemetryScreen
@@ -517,16 +507,6 @@ export default function App() {
       )}
 
       {/* Deployment modal removed */}
-
-      {/* Commercial Bluetooth ELD & J1939 Telemetrics Control Suite */}
-      {ENABLE_BLUETOOTH_ELD && (
-        <BluetoothEldModal
-          isOpen={isBluetoothModalOpen}
-          onClose={() => setIsBluetoothModalOpen(false)}
-          onShowToast={showToast}
-          onUpdateVehicleSpeed={(newSpeed) => setSpeed(newSpeed)}
-        />
-      )}
     </div>
   );
 }

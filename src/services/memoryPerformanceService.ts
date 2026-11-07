@@ -55,18 +55,6 @@ export interface ActionableDirective {
   riskReductionPercent: number;
 }
 
-export interface QuantumPredictiveFleetReport {
-  timestamp: string;
-  driverAlertnessIndex: number; // 0-100
-  fatigueProbability: number; // 0.0 - 1.0
-  reactionDelayMs: number;
-  statisticalConfidencePercent: number;
-  quantumPredictiveEfficiencyScore: number; // 0-100
-  expectedFuelWasteRateGalPer100Mi: number;
-  actionableDirectives: ActionableDirective[];
-  modelCoherence: number;
-}
-
 // Client Memory Tracker API wrapper
 export const memoryPerformanceService = {
   // Post real-time memory telemetry to backend
@@ -140,34 +128,6 @@ export const memoryPerformanceService = {
       return await res.json();
     } catch (err) {
       console.warn('Failed to trigger backend memory optimization:', err);
-      return null;
-    }
-  },
-
-  // Process driver alertness & performance data using quantum predictive statistical modeling
-  async processQuantumPredictiveAnalytics(data: DriverAlertnessData): Promise<QuantumPredictiveFleetReport | null> {
-    try {
-      const res = await fetch('/api/memory/quantum-predictive-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (err) {
-      console.warn('Failed to run quantum predictive analytics report:', err);
-      return null;
-    }
-  },
-
-  // Get the latest stored quantum predictive efficiency report
-  async getLatestEfficiencyReport(): Promise<QuantumPredictiveFleetReport | null> {
-    try {
-      const res = await fetch('/api/memory/quantum-predictive-report');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (err) {
-      console.warn('Failed to fetch quantum predictive report:', err);
       return null;
     }
   },

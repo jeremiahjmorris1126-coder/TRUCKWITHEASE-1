@@ -177,7 +177,6 @@ export const WEIGH_STATIONS: WeighStation[] = [
     mileMarker: 506.6,
     milesAway: 14.2,
     status: 'OPEN',
-    prePassAuthorized: true,
     scaleType: 'WIM (Weigh-In-Motion) + Static Platform',
   },
   {
@@ -187,7 +186,6 @@ export const WEIGH_STATIONS: WeighStation[] = [
     mileMarker: 528.0,
     milesAway: 35.6,
     status: 'OPEN',
-    prePassAuthorized: true,
     scaleType: 'Dynamic Plate + Thermal Brake Imaging',
   },
   {
@@ -197,7 +195,6 @@ export const WEIGH_STATIONS: WeighStation[] = [
     mileMarker: 564.2,
     milesAway: 71.8,
     status: 'BYPASS_ACTIVE',
-    prePassAuthorized: true,
     scaleType: 'Full Safety Inspection Facility',
   },
 ];

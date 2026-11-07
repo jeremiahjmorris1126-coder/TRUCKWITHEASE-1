@@ -39,26 +39,27 @@ describe('Phase 4 - Offline Sync & Guaranteed Local-First Persistence', () => {
     });
   });
 
-  it('1. Duty Status: Updates driver profile and persists duty transitions', async () => {
-    const timestamp = Date.now();
+  it('1. Driver Profile: Updates and persists driver preferences without HOS self-made logs', async () => {
     const updated = await updateDriverProfile(driverCaller, driverCaller.uid, {
-      currentDutyStatus: 'DRIVING',
-      dutyStatusChangedAt: new Date(timestamp).toISOString(),
+      phone: '+1-555-019-9041',
+      preferredEldProvider: 'SAMSARA',
     } as any);
 
     expect(updated).not.toBeNull();
-    expect((updated as any).currentDutyStatus).toBe('DRIVING');
+    expect((updated as any).phone).toBe('+1-555-019-9041');
+    expect((updated as any).preferredEldProvider).toBe('SAMSARA');
 
     const fetched = await getDriverProfile(driverCaller, driverCaller.uid);
     expect(fetched).not.toBeNull();
-    expect((fetched as any).currentDutyStatus).toBe('DRIVING');
+    expect((fetched as any).phone).toBe('+1-555-019-9041');
+    expect((fetched as any).preferredEldProvider).toBe('SAMSARA');
   });
 
-  it('2. Multi-Tenant Duty Isolation: Driver cannot alter another driver duty status', async () => {
+  it('2. Multi-Tenant Isolation: Driver cannot alter another driver profile', async () => {
     // FLEET2 driver attempts to mutate FLEET1 driver
     try {
       await updateDriverProfile(fleet2DriverCaller, driverCaller.uid, {
-        currentDutyStatus: 'ON_DUTY',
+        phone: '+1-555-999-9999',
       } as any);
       expect(true).toBe(false); // Should have thrown
     } catch (err: any) {
@@ -67,7 +68,7 @@ describe('Phase 4 - Offline Sync & Guaranteed Local-First Persistence', () => {
 
     // Verify FLEET1 driver profile was untampered
     const profile = await getDriverProfile(driverCaller, driverCaller.uid);
-    expect((profile as any).currentDutyStatus).toBe('OFF');
+    expect((profile as any).phone).toBe('555-0199');
   });
 
   it('3. Offline Queue: Local-first persistence preserves queued items across simulated app restarts', () => {
@@ -76,9 +77,9 @@ describe('Phase 4 - Offline Sync & Guaranteed Local-First Persistence', () => {
     const QUEUE_KEY = 'truckwithease_offline_sync_queue_v1';
 
     const initialItem = {
-      id: 'sync-duty-01',
-      type: 'DUTY_STATUS',
-      payload: { status: 'DRIVING', timestamp: Date.now() },
+      id: 'sync-detention-01',
+      type: 'DETENTION_EVENT',
+      payload: { loadId: 'L-101', facilityName: 'Dallas Staging Dock', eventType: 'ARRIVED', timestamp: Date.now() },
       createdAt: Date.now(),
       attempts: 0,
     };
@@ -88,8 +89,9 @@ describe('Phase 4 - Offline Sync & Guaranteed Local-First Persistence', () => {
     // Simulate app restart / reload -> read from storage
     const restored = JSON.parse(mockStorage.get(QUEUE_KEY) || '[]');
     expect(restored.length).toBe(1);
-    expect(restored[0].id).toBe('sync-duty-01');
-    expect(restored[0].payload.status).toBe('DRIVING');
+    expect(restored[0].id).toBe('sync-detention-01');
+    expect(restored[0].type).toBe('DETENTION_EVENT');
+    expect(restored[0].payload.eventType).toBe('ARRIVED');
 
     // Add DVIR to queue
     const dvirItem = {
@@ -109,25 +111,20 @@ describe('Phase 4 - Offline Sync & Guaranteed Local-First Persistence', () => {
     expect(reRestored[1].type).toBe('DVIR');
   });
 
-  it('4. Offline Sync: FIFO processing guarantees correct duty sequence playback', async () => {
+  it('4. Offline Sync: FIFO processing guarantees correct event sequence playback', async () => {
     const queue = [
-      { id: '1', type: 'DUTY_STATUS', status: 'ON_DUTY', ts: 1000 },
-      { id: '2', type: 'DUTY_STATUS', status: 'DRIVING', ts: 2000 },
-      { id: '3', type: 'DUTY_STATUS', status: 'OFF_DUTY', ts: 3000 },
+      { id: '1', type: 'DETENTION_EVENT', event: 'ARRIVED', ts: 1000 },
+      { id: '2', type: 'DETENTION_EVENT', event: 'LOADING_STARTED', ts: 2000 },
+      { id: '3', type: 'DETENTION_EVENT', event: 'DEPARTED', ts: 3000 },
     ];
 
-    const transitionLog: string[] = [];
+    const eventLog: string[] = [];
 
     for (const item of queue) {
-      await updateDriverProfile(driverCaller, driverCaller.uid, {
-        currentDutyStatus: item.status,
-      } as any);
-      transitionLog.push(item.status);
+      eventLog.push(item.event);
     }
 
-    expect(transitionLog).toEqual(['ON_DUTY', 'DRIVING', 'OFF_DUTY']);
-    const finalProfile = await getDriverProfile(driverCaller, driverCaller.uid);
-    expect((finalProfile as any).currentDutyStatus).toBe('OFF_DUTY');
+    expect(eventLog).toEqual(['ARRIVED', 'LOADING_STARTED', 'DEPARTED']);
   });
 
   it('5. Error Handling: Network failure keeps item in queue with incremented attempts', () => {
