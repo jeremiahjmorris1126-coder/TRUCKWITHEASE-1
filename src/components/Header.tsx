@@ -59,6 +59,8 @@ export const Header: React.FC<HeaderProps> = ({
         return 'Fleet Operations & Vault';
       case 'signup':
         return 'Sign Up';
+      case 'messages':
+        return 'Messages';
       case 'haptics':
         return 'Safety Haptics';
       case 'telemetry':

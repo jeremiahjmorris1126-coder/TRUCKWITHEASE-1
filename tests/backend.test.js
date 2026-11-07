@@ -6,7 +6,7 @@ import { triggerAuxAlert, getActiveAlerts, resolveAlert } from '../server/alerts
 import { getLoads, createLoad, matchLoadsForDriver } from '../server/loadMatching/loadService.js';
 import { getDriverProfile, updateDriverProfile, getDriverDocuments, addDriverDocument } from '../server/driver/driverProfileService.js';
 import { getFleetFuelDiscounts, getInsuranceQuotes } from '../server/perksAndInsurance/perksService.js';
-import { getTelephonyStatus, createCallSession } from '../server/telephony/telephonyService.js';
+import { getTelephonyStatus, generateTwilioVoiceToken } from '../server/telephony/telephonyService.js';
 import { authenticateUser, listUsers } from '../server/auth/rolesService.js';
 import { partnersRegistry } from '../server/partners/registry.js';
 import { createFleetApiKey, validateFleetApiKey, revokeFleetApiKey } from '../server/auth/apiKeyService.js';
@@ -143,14 +143,32 @@ test('6. Trucker Fuel Discounts & Trucking Insurance Quotes', () => {
   assert.ok(insurance[0].liabilityLimitUsd >= 1000000);
 });
 
-test('7. Telephony & Virtual Line Provisioning', () => {
-  const status = getTelephonyStatus();
-  assert.ok(status.activeLinesCount >= 2);
+test('7. Telephony reports real configuration only (no mock tokens, sessions or numbers)', () => {
+  const saved = { ...process.env };
+  for (const k of ['TWILIO_ACCOUNT_SID', 'TWILIO_API_KEY_SID', 'TWILIO_API_KEY_SECRET', 'TWILIO_API_KEY', 'TWILIO_API_SECRET', 'TWILIO_TWIML_APP_SID', 'TWIML_APP_SID', 'TWILIO_FROM_NUMBER', 'TWILIO_DISPATCH_TO_NUMBER', 'TWILIO_AUTH_TOKEN']) delete process.env[k];
+  try {
+    const status = getTelephonyStatus();
+    assert.equal(status.voiceConfigured, false);
+    assert.equal(status.smsConfigured, false);
+    assert.equal(status.lines.length, 0);
+    assert.throws(() => generateTwilioVoiceToken('usr-1'), /not set up/);
 
-  const session = createCallSession('+1-800-555-EASE', '+1-555-839-2041', 'IN_APP_VOICE');
-  assert.ok(session.sessionId.startsWith('call-'));
-  assert.equal(session.status, 'CONNECTED');
-  assert.ok(session.webrtcToken);
+    // Secret Manager names are honored.
+    process.env.TWILIO_ACCOUNT_SID = 'AC' + '0'.repeat(32);
+    process.env.TWILIO_API_KEY_SID = 'SK' + '0'.repeat(32);
+    process.env.TWILIO_API_KEY_SECRET = 'secret';
+    process.env.TWILIO_TWIML_APP_SID = 'AP' + '0'.repeat(32);
+    process.env.TWILIO_FROM_NUMBER = '+15551230000';
+    process.env.TWILIO_DISPATCH_TO_NUMBER = '+15551239999';
+    assert.equal(getTelephonyStatus().voiceConfigured, true);
+    const jwt = generateTwilioVoiceToken('usr-1');
+    const payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString());
+    assert.equal(payload.grants.identity, 'usr-1');
+    assert.equal(getTelephonyStatus().dispatchNumber, '+15551239999');
+  } finally {
+    for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+    Object.assign(process.env, saved);
+  }
 });
 
 test('8. Accounts & Roles (driver, fleet_admin, owner) - Fail-Closed & Fleet Isolation', async () => {

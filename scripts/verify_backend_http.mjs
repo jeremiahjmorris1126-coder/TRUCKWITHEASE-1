@@ -406,6 +406,49 @@ async function fullChecks() {
     }
   });
 
+  section('Dispatch ⇄ driver messaging & telephony');
+  let driverMsg;
+  await check('Driver sends a message to dispatch', async () => {
+    const r = await api('POST', '/api/messages', { token: D1, body: { text: 'Loaded and rolling' } });
+    expectStatus(r, 201);
+    driverMsg = r.json.message;
+    assert(driverMsg.senderRole === 'driver' && driverMsg.driverId === 'usr-fleet1-driver', JSON.stringify(driverMsg));
+  });
+  await check('Dispatch sees the driver in its list and reads the thread', async () => {
+    const d = await api('GET', '/api/messages/drivers', { token: A1 });
+    expectStatus(d, 200);
+    assert(d.json.drivers.some((x) => x.driverId === 'usr-fleet1-driver'), 'driver missing from dispatch list');
+    const t = await api('GET', '/api/messages?driverId=usr-fleet1-driver', { token: A1 });
+    expectStatus(t, 200);
+    assert(t.json.messages.some((m) => m.id === driverMsg.id), 'driver message not visible to dispatch');
+  });
+  await check('Dispatch reply reaches the driver via polling (?since=)', async () => {
+    const r = await api('POST', '/api/messages', { token: A1, body: { driverId: 'usr-fleet1-driver', text: 'Copy, drive safe' } });
+    expectStatus(r, 201);
+    const p = await api('GET', `/api/messages?since=${encodeURIComponent(driverMsg.createdAt)}`, { token: D1 });
+    expectStatus(p, 200);
+    assert(p.json.messages.length === 1 && p.json.messages[0].text === 'Copy, drive safe', JSON.stringify(p.json.messages));
+  });
+  await check('Other fleet cannot read this driver’s thread → 404', async () => {
+    expectStatus(await api('GET', '/api/messages?driverId=usr-fleet1-driver', { token: A2 }), 404);
+  });
+  await check('Another driver cannot read this driver’s thread → 404', async () => {
+    expectStatus(await api('GET', '/api/messages?driverId=usr-fleet1-driver', { token: D2 }), 404);
+  });
+  await check('Public /token alias removed (was an unauthenticated Twilio token mint)', async () => {
+    const res = await fetch(`${BASE_URL}/token?identity=attacker`);
+    const body = await res.text();
+    assert(!/"token"\s*:/.test(body), `still issuing tokens: ${body.slice(0, 120)}`);
+  });
+  await check('Voice token needs login, and is refused (503) when voice is not configured', async () => {
+    expectStatus(await api('GET', '/api/telephony/token'), 401);
+    expectStatus(await api('GET', '/api/telephony/token', { token: D1 }), [200, 503]);
+  });
+  await check('Fake call-session / line provisioning endpoints removed', async () => {
+    expectStatus(await api('POST', '/api/telephony/call-session', { token: A1, body: {} }), 404);
+    expectStatus(await api('POST', '/api/telephony/provision-line', { token: A1, body: {} }), 404);
+  });
+
   section('Sign-up & subscriptions');
   await check('Sign-up requires login → 401', async () => {
     expectStatus(await api('POST', '/api/auth/signup', { body: { accountType: 'driver', tierId: 'TRIAL_14_DAY', fullName: 'X' } }), 401);

@@ -24,11 +24,10 @@ import { getDriverProfile, updateDriverProfile, getDriverDocuments, addDriverDoc
 import { getFleetFuelDiscounts, getInsuranceQuotes } from './server/perksAndInsurance/perksService';
 import {
   getTelephonyStatus,
-  createCallSession,
-  provisionFleetLine,
   generateTwilioVoiceToken,
   generateVoiceTwiML,
 } from './server/telephony/telephonyService';
+import { listMessages, listThreads, listFleetDrivers, sendMessage, MessagingError } from './server/messaging/messageService';
 import { listUsers, authenticateUser, getUserById, UserRole } from './server/auth/rolesService';
 import { logAuditEvent, getAuditLogs, getIntegrationSummary } from './server/admin/adminService';
 import { partnersRegistry } from './server/partners/registry';
@@ -389,29 +388,6 @@ async function startServer() {
       appliedState: 'SUCCESS',
     },
   ];
-
-  // In-Cab message bus with mandatory tenant isolation
-  interface InCabMessage {
-    id: string;
-    fleetId: string | null;
-    senderUid?: string;
-    channel: string;
-    text: string;
-    priority: string;
-    attachedLoadId?: string;
-    createdAt: string;
-  }
-  const inCabMessages: InCabMessage[] = [];
-  const recordInCabMessage = (message: Omit<InCabMessage, 'id' | 'createdAt'>): InCabMessage => {
-    const storedMessage: InCabMessage = {
-      ...message,
-      id: `msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      createdAt: new Date().toISOString(),
-    };
-    inCabMessages.push(storedMessage);
-    if (inCabMessages.length > 100) inCabMessages.shift();
-    return storedMessage;
-  };
 
   // ==========================================
   // SYSTEM HEALTH & READINESS (Checks Firestore & Adapters)
@@ -1451,23 +1427,18 @@ async function startServer() {
     res.json({ success: true, telephony: getTelephonyStatus() });
   });
 
-  app.post('/api/telephony/call-session', (req, res) => {
-    const { caller = '+1-800-555-EASE', callee = '+1-555-839-2041', callType = 'IN_APP_VOICE' } = req.body || {};
-    const session = createCallSession(caller, callee, callType);
-    res.status(201).json({ success: true, session });
-  });
-
-  app.post('/api/telephony/provision-line', (req, res) => {
-    const { fleetName = 'TruckWithEase Fleet', lineType = 'DISPATCH_PSTN' } = req.body || {};
-    const line = provisionFleetLine(fleetName, lineType);
-    res.status(201).json({ success: true, line });
-  });
-
-  // Twilio Voice Softphone Access Token
-  app.get(['/token', '/api/telephony/token'], (req, res) => {
-    const identity = (req.query.identity as string) || `web-${Date.now()}`;
-    const token = generateTwilioVoiceToken(identity);
-    res.json({ token });
+  // Twilio Voice access token for the signed-in user (identity = their uid, never client-chosen).
+  // Previously also served at public '/token' with a client-supplied identity; that alias is removed.
+  app.get('/api/telephony/token', (req, res) => {
+    const caller: CallerIdentity = (req as any).user;
+    if (!caller || (req as any).authType !== 'FIREBASE_AUTH') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+      res.json({ token: generateTwilioVoiceToken(caller.uid), identity: caller.uid });
+    } catch (err: any) {
+      res.status(err.statusCode || 500).json({ error: err.message });
+    }
   });
 
   // Twilio Voice Webhook (TwiML) - Validates X-Twilio-Signature with TWILIO_AUTH_TOKEN
@@ -1754,62 +1725,61 @@ async function startServer() {
   });
 
   // SMS & Messaging Endpoints with Fleet Isolation
-  app.get('/api/messages', (req, res) => {
-    const caller: CallerIdentity = (req as any).user;
-    const channel = req.query.channel as string;
-    const messages = inCabMessages.filter((m) => {
-      if (m.fleetId !== caller.fleetId && caller.role !== 'owner') return false;
-      if (channel && m.channel !== channel) return false;
-      return true;
+  // Dispatch ⇄ driver messaging (persistent, one thread per driver, fleet-isolated).
+  const messagingError = (res: express.Response, err: any) =>
+    res.status(err instanceof MessagingError ? err.statusCode : 500).json({
+      success: false,
+      error: err instanceof MessagingError ? err.message : 'Messaging is temporarily unavailable.',
     });
-    res.json({ success: true, count: messages.length, messages });
-  });
 
-  app.get('/api/messages/channels/:channelId', (req, res) => {
-    const caller: CallerIdentity = (req as any).user;
-    const channelId = req.params.channelId;
-    const messages = inCabMessages.filter((m) => {
-      if (m.fleetId !== caller.fleetId && caller.role !== 'owner') return false;
-      return m.channel === channelId;
-    });
-    res.json({ success: true, count: messages.length, messages });
-  });
-
-  app.get('/api/messages/:id', (req, res) => {
-    const caller: CallerIdentity = (req as any).user;
-    const msg = inCabMessages.find((m) => m.id === req.params.id);
-    if (!msg || (msg.fleetId !== caller.fleetId && caller.role !== 'owner')) {
-      return res.status(404).json({ success: false, error: 'Message not found' });
+  app.get('/api/messages/threads', async (req, res) => {
+    try {
+      res.json({ success: true, threads: await listThreads((req as any).user) });
+    } catch (err) {
+      messagingError(res, err);
     }
-    res.json({ success: true, message: msg });
   });
 
-  app.post('/api/messages', async (req, res) => {
+  app.get('/api/messages/drivers', async (req, res) => {
+    try {
+      res.json({ success: true, drivers: await listFleetDrivers((req as any).user) });
+    } catch (err) {
+      messagingError(res, err);
+    }
+  });
+
+  app.get('/api/messages', async (req, res) => {
+    try {
+      const result = await listMessages((req as any).user, {
+        driverId: (req.query.driverId as string) || undefined,
+        since: (req.query.since as string) || undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+      });
+      res.json({ success: true, ...result });
+    } catch (err) {
+      messagingError(res, err);
+    }
+  });
+
+  // The SMS burst limiter applies only when an SMS copy is requested; in-app chat is not throttled by it.
+  const limitSmsCopies: express.RequestHandler = (req, res, next) =>
+    req.body?.alsoSms === true ? limitTwilioNotifications(req, res, next) : next();
+
+  app.post('/api/messages', limitSmsCopies, async (req, res) => {
     const caller: CallerIdentity = (req as any).user;
     if (req.body?.fleetId && req.body.fleetId !== caller.fleetId) {
       return res.status(400).json({ success: false, error: 'Cannot set or change fleetId.' });
     }
-    const { channel = 'DISPATCH', text = '', priority = 'NORMAL', attachedLoadId } = req.body || {};
-    if (!text || text.trim().length === 0) {
-      return res.status(400).json({ success: false, error: 'Message text is required' });
+    try {
+      const message = await sendMessage(caller, {
+        driverId: req.body?.driverId,
+        text: req.body?.text,
+        alsoSms: req.body?.alsoSms === true,
+      });
+      res.status(201).json({ success: true, message });
+    } catch (err) {
+      messagingError(res, err);
     }
-
-    if (attachedLoadId) {
-      const load = await getLoadById(caller, attachedLoadId);
-      if (!load) {
-        return res.status(404).json({ success: false, error: 'Load not found' });
-      }
-    }
-
-    const msg = recordInCabMessage({
-      fleetId: caller.fleetId,
-      senderUid: caller.uid,
-      channel,
-      text: text.trim(),
-      priority,
-      attachedLoadId,
-    });
-    res.status(201).json({ success: true, message: msg });
   });
 
   app.post('/api/dispatch-messages', limitTwilioNotifications, async (req, res) => {
@@ -1829,15 +1799,7 @@ async function startServer() {
     }
     try {
       const delivery = await sendDispatchSms(text.trim(), to);
-      const msg = recordInCabMessage({
-        fleetId: caller.fleetId,
-        senderUid: caller.uid,
-        channel: 'DISPATCH',
-        text: text.trim(),
-        priority: 'NORMAL',
-        attachedLoadId,
-      });
-      res.status(201).json({ success: true, carrierSid: delivery.sid, messageId: msg.id });
+      res.status(201).json({ success: true, carrierSid: delivery.sid });
     } catch (err) {
       res.status(503).json({ success: false, error: (err as Error).message });
     }
@@ -1852,14 +1814,7 @@ async function startServer() {
     if (!smsBody) return res.status(400).json({ success: false, error: 'smsBody is required' });
     try {
       const delivery = await sendDispatchSms(smsBody.trim());
-      const msg = recordInCabMessage({
-        fleetId: caller.fleetId,
-        senderUid: caller.uid,
-        channel: 'DISPATCH',
-        text: smsBody.trim(),
-        priority: 'NORMAL',
-      });
-      res.status(201).json({ success: true, carrierSid: delivery.sid, messageId: msg.id, stage, loopId });
+      res.status(201).json({ success: true, carrierSid: delivery.sid, stage, loopId });
     } catch (err) {
       res.status(503).json({ success: false, error: (err as Error).message });
     }

@@ -3,141 +3,99 @@ import twilio from 'twilio';
 const { AccessToken } = twilio.jwt;
 const { VoiceGrant } = AccessToken;
 
+/**
+ * Twilio Voice (in-app calling) support.
+ *
+ * Nothing here is simulated: without credentials, voice is reported as not
+ * configured and no token is issued. Phone numbers come only from env.
+ *
+ * Env (Secret Manager names; legacy names still accepted):
+ *   TWILIO_ACCOUNT_SID
+ *   TWILIO_API_KEY_SID      (legacy: TWILIO_API_KEY)
+ *   TWILIO_API_KEY_SECRET   (legacy: TWILIO_API_SECRET)
+ *   TWILIO_TWIML_APP_SID    (legacy: TWIML_APP_SID)  TwiML App whose Voice URL is /api/telephony/voice
+ *   TWILIO_FROM_NUMBER      caller ID for outbound calls
+ *   TWILIO_DISPATCH_TO_NUMBER  the fleet dispatch phone
+ */
+
+const E164 = /^\+[1-9]\d{7,14}$/;
+
 export interface FleetPhoneLine {
   id: string;
   phoneNumber: string;
-  assignedFleet: string;
-  lineType: 'DISPATCH_PSTN' | 'DRIVER_DIRECT' | 'EMERGENCY_ROADSIDE' | 'SALES' | 'SUPPORT';
-  status: 'ACTIVE' | 'PROVISIONING';
-  provider: 'twilio_voice' | 'mock_telephony';
-  webrtcSupported: boolean;
+  lineType: 'DISPATCH' | 'OUTBOUND_CALLER_ID';
 }
 
-export interface TelephonySession {
-  sessionId: string;
-  callerNumber: string;
-  calleeNumber: string;
-  callType: 'IN_APP_VOICE' | 'PSTN_OUTBOUND';
-  status: 'RINGING' | 'CONNECTED' | 'COMPLETED';
-  webrtcToken?: string;
-  startedAt: string;
+function env() {
+  return {
+    accountSid: process.env.TWILIO_ACCOUNT_SID?.trim(),
+    apiKeySid: (process.env.TWILIO_API_KEY_SID || process.env.TWILIO_API_KEY)?.trim(),
+    apiKeySecret: (process.env.TWILIO_API_KEY_SECRET || process.env.TWILIO_API_SECRET)?.trim(),
+    twimlAppSid: (process.env.TWILIO_TWIML_APP_SID || process.env.TWIML_APP_SID)?.trim(),
+    from: process.env.TWILIO_FROM_NUMBER?.trim(),
+    dispatch: process.env.TWILIO_DISPATCH_TO_NUMBER?.trim(),
+  };
 }
-
-export const FLEET_PHONE_LINES: Record<string, string> = {
-  dispatch: process.env.TWILIO_DISPATCH_TO_NUMBER || '+15551230001',
-  driver: process.env.TWILIO_ALLOWED_TO_NUMBERS || '+15551230002',
-  roadside: '+15551230003',
-  sales: '+15551230001',
-  support: '+15551230002',
-};
-
-let activeLines: FleetPhoneLine[] = [
-  {
-    id: 'line-main-01',
-    phoneNumber: process.env.TWILIO_FROM_NUMBER || '+1-800-555-EASE',
-    assignedFleet: 'TruckWithEase Enterprise Fleet',
-    lineType: 'DISPATCH_PSTN',
-    status: 'ACTIVE',
-    provider: process.env.TWILIO_ACCOUNT_SID ? 'twilio_voice' : 'mock_telephony',
-    webrtcSupported: true,
-  },
-  {
-    id: 'line-driver-02',
-    phoneNumber: '+1-555-839-2041',
-    assignedFleet: 'TruckWithEase Unit 101 Direct',
-    lineType: 'DRIVER_DIRECT',
-    status: 'ACTIVE',
-    provider: 'mock_telephony',
-    webrtcSupported: true,
-  },
-];
 
 export function isTwilioVoiceConfigured(): boolean {
-  return Boolean(
-    process.env.TWILIO_ACCOUNT_SID &&
-    process.env.TWILIO_API_KEY &&
-    process.env.TWILIO_API_SECRET
-  );
+  const e = env();
+  return Boolean(e.accountSid && e.apiKeySid && e.apiKeySecret && e.twimlAppSid && e.from && E164.test(e.from));
 }
 
-export function generateTwilioVoiceToken(identity?: string): string {
-  const callerId = identity || `web-driver-${Date.now()}`;
+/** Configured phone lines (real numbers from env only). */
+export function getFleetLines(): FleetPhoneLine[] {
+  const e = env();
+  const lines: FleetPhoneLine[] = [];
+  if (e.dispatch && E164.test(e.dispatch)) lines.push({ id: 'dispatch', phoneNumber: e.dispatch, lineType: 'DISPATCH' });
+  if (e.from && E164.test(e.from)) lines.push({ id: 'outbound', phoneNumber: e.from, lineType: 'OUTBOUND_CALLER_ID' });
+  return lines;
+}
 
-  if (isTwilioVoiceConfigured()) {
-    try {
-      const token = new AccessToken(
-        process.env.TWILIO_ACCOUNT_SID!,
-        process.env.TWILIO_API_KEY!,
-        process.env.TWILIO_API_SECRET!,
-        { identity: callerId }
-      );
+export class VoiceNotConfiguredError extends Error {
+  statusCode = 503;
+}
 
-      const voiceGrant = new VoiceGrant({
-        outgoingApplicationSid: process.env.TWIML_APP_SID || process.env.TWILIO_TWIML_APP_SID,
-        incomingAllow: true,
-      });
-
-      token.addGrant(voiceGrant);
-      return token.toJwt();
-    } catch (err) {
-      console.warn('[TelephonyService] Live Twilio token generation threw, falling back to mock JWT:', (err as Error).message);
-    }
+/**
+ * Issues a short-lived Twilio Voice access token for the signed-in user.
+ * The identity is always the caller's uid (never client-chosen).
+ */
+export function generateTwilioVoiceToken(uid: string): string {
+  if (!isTwilioVoiceConfigured()) {
+    throw new VoiceNotConfiguredError('In-app calling is not set up.');
   }
-
-  // Fallback JWT for testing WebRTC when Twilio API Key is not yet configured in local environment
-  const payload = {
-    iss: 'TruckWithEase-Softphone',
-    sub: callerId,
-    mode: 'MOCK_VOICE_GATEWAY',
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 3600,
-  };
-  return `mock_voice_token_${Buffer.from(JSON.stringify(payload)).toString('base64')}`;
+  const e = env();
+  const token = new AccessToken(e.accountSid!, e.apiKeySid!, e.apiKeySecret!, { identity: uid, ttl: 3600 });
+  token.addGrant(new VoiceGrant({ outgoingApplicationSid: e.twimlAppSid, incomingAllow: true }));
+  return token.toJwt();
 }
 
-export function generateVoiceTwiML(lineKey = 'dispatch', customCallerId?: string): string {
-  const destinationNumber = FLEET_PHONE_LINES[lineKey] || FLEET_PHONE_LINES.dispatch;
-  const callerId = customCallerId || process.env.TWILIO_FROM_NUMBER || process.env.TWILIO_NUMBER || '+15551230000';
-
+/**
+ * TwiML for an outbound in-app call: connects to the fleet dispatch line.
+ * Only configured numbers can be dialed, so the softphone can't call arbitrary numbers.
+ */
+export function generateVoiceTwiML(lineKey = 'dispatch'): string {
   const vr = new twilio.twiml.VoiceResponse();
-  const dial = vr.dial({ callerId });
-  dial.number(destinationNumber);
+  const line = getFleetLines().find((l) => l.id === lineKey && l.lineType === 'DISPATCH') || getFleetLines().find((l) => l.lineType === 'DISPATCH');
+  const callerId = env().from;
+  if (!line || !callerId) {
+    vr.say('Calling is not set up for this fleet.');
+    return vr.toString();
+  }
+  vr.dial({ callerId }).number(line.phoneNumber);
   return vr.toString();
 }
 
-export function getTelephonyStatus(): { configured: boolean; provider: string; activeLinesCount: number; lines: FleetPhoneLine[] } {
-  const configured = isTwilioVoiceConfigured();
+export function getTelephonyStatus(): {
+  voiceConfigured: boolean;
+  smsConfigured: boolean;
+  dispatchNumber: string | null;
+  lines: FleetPhoneLine[];
+} {
+  const e = env();
   return {
-    configured,
-    provider: configured ? 'Twilio Voice SDK + WebRTC Softphone' : 'Twilio Softphone Gateway (Mock Fallback)',
-    activeLinesCount: activeLines.length,
-    lines: activeLines,
+    voiceConfigured: isTwilioVoiceConfigured(),
+    smsConfigured: Boolean(e.accountSid && process.env.TWILIO_AUTH_TOKEN && e.from),
+    dispatchNumber: e.dispatch && E164.test(e.dispatch) ? e.dispatch : null,
+    lines: getFleetLines(),
   };
-}
-
-export function createCallSession(caller: string, callee: string, callType: 'IN_APP_VOICE' | 'PSTN_OUTBOUND'): TelephonySession {
-  return {
-    sessionId: `call-${Date.now()}`,
-    callerNumber: caller,
-    calleeNumber: callee,
-    callType,
-    status: 'CONNECTED',
-    webrtcToken: generateTwilioVoiceToken(caller),
-    startedAt: new Date().toISOString(),
-  };
-}
-
-export function provisionFleetLine(fleetName: string, lineType: FleetPhoneLine['lineType']): FleetPhoneLine {
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const newLine: FleetPhoneLine = {
-    id: `line-${Date.now()}`,
-    phoneNumber: `+1-555-01${randomSuffix.toString().slice(0, 2)}`,
-    assignedFleet: fleetName,
-    lineType,
-    status: 'ACTIVE',
-    provider: isTwilioVoiceConfigured() ? 'twilio_voice' : 'mock_telephony',
-    webrtcSupported: true,
-  };
-  activeLines.push(newLine);
-  return newLine;
 }

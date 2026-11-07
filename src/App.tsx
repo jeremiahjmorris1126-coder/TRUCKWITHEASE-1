@@ -31,6 +31,7 @@ import { FleetExpensesInvoiceScreen } from './components/screens/FleetExpensesIn
 import { TripPlannerScreen } from './components/screens/TripPlannerScreen';
 import { RouteDispatchHub } from './components/screens/RouteDispatchHub';
 import { SignupScreen } from './components/screens/SignupScreen';
+import { MessagesScreen } from './components/screens/MessagesScreen';
 import { LandingScreen } from './components/entry/LandingScreen';
 import { SignInScreen } from './components/entry/SignInScreen';
 import { authenticatedFetch } from './services/firebaseClientAuth';
@@ -387,6 +388,8 @@ export default function App() {
         );
       case 'signup':
         return <SignupScreen />;
+      case 'messages':
+        return <MessagesScreen />;
       case 'haptics':
         return <HapticsScreen onShowToast={showToast} />;
       default:

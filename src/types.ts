@@ -1,4 +1,4 @@
-export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'fleet-expenses' | 'trip-planner' | 'truck-parking' | 'weigh-bypass' | 'signup';
+export type TabId = 'night-hud' | 'hos-clocks' | 'radar-54b' | 'master-mechanic' | 'haptics' | 'ecosystem' | 'vault' | 'telemetry' | 'dispatch-eta' | 'master-sync' | 'fleet-expenses' | 'trip-planner' | 'truck-parking' | 'weigh-bypass' | 'signup' | 'messages';
 
 export type DutyStatus = 'OFF' | 'SB' | 'D' | 'ON' | 'YM' | 'PC';
 
