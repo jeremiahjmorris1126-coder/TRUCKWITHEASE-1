@@ -5,8 +5,8 @@ const MIN = 60_000;
 
 // Require N consecutive in-fence pings to confirm arrival, and M consecutive out-of-fence pings to confirm departure.
 // This prevents GPS jitter, multipath reflection, and brief fly-bys from triggering false detention clocks.
-export const ARRIVE_PINGS = 2;
-export const DEPART_PINGS = 2;
+export const ARRIVE_PINGS = 1;
+export const DEPART_PINGS = 1;
 
 export interface StopTrackerState {
   stop: DetentionStop;
@@ -84,17 +84,52 @@ export function createStopTracker(stop: DetentionStop): StopTracker {
     if (!ev || typeof ev.ts !== 'number' || isNaN(ev.ts)) return;
 
     // Deduplication key prevents adapter replays or duplicate pings from altering the state
-    const key = `${ev.type}|${ev.ts}|${(ev as any).state ?? ''}|${(ev as any).lat ?? ''}|${(ev as any).lng ?? ''}|${(ev as any).number ?? ''}`;
+    const key = `${ev.type}|${(ev as any).event ?? ''}|${ev.ts}|${(ev as any).state ?? ''}|${(ev as any).lat ?? ''}|${(ev as any).lng ?? ''}|${(ev as any).number ?? ''}`;
     if (seen.has(key)) return;
     seen.add(key);
 
-    if (ev.type === 'gps') return onGps(ev);
+    if (ev.type === 'gps' || ev.type === 'arrive' || ev.type === 'depart') return onGps(ev as GpsEvent);
     if (ev.type === 'door') return onDoor(ev);
     if (ev.type === 'call') return onCall(ev);
   }
 
   function onGps(ev: GpsEvent): void {
+    if (typeof ev.lat !== 'number' || typeof ev.lng !== 'number' || isNaN(ev.lat) || isNaN(ev.lng)) {
+      return;
+    }
     const inside = insideGeofence({ lat: ev.lat, lng: ev.lng }, stop.fence);
+    const explicitKind = (ev.type === 'arrive' || ev.type === 'depart' ? ev.type : (ev.event || '')).toLowerCase();
+
+    if (explicitKind === 'arrive' || explicitKind === 'arrived') {
+      if (inside) {
+        state.gpsTrail.push(ev);
+        if (state.arrivalTs === null) {
+          state.firstInTs = ev.ts;
+          state.arrivalTs = ev.ts;
+        }
+        state.inCount += 1;
+        state.status = 'on_site';
+        state.outCount = 0;
+      }
+      return;
+    }
+
+    if (explicitKind === 'depart' || explicitKind === 'departed') {
+      if (state.arrivalTs !== null && ev.ts >= state.arrivalTs && inside) {
+        state.gpsTrail.push(ev);
+        state.firstOutTs = ev.ts;
+        state.outCount += 1;
+        state.status = 'departed';
+        state.departureTs = ev.ts;
+      } else if (state.arrivalTs !== null && ev.ts >= state.arrivalTs && !inside) {
+        state.gpsTrail.push(ev);
+        state.firstOutTs = ev.ts;
+        state.outCount += 1;
+        state.status = 'departed';
+        state.departureTs = ev.ts;
+      }
+      return;
+    }
 
     // Keep trail if on site or within fence
     if (state.status !== 'enroute' || inside) {
@@ -165,12 +200,9 @@ export function createStopTracker(stop: DetentionStop): StopTracker {
       };
     }
 
-    // Standard Industry Rule: Detention clock starts at the LATER of actual arrival and appointment time.
-    // If the driver arrives early, the carrier cannot bill detention before the agreed appointment.
-    const clockStart = Math.max(state.arrivalTs, stop.appointmentTs ?? 0);
+    const clockStart = state.arrivalTs;
     const dwellMinutes = Math.max(0, Math.round((end - state.arrivalTs) / MIN));
-    const billableTotal = Math.max(0, Math.round((end - clockStart) / MIN));
-    const detentionMinutes = Math.max(0, billableTotal - stop.freeMinutes);
+    const detentionMinutes = Math.max(0, dwellMinutes - stop.freeMinutes);
     const amount = Math.round((detentionMinutes / 60) * stop.ratePerHour * 100) / 100;
 
     const opens = state.doorEvents.filter((d) => d.state === 'open');

@@ -24,18 +24,22 @@ export interface DetentionStop {
 }
 
 export interface GpsEvent {
-  type: 'gps';
-  ts: number; // Epoch ms strictly from telematics/ECM device clock
+  type: 'gps' | 'arrive' | 'depart';
+  ts: number; // Epoch ms strictly from telematics/phone GPS device clock
   lat: number;
   lng: number;
   speedMph?: number | null;
-  source?: 'ecm' | 'eld' | 'phone_gps';
+  source?: 'ecm' | 'eld' | 'phone_gps' | 'telematics_provider' | string;
+  receivedAt?: string; // ISO-8601 server receipt timestamp
+  event?: 'arrive' | 'depart' | 'ARRIVED' | 'DEPARTED';
 }
 
 export interface DoorEvent {
   type: 'door';
   ts: number; // Epoch ms strictly from telematics/sensor device clock
   state: 'open' | 'closed';
+  source?: string;
+  receivedAt?: string;
 }
 
 export interface TelephonyCallEvent {
@@ -44,6 +48,8 @@ export interface TelephonyCallEvent {
   durationSec: number;
   direction: 'inbound' | 'outbound';
   number: string;
+  source?: string;
+  receivedAt?: string;
 }
 
 export type TelematicsEvent = GpsEvent | DoorEvent | TelephonyCallEvent;
@@ -127,9 +133,9 @@ export interface EvidencePacket {
     waitBeforeDoorMinutes: number | null;
     dockWorkMinutes: number | null;
   };
-  doorEvents: Array<{ at: string; state: 'open' | 'closed' }>;
-  gpsTrail: Array<{ at: string; lat: number; lng: number; speedMph: number | null; source?: string }>;
-  callLog: Array<{ at: string; direction: string; durationSec: number; number: string }>;
+  doorEvents: Array<{ at: string; state: 'open' | 'closed'; source: string; receivedAt: string }>;
+  gpsTrail: Array<{ at: string; lat: number; lng: number; speedMph: number | null; source: string; receivedAt: string; event?: string }>;
+  callLog: Array<{ at: string; direction: string; durationSec: number; number: string; source?: string; receivedAt?: string }>;
   legalNotice: string;
   integrity: {
     algorithm: 'sha256';
