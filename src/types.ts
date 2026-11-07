@@ -76,7 +76,7 @@ export interface InspectionLogEntry {
   daysCovered: number; // 8
   documentHash: string; // SHA-256
   recordNumber: string; // e.g. "REC-2026-0911-4138"
-  fileSize: string; // e.g. "342 KB"
+  fileSize?: string;
   verified: boolean;
   notes: string;
 }

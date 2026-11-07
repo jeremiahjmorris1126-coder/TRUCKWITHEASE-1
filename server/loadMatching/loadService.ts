@@ -1,4 +1,12 @@
 import { fleetStore, CallerIdentity } from '../data/fleetStore';
+import { logAuditEvent } from '../admin/adminService';
+
+const LOAD_STATUS_ORDER: Record<'AVAILABLE' | 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED', number> = {
+  AVAILABLE: 0,
+  DISPATCHED: 1,
+  IN_TRANSIT: 2,
+  COMPLETED: 3,
+};
 
 export interface FreightLoad {
   id: string;
@@ -216,6 +224,21 @@ export async function dispatchLoad(
     throw err;
   }
 
+  if (existing.status === 'COMPLETED') {
+    const err = new Error('Invalid status transition: COMPLETED load cannot be reverted to DISPATCHED.');
+    (err as any).statusCode = 400;
+    throw err;
+  }
+
+  if (LOAD_STATUS_ORDER['DISPATCHED'] < LOAD_STATUS_ORDER[existing.status]) {
+    logAuditEvent(
+      'WARN',
+      'LOAD_STATUS_REVERSAL',
+      `Load ${loadId} status reversed from ${existing.status} to DISPATCHED by ${caller.role} (${caller.uid})`,
+      caller.uid
+    );
+  }
+
   return fleetStore.updateScopedDocument<FreightLoad>(caller, 'loads', loadId, {
     status: 'DISPATCHED',
     assignedDriverId: driverId,
@@ -226,19 +249,104 @@ export async function dispatchLoad(
 export async function updateLoadStatus(
   caller: CallerIdentity,
   loadId: string,
-  status: 'AVAILABLE' | 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED',
-  assignedUnitId?: string
+  status?: 'AVAILABLE' | 'DISPATCHED' | 'IN_TRANSIT' | 'COMPLETED',
+  assignedUnitId?: string,
+  assignedDriverId?: string
 ): Promise<FreightLoad | null> {
   const existing = await fleetStore.getScopedDocument<FreightLoad>(caller, 'loads', loadId);
   if (!existing) {
     return null;
   }
+
+  const targetStatus = status ?? existing.status;
+  if (!(targetStatus in LOAD_STATUS_ORDER)) {
+    const err = new Error(`Invalid status. Must be one of: ${Object.keys(LOAD_STATUS_ORDER).join(', ')}`);
+    (err as any).statusCode = 400;
+    throw err;
+  }
+
+  const isAdminOrOwner = caller.role === 'fleet_admin' || caller.role === 'owner';
+
+  if (caller.role === 'driver') {
+    if (assignedDriverId !== undefined && assignedDriverId !== caller.uid) {
+      const err = new Error('Forbidden: Only fleet_admin or owner can assign or reassign loads to drivers.');
+      (err as any).statusCode = 403;
+      throw err;
+    }
+
+    if (existing.assignedDriverId && existing.assignedDriverId !== caller.uid) {
+      const err = new Error('Forbidden: Load is assigned to another driver.');
+      (err as any).statusCode = 403;
+      throw err;
+    }
+
+    if (!existing.assignedDriverId && existing.status !== 'AVAILABLE') {
+      const err = new Error('Forbidden: Drivers may only update loads assigned to them or accept an AVAILABLE unassigned load.');
+      (err as any).statusCode = 403;
+      throw err;
+    }
+  }
+
+  const currentOrder = LOAD_STATUS_ORDER[existing.status];
+  const nextOrder = LOAD_STATUS_ORDER[targetStatus];
+
+  if (existing.status === 'COMPLETED' && targetStatus !== 'COMPLETED') {
+    const err = new Error(`Invalid status transition: COMPLETED load cannot be reverted to ${targetStatus}.`);
+    (err as any).statusCode = 400;
+    throw err;
+  }
+
+  if (nextOrder > currentOrder) {
+    if (nextOrder !== currentOrder + 1) {
+      const err = new Error(
+        `Invalid status transition from ${existing.status} to ${targetStatus}. Valid order is AVAILABLE -> DISPATCHED -> IN_TRANSIT -> COMPLETED.`
+      );
+      (err as any).statusCode = 400;
+      throw err;
+    }
+  } else if (nextOrder < currentOrder) {
+    if (!isAdminOrOwner) {
+      const err = new Error(
+        `Invalid status transition from ${existing.status} to ${targetStatus}. Only fleet_admin or owner can reverse a load status.`
+      );
+      (err as any).statusCode = 400;
+      throw err;
+    }
+    logAuditEvent(
+      'WARN',
+      'LOAD_STATUS_REVERSAL',
+      `Load ${loadId} status reversed from ${existing.status} to ${targetStatus} by ${caller.role} (${caller.uid})`,
+      caller.uid
+    );
+  } else {
+    const isAdminReassign =
+      isAdminOrOwner &&
+      ((assignedDriverId !== undefined && assignedDriverId !== existing.assignedDriverId) ||
+        (assignedUnitId !== undefined && assignedUnitId !== existing.assignedUnitId));
+    if (!isAdminReassign || existing.status === 'COMPLETED') {
+      const err = new Error(`Invalid status transition: Load is already in status ${existing.status}.`);
+      (err as any).statusCode = 400;
+      throw err;
+    }
+  }
+
   const updates: Partial<FreightLoad> = {
-    status,
+    status: targetStatus,
   };
+
   if (caller.role === 'driver') {
     updates.assignedDriverId = caller.uid;
     if (assignedUnitId) updates.assignedUnitId = assignedUnitId;
+  } else if (isAdminOrOwner) {
+    if (assignedDriverId !== undefined) {
+      updates.assignedDriverId = assignedDriverId;
+    } else if (targetStatus === 'AVAILABLE') {
+      updates.assignedDriverId = undefined;
+    }
+    if (assignedUnitId !== undefined) {
+      updates.assignedUnitId = assignedUnitId;
+    }
   }
+
   return fleetStore.updateScopedDocument<FreightLoad>(caller, 'loads', loadId, updates);
 }

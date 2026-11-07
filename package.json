@@ -18,6 +18,9 @@
     "worker:build": "esbuild server/worker.ts --bundle --format=esm --outfile=dist/worker.js",
     "worker:deploy": "wrangler deploy",
     "cloudflare:login": "wrangler login",
+    "deploy:hybrid": "powershell -File ./deploy_hybrid_gcp_cloudflare.ps1",
+    "deploy:gcp": "gcloud run deploy truckwithease-1 --source . --region us-central1 --project project-f0634118-be01-44f7-b36 --set-env-vars NODE_ENV=production,GCP_PROJECT_ID=project-f0634118-be01-44f7-b36,FIRESTORE_DATABASE_ID=app-builder-38a26d99",
+    "deploy:cloudflare:pages": "bun run build && wrangler pages deploy dist --project-name=truckwithease",
     "deploy:firebase": "vite build && firebase deploy --only hosting",
     "firebase:login": "firebase login"
   },

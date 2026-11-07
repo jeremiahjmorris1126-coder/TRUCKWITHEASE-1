@@ -206,7 +206,6 @@ export default function App() {
       daysCovered: 8,
       documentHash: randomHex,
       recordNumber: recNum,
-      fileSize: `${Math.floor(340 + Math.random() * 25)} KB`,
       verified: Boolean(false),
       notes:
         notes || (firebaseUser?.email ? `Attested by authenticated driver (${firebaseUser.email}) at ${displayTime}. Compliant under 49 CFR § 395.8.` : `Inspection record generated at ${displayTime}. Driver sign-in required for digital attestation.`),

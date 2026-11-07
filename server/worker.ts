@@ -1,12 +1,12 @@
 /**
- * TruckWithEase // Cloudflare Edge Worker
+ * TruckWithEase // Cloudflare Edge Gateway Worker
  * Worker Name: truckwithease-1
  *
- * Bindings:
- * - env.DB: D1Database (truckwithease-db)
- * - env.CACHE: KVNamespace (truckwithease-cache)
- * - env.GEMINI_API_KEY: string (optional)
- * - env.CARRIER_API_SECRET: string (optional)
+ * Edge Responsibilities:
+ * 1. Hosts custom domains: truckwithease.com, morrishive.com
+ * 2. Edge caching with Cloudflare KV (truckwithease-cache)
+ * 3. Structured audit logging with Cloudflare D1 (truckwithease-db)
+ * 4. Reverse proxies /api/*, /v1/*, /health, /voice to Google Cloud Run backend
  */
 
 export interface D1Database {
@@ -32,143 +32,157 @@ export interface Env {
   CACHE?: KVNamespace;
   ENVIRONMENT?: string;
   APP_NAME?: string;
+  PRIMARY_DOMAIN?: string;
+  ENTERPRISE_PORTAL_DOMAIN?: string;
+  BACKEND_URL?: string;
   GEMINI_API_KEY?: string;
   CARRIER_API_SECRET?: string;
 }
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-carrier-token, x-serverless-authorization',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Type, X-Cache, X-Backend-Provider',
 };
+
+const DEFAULT_CLOUD_RUN_BACKEND = 'https://truckwithease-1-62nxuqhmtq-uc.a.run.app';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // Handle CORS preflight
+    // Handle CORS preflight at edge
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS });
     }
 
     try {
-      // 1. Health & Readiness
-      if (url.pathname === '/api/health') {
-        const cachedHealth = env.CACHE ? await env.CACHE.get('subsystem_health') : null;
-        let d1Healthy = false;
-        try {
-          if (env.DB) {
-            await env.DB.prepare('SELECT 1').first();
-            d1Healthy = true;
-          }
-        } catch (e) {
-          d1Healthy = false;
-        }
-
-        const healthPayload = {
-          status: 'UP',
-          readiness: 'READY',
-          edgePlatform: 'Cloudflare Workers (Global Edge)',
-          worker: 'truckwithease-1',
-          uptimeSeconds: Math.floor(Date.now() / 1000),
-          bindings: {
-            d1Database: env.DB ? (d1Healthy ? 'CONNECTED' : 'BOUND_SCHEMA_UNINITIALIZED') : 'NOT_BOUND',
-            kvCache: env.CACHE ? 'CONNECTED' : 'NOT_BOUND',
-          },
-          subsystems: {
-            dvirEngine: 'ACTIVE',
-            routingEngine: 'ACTIVE',
-          },
-          timestamp: new Date().toISOString(),
-        };
-
-        if (env.CACHE && !cachedHealth) {
-          ctx.waitUntil(env.CACHE.put('subsystem_health', JSON.stringify(healthPayload), { expirationTtl: 60 }));
-        }
-
-        return new Response(JSON.stringify(healthPayload, null, 2), {
-          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (url.pathname === '/api/ready') {
-        return new Response(
-          JSON.stringify({
-            ready: true,
-            service: 'TruckWithEase Edge Worker (truckwithease-1)',
-            version: '1.0.0-production',
-            timestamp: new Date().toISOString(),
-          }),
-          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // 2. Tenant Auth Check
-      if (url.pathname === '/api/auth/tenant') {
-        const authHeader = request.headers.get('Authorization') || request.headers.get('x-api-key');
-        const cfColo = (request as any).cf?.colo || 'EDGE';
-        return new Response(
-          JSON.stringify({
-            status: authHeader ? 'AUTHORIZED' : 'ANONYMOUS_TENANT',
-            tenant: 'morrishive-logistics',
-            authorizedAt: new Date().toISOString(),
-            edgeRegion: cfColo,
-          }),
-          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // 3. Regional Weather Hazards (with KV Cache)
-      if (url.pathname === '/api/weather/hazards') {
+      // 1. Edge-Accelerated Weather Hazards (Served directly from KV if present)
+      if (url.pathname === '/api/weather/hazards' && request.method === 'GET') {
         const corridor = url.searchParams.get('corridor') || 'I-80';
         const cacheKey = `weather_hazard_${corridor}`;
 
         const cached = env.CACHE ? await env.CACHE.get(cacheKey) : null;
         if (cached) {
           return new Response(cached, {
-            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'X-Cache': 'HIT' },
+            headers: {
+              ...CORS_HEADERS,
+              'Content-Type': 'application/json',
+              'X-Cache': 'HIT',
+              'X-Edge-Provider': 'Cloudflare-KV',
+            },
           });
         }
+      }
 
-        const hazardData = {
-          corridor,
-          hazards: [
-            {
-              type: 'WIND_GUST',
-              severity: 'CAUTION',
-              location: `${corridor} Corridor MP 140-210`,
-              speedMph: 42,
-              recommendation: 'Empty and high-cube dry vans reduce speed to 50 MPH.',
-            },
-          ],
-          source: 'Cloudflare Edge Weather Engine',
+      // 2. Edge Diagnostics Probe
+      if (url.pathname === '/api/edge/status') {
+        let d1Healthy = false;
+        try {
+          if (env.DB) {
+            await env.DB.prepare('SELECT 1').first();
+            d1Healthy = true;
+          }
+        } catch {
+          d1Healthy = false;
+        }
+
+        const edgeStatus = {
+          status: 'UP',
+          edgePlatform: 'Cloudflare Global Edge Anycast',
+          worker: 'truckwithease-1',
+          uptimeSeconds: Math.floor(Date.now() / 1000),
+          backendOrigin: env.BACKEND_URL || DEFAULT_CLOUD_RUN_BACKEND,
+          bindings: {
+            d1Database: env.DB ? (d1Healthy ? 'CONNECTED' : 'BOUND_SCHEMA_UNINITIALIZED') : 'NOT_BOUND',
+            kvCache: env.CACHE ? 'CONNECTED' : 'NOT_BOUND',
+          },
+          colo: (request as any).cf?.colo || 'EDGE',
           timestamp: new Date().toISOString(),
         };
 
-        const jsonStr = JSON.stringify(hazardData);
-        if (env.CACHE) {
-          ctx.waitUntil(env.CACHE.put(cacheKey, jsonStr, { expirationTtl: 300 }));
-        }
-
-        return new Response(jsonStr, {
-          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'X-Cache': 'MISS' },
+        return new Response(JSON.stringify(edgeStatus, null, 2), {
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
         });
       }
 
-      // Default API 404
+      // 3. Reverse Proxy all API, Telemetry, and Webhook Routes to Google Cloud Run
+      const isBackendRoute =
+        url.pathname.startsWith('/api/') ||
+        url.pathname.startsWith('/v1/') ||
+        url.pathname === '/health' ||
+        url.pathname === '/ready' ||
+        url.pathname === '/voice';
+
+      if (isBackendRoute) {
+        const backendOrigin = (env.BACKEND_URL || DEFAULT_CLOUD_RUN_BACKEND).replace(/\/+$/, '');
+        const targetUrl = new URL(url.pathname + url.search, backendOrigin);
+
+        // Forward caller headers while augmenting with Cloudflare proxy telemetry
+        const proxyHeaders = new Headers(request.headers);
+        proxyHeaders.set('x-forwarded-host', url.host);
+        proxyHeaders.set('x-forwarded-proto', url.protocol.replace(':', ''));
+        const clientIp = request.headers.get('cf-connecting-ip');
+        if (clientIp) {
+          proxyHeaders.set('x-forwarded-for', clientIp);
+          proxyHeaders.set('cf-connecting-ip', clientIp);
+        }
+
+        const proxyReq = new Request(targetUrl.toString(), {
+          method: request.method,
+          headers: proxyHeaders,
+          body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
+          redirect: 'follow',
+        });
+
+        const backendResponse = await fetch(proxyReq);
+
+        // Create response with CORS headers retained
+        const responseHeaders = new Headers(backendResponse.headers);
+        Object.entries(CORS_HEADERS).forEach(([k, v]) => {
+          if (!responseHeaders.has(k)) {
+            responseHeaders.set(k, v);
+          }
+        });
+        responseHeaders.set('X-Backend-Provider', 'Google-Cloud-Run');
+
+        // Cache successful weather hazard responses in Cloudflare KV asynchronously
+        if (url.pathname === '/api/weather/hazards' && backendResponse.status === 200 && env.CACHE) {
+          const cloned = backendResponse.clone();
+          ctx.waitUntil(
+            cloned.text().then((body) => {
+              const corridor = url.searchParams.get('corridor') || 'I-80';
+              return env.CACHE!.put(`weather_hazard_${corridor}`, body, { expirationTtl: 300 });
+            })
+          );
+        }
+
+        return new Response(backendResponse.body, {
+          status: backendResponse.status,
+          statusText: backendResponse.statusText,
+          headers: responseHeaders,
+        });
+      }
+
+      // 4. Fallback: Not Found
       return new Response(
         JSON.stringify({
           error: 'Not Found',
           path: url.pathname,
           worker: 'truckwithease-1',
-          availableEndpoints: ['/api/health', '/api/ready', '/api/auth/tenant', '/api/weather/hazards'],
+          backendTarget: env.BACKEND_URL || DEFAULT_CLOUD_RUN_BACKEND,
         }),
         { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     } catch (err: any) {
       return new Response(
-        JSON.stringify({ error: 'Worker Internal Error', details: err?.message || String(err) }),
-        { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: 'Edge Gateway Error',
+          details: err?.message || String(err),
+          backendOrigin: env.BACKEND_URL || DEFAULT_CLOUD_RUN_BACKEND,
+        }),
+        { status: 502, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
   },

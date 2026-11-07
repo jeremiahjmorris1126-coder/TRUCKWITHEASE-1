@@ -214,7 +214,13 @@ export class DvirService {
       safeToOperate: true,
     };
 
-    return await fleetStore.updateScopedDocument<DvirRecord>(caller, 'dvir', id, updated);
+    const result = await fleetStore.updateScopedDocument<DvirRecord>(caller, 'dvir', id, updated);
+    if (!result) {
+      const err = new Error('Failed to update DVIR repair certification.');
+      (err as any).statusCode = 500;
+      throw err;
+    }
+    return result;
   }
 
   async reviewPreviousDvir(
@@ -260,7 +266,13 @@ export class DvirService {
       status: 'CERTIFIED_SAFE',
     };
 
-    return await fleetStore.updateScopedDocument<DvirRecord>(caller, 'dvir', id, updated);
+    const result = await fleetStore.updateScopedDocument<DvirRecord>(caller, 'dvir', id, updated);
+    if (!result) {
+      const err = new Error('Failed to update DVIR repair certification.');
+      (err as any).statusCode = 500;
+      throw err;
+    }
+    return result;
   }
 }
 

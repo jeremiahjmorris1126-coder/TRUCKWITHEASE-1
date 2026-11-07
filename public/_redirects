@@ -1,3 +1,15 @@
-# Cloudflare Pages Single Page Application (SPA) routing
-# Redirects all incoming routes to /index.html with HTTP status 200
-/*    /index.html   200
+# ==============================================================================
+# Cloudflare Pages Routing Rules: TruckWithEase & MorrisHive
+# Target: Cloudflare hosts frontend SPA; Google Cloud Run handles backend APIs
+# ==============================================================================
+
+# 1. API & Backend Route Proxying to Google Cloud Run (us-central1)
+/api/*   https://truckwithease-1-62nxuqhmtq-uc.a.run.app/api/:splat  200
+/v1/*    https://truckwithease-1-62nxuqhmtq-uc.a.run.app/v1/:splat   200
+/health  https://truckwithease-1-62nxuqhmtq-uc.a.run.app/health      200
+/ready   https://truckwithease-1-62nxuqhmtq-uc.a.run.app/ready       200
+/voice   https://truckwithease-1-62nxuqhmtq-uc.a.run.app/voice       200
+
+# 2. Cloudflare Pages Single Page Application (SPA) HTML5 History Routing
+# Serves /index.html for all client-side paths (/hud, /dispatch, /vault, etc.)
+/*       /index.html                                                  200

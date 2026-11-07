@@ -111,7 +111,7 @@ export const MasterMechanicScreen: React.FC<MasterMechanicScreenProps> = ({
       body: JSON.stringify({
         type: 'CRITICAL_FAULT',
         severity: 'WARNING',
-        vehicleUnit: session?.user?.unitNumber || '',
+        vehicleUnit: (session?.user as any)?.unitNumber || '',
         driverName: session?.user?.name || '',
         title: `Mechanic Dispatched: ${facilityName}`,
         description: `Roadside repair dispatch initiated for ${facilityName}. ETA 22 min.`,

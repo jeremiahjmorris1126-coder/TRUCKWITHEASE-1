@@ -799,43 +799,33 @@ async function startServer() {
     }
   });
 
-  app.post(['/api/loads/:id/status', '/api/loads/:id/accept'], async (req, res) => {
+  const handleLoadStatusRoute = async (req: express.Request, res: express.Response) => {
     try {
       const caller: CallerIdentity = (req as any).user;
       if (req.body?.fleetId && req.body.fleetId !== caller.fleetId) {
         return res.status(400).json({ success: false, error: 'Cannot set or change fleetId.' });
       }
-      const { status = 'DISPATCHED', assignedUnitId } = req.body || {};
+      const isAcceptRoute = req.path.endsWith('/accept');
+      const status = req.body?.status ?? (isAcceptRoute ? 'DISPATCHED' : undefined);
+      const assignedUnitId = req.body?.assignedUnitId ?? req.body?.unitId;
+      const assignedDriverId = req.body?.assignedDriverId ?? req.body?.driverId;
       const validStatuses = ['AVAILABLE', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED'];
-      if (!validStatuses.includes(status)) {
+      if (status !== undefined && !validStatuses.includes(status)) {
         return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
       }
-      const updated = await updateLoadStatus(caller, req.params.id, status, assignedUnitId);
+      if (status === undefined && assignedDriverId === undefined && assignedUnitId === undefined) {
+        return res.status(400).json({ success: false, error: 'status or assignment update is required.' });
+      }
+      const updated = await updateLoadStatus(caller, req.params.id, status, assignedUnitId, assignedDriverId);
       if (!updated) return res.status(404).json({ success: false, error: 'Load not found' });
       res.json({ success: true, load: updated });
     } catch (err: any) {
       res.status(err.statusCode || 500).json({ success: false, error: err.message });
     }
-  });
+  };
 
-  app.put('/api/loads/:id/status', async (req, res) => {
-    try {
-      const caller: CallerIdentity = (req as any).user;
-      if (req.body?.fleetId && req.body.fleetId !== caller.fleetId) {
-        return res.status(400).json({ success: false, error: 'Cannot set or change fleetId.' });
-      }
-      const { status = 'DISPATCHED', assignedUnitId } = req.body || {};
-      const validStatuses = ['AVAILABLE', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED'];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
-      }
-      const updated = await updateLoadStatus(caller, req.params.id, status, assignedUnitId);
-      if (!updated) return res.status(404).json({ success: false, error: 'Load not found' });
-      res.json({ success: true, load: updated });
-    } catch (err: any) {
-      res.status(err.statusCode || 500).json({ success: false, error: err.message });
-    }
-  });
+  app.post(['/api/loads/:id/status', '/api/loads/:id/accept'], handleLoadStatusRoute);
+  app.put('/api/loads/:id/status', handleLoadStatusRoute);
 
   // ==========================================
   // PHASE 3: DRIVER APP, PROFILES & VAULT
