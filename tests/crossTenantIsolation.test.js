@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { fleetStore } from '../server/data/fleetStore.ts';
-import { getLoads, createLoad, getLoadById, dispatchLoad } from '../server/loadMatching/loadService.ts';
+import { getLoads, createLoad, getLoadById, dispatchLoad, updateLoadStatus } from '../server/loadMatching/loadService.ts';
+import { getAuditLogs } from '../server/admin/adminService.ts';
 import { triggerAuxAlert, getActiveAlerts, resolveAlert } from '../server/alerts/alertEngine.ts';
 import { getDriverProfile, updateDriverProfile, getDriverDocuments, addDriverDocument, getDriverDocumentById } from '../server/driver/driverProfileService.ts';
 import { vehicleProfileService } from '../server/routing/vehicleProfileService.ts';
@@ -614,4 +615,130 @@ test('10. Commercial Routing & Vehicle Profile: Multi-Tenant Fleet Isolation & M
   if (route.provider === 'mock') {
     assert.equal(route.mock, true, 'Mock route must be explicitly flagged with mock: true');
   }
+});
+
+test('11. Load Status Authorization, Sequential Transitions & Admin Reassignment (200 / 403 / 404 / 400)', async () => {
+  fleetStore.clearMockStore();
+
+  const FLEET1_DRIVER_B = { uid: 'drv-f1-other', role: 'driver', fleetId: 'FLEET1' };
+
+  // Helper that mirrors the exact HTTP route handler in server.ts (/api/loads/:id/status & /accept)
+  async function invokeLoadStatusRoute(caller, loadId, body = {}, isAcceptRoute = false) {
+    try {
+      if (body?.fleetId && body.fleetId !== caller.fleetId) {
+        return { status: 400, body: { success: false, error: 'Cannot set or change fleetId.' } };
+      }
+      const status = body?.status ?? (isAcceptRoute ? 'DISPATCHED' : undefined);
+      const assignedUnitId = body?.assignedUnitId ?? body?.unitId;
+      const assignedDriverId = body?.assignedDriverId ?? body?.driverId;
+      const validStatuses = ['AVAILABLE', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED'];
+      if (status !== undefined && !validStatuses.includes(status)) {
+        return { status: 400, body: { success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` } };
+      }
+      if (status === undefined && assignedDriverId === undefined && assignedUnitId === undefined) {
+        return { status: 400, body: { success: false, error: 'status or assignment update is required.' } };
+      }
+      const updated = await updateLoadStatus(caller, loadId, status, assignedUnitId, assignedDriverId);
+      if (!updated) return { status: 404, body: { success: false, error: 'Load not found' } };
+      return { status: 200, body: { success: true, load: updated } };
+    } catch (err) {
+      return { status: err.statusCode || 500, body: { success: false, error: err.message } };
+    }
+  }
+
+  // Create an AVAILABLE unassigned load in FLEET1
+  const load = await createLoad(FLEET1_ADMIN, {
+    loadNumber: 'AUTH-LOAD-01',
+    origin: 'Dallas, TX',
+    destination: 'Memphis, TN',
+    miles: 450,
+    deadheadMiles: 10,
+    grossPayUsd: 1950,
+    equipmentType: 'DRY_VAN',
+    weightLbs: 36000,
+    pickupTime: 'Today 09:00 CST',
+    deliveryTime: 'Today 18:00 CST',
+    shipperBroker: 'Continental Freight',
+    contactPhone: '+1-800-555-0190',
+    estimatedTransitHours: 7.5,
+  });
+  assert.equal(load.status, 'AVAILABLE');
+  assert.equal(load.assignedDriverId, undefined);
+
+  // 1. Invalid transition on AVAILABLE load: skipping DISPATCHED straight to IN_TRANSIT -> 400
+  const skipRes = await invokeLoadStatusRoute(FLEET1_DRIVER, load.id, { status: 'IN_TRANSIT' });
+  assert.equal(skipRes.status, 400, 'Skipping AVAILABLE -> IN_TRANSIT must return 400');
+
+  // 2. Driver accepts AVAILABLE unassigned load -> 200 (AVAILABLE -> DISPATCHED)
+  const acceptRes = await invokeLoadStatusRoute(FLEET1_DRIVER, load.id, {}, true);
+  assert.equal(acceptRes.status, 200, 'Driver accepting AVAILABLE unassigned load must return 200');
+  assert.equal(acceptRes.body.load.status, 'DISPATCHED');
+  assert.equal(acceptRes.body.load.assignedDriverId, FLEET1_DRIVER.uid);
+
+  // 3. Another driver in the SAME fleet tries to update or accept or reassign FLEET1_DRIVER's load -> 403 and unchanged on read-back
+  const otherDriverAttempt = await invokeLoadStatusRoute(FLEET1_DRIVER_B, load.id, { status: 'IN_TRANSIT' });
+  assert.equal(otherDriverAttempt.status, 403, 'Driver updating another driver load in same fleet must return 403');
+
+  const readBackAfterOtherDriver = await getLoadById(FLEET1_ADMIN, load.id);
+  assert.equal(readBackAfterOtherDriver.status, 'DISPATCHED', 'Load status must remain unchanged on read-back');
+  assert.equal(readBackAfterOtherDriver.assignedDriverId, FLEET1_DRIVER.uid, 'Assigned driver must remain unchanged on read-back');
+
+  // 4. Driver tries to reassign their load to another driver -> 403
+  const driverReassignAttempt = await invokeLoadStatusRoute(FLEET1_DRIVER, load.id, {
+    status: 'IN_TRANSIT',
+    assignedDriverId: FLEET1_DRIVER_B.uid,
+  });
+  assert.equal(driverReassignAttempt.status, 403, 'Driver attempting to reassign load to another driver must return 403');
+
+  // 5. Other fleet (FLEET2) attempts to update FLEET1 load -> 404 and unchanged on read-back
+  const otherFleetAttempt = await invokeLoadStatusRoute(FLEET2_DRIVER, load.id, { status: 'IN_TRANSIT' });
+  assert.equal(otherFleetAttempt.status, 404, 'Other fleet updating load must return 404');
+  const otherFleetAdminAttempt = await invokeLoadStatusRoute(FLEET2_ADMIN, load.id, { status: 'IN_TRANSIT' });
+  assert.equal(otherFleetAdminAttempt.status, 404, 'Other fleet admin updating load must return 404');
+
+  const readBackAfterCrossFleet = await getLoadById(FLEET1_ADMIN, load.id);
+  assert.equal(readBackAfterCrossFleet.status, 'DISPATCHED');
+  assert.equal(readBackAfterCrossFleet.assignedDriverId, FLEET1_DRIVER.uid);
+
+  // 6. Admin reassigns load to FLEET1_DRIVER_B -> 200
+  const adminReassignRes = await invokeLoadStatusRoute(FLEET1_ADMIN, load.id, {
+    status: 'DISPATCHED',
+    assignedDriverId: FLEET1_DRIVER_B.uid,
+    assignedUnitId: 'UNIT-202',
+  });
+  assert.equal(adminReassignRes.status, 200, 'Admin reassigning load must return 200');
+  assert.equal(adminReassignRes.body.load.assignedDriverId, FLEET1_DRIVER_B.uid);
+  assert.equal(adminReassignRes.body.load.assignedUnitId, 'UNIT-202');
+
+  // 7. Now FLEET1_DRIVER_B (assigned driver) updates own load: DISPATCHED -> IN_TRANSIT -> 200
+  const ownUpdateInTransit = await invokeLoadStatusRoute(FLEET1_DRIVER_B, load.id, { status: 'IN_TRANSIT' });
+  assert.equal(ownUpdateInTransit.status, 200, 'Assigned driver updating own load to IN_TRANSIT must return 200');
+  assert.equal(ownUpdateInTransit.body.load.status, 'IN_TRANSIT');
+
+  // 8. Driver tries to reverse status (IN_TRANSIT -> DISPATCHED) -> 400
+  const driverReverseAttempt = await invokeLoadStatusRoute(FLEET1_DRIVER_B, load.id, { status: 'DISPATCHED' });
+  assert.equal(driverReverseAttempt.status, 400, 'Driver reversing load status must return 400');
+
+  // 9. Admin reverses status (IN_TRANSIT -> DISPATCHED) -> 200 and logged in audit trail
+  const adminReverseRes = await invokeLoadStatusRoute(FLEET1_ADMIN, load.id, { status: 'DISPATCHED' });
+  assert.equal(adminReverseRes.status, 200, 'Admin reversing non-completed status must return 200');
+  assert.equal(adminReverseRes.body.load.status, 'DISPATCHED');
+  const logs = getAuditLogs(10);
+  assert.ok(
+    logs.some((l) => l.subsystem === 'LOAD_STATUS_REVERSAL' && l.message.includes(load.id)),
+    'Admin status reversal must be logged in audit events'
+  );
+
+  // 10. Advance to IN_TRANSIT and COMPLETED by assigned driver -> 200
+  const toInTransitAgain = await invokeLoadStatusRoute(FLEET1_DRIVER_B, load.id, { status: 'IN_TRANSIT' });
+  assert.equal(toInTransitAgain.status, 200);
+  const toCompleted = await invokeLoadStatusRoute(FLEET1_DRIVER_B, load.id, { status: 'COMPLETED' });
+  assert.equal(toCompleted.status, 200, 'Assigned driver completing IN_TRANSIT load must return 200');
+  assert.equal(toCompleted.body.load.status, 'COMPLETED');
+
+  // 11. COMPLETED cannot go back (even for fleet_admin / owner) -> 400
+  const driverRevertCompleted = await invokeLoadStatusRoute(FLEET1_DRIVER_B, load.id, { status: 'IN_TRANSIT' });
+  assert.equal(driverRevertCompleted.status, 400, 'Driver reverting COMPLETED load must return 400');
+  const adminRevertCompleted = await invokeLoadStatusRoute(FLEET1_ADMIN, load.id, { status: 'IN_TRANSIT' });
+  assert.equal(adminRevertCompleted.status, 400, 'Even fleet_admin cannot revert a COMPLETED load (400)');
 });
