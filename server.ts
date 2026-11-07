@@ -123,9 +123,13 @@ async function startServer() {
     return routes.some((l: any) => l.match(pathname) && (l.route.methods[method.toLowerCase()] || l.route.methods.all));
   }
 
-  // 2. ROOT HEALTH ROUTE - Minimal public probe with zero diagnostic leakage
+  // 2. ROOT HEALTH & READINESS ROUTES - Minimal public probes with zero diagnostic leakage
   app.get('/health', (req, res) => {
     res.status(200).json({ ok: true });
+  });
+
+  app.get('/ready', (req, res) => {
+    res.status(200).json({ ready: true });
   });
 
   // 3. Per-User and Per-IP Sliding Window Rate Limiting (120 req/min per user, 240 req/min per IP default)
@@ -172,7 +176,7 @@ async function startServer() {
 
     const authHeaderCheck = req.headers.authorization;
     if (
-      (req.method === 'GET' && (req.path === '/api/pricing' || req.path === '/v1/pricing')) ||
+      (req.method === 'GET' && (req.path === '/api/health' || req.path === '/api/ready' || req.path === '/api/pricing' || req.path === '/v1/pricing')) ||
       (req.method === 'POST' && req.path === '/api/auth/signup') ||
       ((req.method === 'GET' || req.method === 'POST') && req.path === '/api/auth/signup/verify-email') ||
       (isPublicRoutingEndpoint && (!authHeaderCheck || !authHeaderCheck.startsWith('Bearer ')))
@@ -388,6 +392,14 @@ async function startServer() {
   app.get(['/api/health', '/health/diagnostic'], async (req, res) => {
     const userRole = (req as any).user?.role;
     if (userRole !== 'owner') {
+      if (req.path === '/api/health') {
+        return res.status(200).json({
+          ok: true,
+          status: 'UP',
+          service: 'TruckWithEase API',
+          timestamp: new Date().toISOString(),
+        });
+      }
       return res.status(403).json({
         error: 'Forbidden',
         message: 'Full system diagnostics restricted to owner role.',
